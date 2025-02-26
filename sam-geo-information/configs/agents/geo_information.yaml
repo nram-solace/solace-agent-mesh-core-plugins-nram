@@ -1,0 +1,66 @@
+# Configuration file for the geographic information agent that provides:
+# - Location Services: City to coordinates conversion
+# - Timezone Services: Timezone lookup, UTC offsets, and DST information
+# - Weather Services: Current conditions, forecasts, and historical data
+
+
+---
+log:
+  stdout_log_level: INFO
+  log_file_level: INFO
+  log_file: solace_ai_connector.log
+
+shared_config:
+  - broker_config: &broker_connection
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL}
+      broker_username: ${SOLACE_BROKER_USERNAME}
+      broker_password: ${SOLACE_BROKER_PASSWORD}
+      broker_vpn: ${SOLACE_BROKER_VPN}
+
+flows:
+  # Flow to handle action requests
+  - name: geo_information_action_request_processor
+    components:
+      # Input from a Solace broker
+      - component_name: broker_input
+        component_module: broker_input
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_geo_information_action_request
+          broker_subscriptions:
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/geo_information/>
+              qos: 1
+
+      # Custom component to process the action request
+      - component_name: action_request_processor
+        # path is completed at build time
+        component_module: {{MODULE_DIRECTORY}}.agents.geo_information.geo_information_agent_component
+        component_config:
+          llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
+          embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
+          agent_name: geo_information
+          geocoding_api_key: ${GEOCODING_API_KEY}
+          weather_api_key: ${WEATHER_API_KEY}
+          # Pass required configuration to the component
+        broker_request_response:
+          enabled: true
+          broker_config: *broker_connection
+          request_expiry_ms: 120000
+          payload_encoding: utf-8
+          payload_format: json
+          response_topic_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+          response_queue_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+        component_input:
+          source_expression: input.payload
+
+      # Output to a Solace broker
+      - component_name: broker_output
+        component_module: broker_output
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          copy_user_properties: true
