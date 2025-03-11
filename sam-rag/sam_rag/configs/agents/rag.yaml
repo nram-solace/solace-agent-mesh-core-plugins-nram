@@ -21,7 +21,6 @@ shared_config:
       temporary_queue: ${USE_TEMPORARY_QUEUES, false}
 
 flows:
-
   # Flow to handle action requests
   - name: rag_action_request_processor
     components:
@@ -43,29 +42,168 @@ flows:
       # Custom component to process the action request
       - component_name: action_request_processor
         component_base_path: .
-         # path is completed at build time
-        component_module: {{MODULE_DIRECTORY}}.agents.rag.rag_agent_component
+        # path is completed at build time
+        component_module: src.agents.rag.rag_agent_component #{{MODULE_DIRECTORY}}.agents.rag.rag_agent_component
         component_config:
           llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
           embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
-          source:
-            type: filesystem
-            directories:
-              - /Users/alirezaparvizimosaed/Desktop/test
-            filters:
-              file_formats:
-                - .txt
-                - .pdf
-              max_file_size: 1048576  # 1 MB
-          database:
-            type: postgresql
-            dbname: rag_metadata
-            host: localhost
-            port: 5432
-            user: admin
-            password: admin
-          schedule:
-            interval: 60 # seconds
+          # Scanner configuration
+          scanner:
+            source:
+              type: filesystem
+              directories:
+                - ${DATA_DIRECTORY, "/data/documents"}
+                - ${ADDITIONAL_DATA_DIRECTORY, "/data/additional"}
+              filters:
+                file_formats:
+                  - ".txt"
+                  - ".pdf"
+                  - ".docx"
+                  - ".md"
+                  - ".html"
+                  - ".csv"
+                  - ".json"
+                max_file_size: 10240  # in KB (10MB)
+            database:
+              type: postgresql
+              dbname: rag_metadata
+              host: localhost
+              port: 5432
+              user: admin
+              password: admin
+            schedule:
+              interval: 60 # seconds
+          
+          # Text splitter configuration
+          splitter:
+            default_splitter:
+              type: recursive_character
+              params:
+                chunk_size: 1000
+                chunk_overlap: 200
+                separators: ["\n\n", "\n", " "]
+            splitters:
+              # Text file configurations
+              text:
+                type: recursive_character
+                params:
+                  chunk_size: 10
+                  chunk_overlap: 2
+                  separators: ["\n\n", "\n", " "]
+              txt:
+                type: recursive_character
+                params:
+                  chunk_size: 1000
+                  chunk_overlap: 200
+              # Structured data configurations
+              json:
+                type: recursive_json
+                params:
+                  chunk_size: 10
+                  chunk_overlap: 2
+              html:
+                type: html
+                params:
+                  chunk_size: 10
+                  chunk_overlap: 2
+                  tags_to_extract: ["p", "h1", "h2", "h3", "li"]
+              markdown:
+                type: markdown
+                params:
+                  chunk_size: 10
+                  chunk_overlap: 2
+                  strip_headers: false
+              csv:
+                type: csv
+                params:
+                  chunk_size: 500
+                  chunk_overlap: 50
+                  delimiter: ","
+          # Embedding configuration
+          embedding:
+            default: "openai"
+            models:
+              # OpenAI embeddings
+              openai:
+                model: ${OPENAI_EMBEDDING_MODEL, "text-embedding-3-small"}
+                dimensions: 1536
+                api_key: ${OPENAI_API_KEY}
+                batch_size: 100
+              # Hugging Face embeddings
+              huggingface:
+                model: ${HF_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
+                dimensions: 384
+                device: ${HF_DEVICE, "cpu"}
+                batch_size: 32
+              # Cohere embeddings
+              cohere:
+                model: ${COHERE_EMBEDDING_MODEL, "embed-english-v3.0"}
+                dimensions: 1024
+                api_key: ${COHERE_API_KEY}
+                batch_size: 96
+              # Local embeddings
+              local:
+                model: ${LOCAL_EMBEDDING_MODEL, "all-MiniLM-L6-v2"}
+                dimensions: 384
+                device: ${LOCAL_DEVICE, "cpu"}
+                batch_size: 32
+          
+          # Vector database configuration
+          vector_db:
+            default: ${VECTOR_DB_TYPE, "chroma"}
+            # Chroma DB configuration
+            chroma:
+              host: ${CHROMA_HOST, "localhost"}
+              port: ${CHROMA_PORT, 8000}
+              collection_name: ${CHROMA_COLLECTION, "documents"}
+              persist_directory: ${CHROMA_PERSIST_DIR, "./chroma_db"}
+              embedding_function: ${CHROMA_EMBEDDING_FUNCTION, "default"}
+            # Pinecone configuration
+            pinecone:
+              api_key: ${PINECONE_API_KEY}
+              environment: ${PINECONE_ENVIRONMENT}
+              index_name: ${PINECONE_INDEX}
+              namespace: ${PINECONE_NAMESPACE, "default"}
+              dimensions: ${PINECONE_DIMENSIONS, 1536}
+              metric: ${PINECONE_METRIC, "cosine"}
+            # Weaviate configuration
+            weaviate:
+              url: ${WEAVIATE_URL}
+              api_key: ${WEAVIATE_API_KEY}
+              class_name: ${WEAVIATE_CLASS, "Document"}
+              batch_size: ${WEAVIATE_BATCH_SIZE, 100}
+              vector_field: ${WEAVIATE_VECTOR_FIELD, "vector"}
+            # Milvus configuration
+            milvus:
+              host: ${MILVUS_HOST, "localhost"}
+              port: ${MILVUS_PORT, 19530}
+              collection_name: ${MILVUS_COLLECTION, "documents"}
+              dimension: ${MILVUS_DIMENSION, 1536}
+              index_type: ${MILVUS_INDEX_TYPE, "IVF_FLAT"}
+              metric_type: ${MILVUS_METRIC_TYPE, "IP"}
+            # FAISS configuration
+            faiss:
+              index_file: ${FAISS_INDEX_FILE, "./faiss_index"}
+              dimension: ${FAISS_DIMENSION, 1536}
+              index_type: ${FAISS_INDEX_TYPE, "IndexFlatIP"}
+              metric_type: ${FAISS_METRIC_TYPE, "ip"}
+            # PostgreSQL with pgvector
+            pgvector:
+              host: ${PGVECTOR_HOST, "localhost"}
+              port: ${PGVECTOR_PORT, 5432}
+              database: ${PGVECTOR_DATABASE, "vectordb"}
+              user: ${PGVECTOR_USER, "postgres"}
+              password: ${PGVECTOR_PASSWORD}
+              table_name: ${PGVECTOR_TABLE, "document_embeddings"}
+              vector_column: ${PGVECTOR_VECTOR_COLUMN, "embedding"}
+              dimension: ${PGVECTOR_DIMENSION, 1536}
+              index_type: ${PGVECTOR_INDEX_TYPE, "ivfflat"}
+            # SQLite with sqlite-vss
+            sqlite_vss:
+              db_path: ${SQLITE_VSS_PATH, "./sqlite_vss.db"}
+              table_name: ${SQLITE_VSS_TABLE, "document_embeddings"}
+              dimension: ${SQLITE_VSS_DIMENSION, 1536}
+        
         broker_request_response:
           enabled: true
           broker_config: *broker_connection
