@@ -14,7 +14,21 @@ authors = [
 description = "A document-ingesting agent that monitors specified directories, keeping stored documents up to date in a vector database for Retrieval-Augmented Generation (RAG) queries."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "PyPDF2>=3.0.0",  # For PDF processing
+    "python-docx>=0.8.11",  # For DOCX processing
+    "beautifulsoup4>=4.11.1",  # For HTML processing
+    "pandas>=1.5.0",  # For Excel processing
+    "odfpy>=1.4.1",  # For ODT processing
+    "lxml>=4.9.1",  # XML parser for BeautifulSoup
+]
+
+[project.optional-dependencies]
+nlp = [
+    "nltk>=3.7",  # For more advanced text processing
+    "spacy>=3.4.0",  # For advanced NLP preprocessing
+    "langdetect>=1.0.9",  # For language detection
+]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src" = "sam_rag/src"

@@ -10,9 +10,9 @@ from solace_ai_connector.common.log import log
 from solace_agent_mesh.common.action import Action
 from solace_agent_mesh.common.action_response import ActionResponse
 
-# Adding imports for file tracking and preprocessing functionality
+# Adding imports for file tracking and ingestor functionality
 from src.agents.rag.services.scanner.file_tracker import FileChangeTracker
-from src.agents.rag.services.preprocessor.preprocessor_service import PreprocessorService
+from src.agents.rag.services.ingestor.ingestor_service import IngestorService
 from src.agents.rag.services.database.model import init_db
 
 # To import from a local file, like this file, use a relative path from the rag
@@ -46,7 +46,7 @@ class IngestionAction(Action):
             },
             **kwargs,
         )
-        self.preprocessor = None
+        self.ingestor = None
 
     def invoke(self, params, meta={}) -> ActionResponse:
         log.debug("Starting document ingestion process")
@@ -54,9 +54,9 @@ class IngestionAction(Action):
         # Initialize database if needed
         # init_db(self.config["database"])
 
-        # Initialize preprocessor if not already initialized
-        if not self.preprocessor:
-            self.preprocessor = PreprocessorService(self.config.get("preprocessor", {}))
+        # Initialize ingestor if not already initialized
+        if not self.ingestor:
+            self.ingestor = IngestorService(self.config)
 
         # Check if specific file paths were provided
         file_paths = params.get("file_paths", [])
@@ -79,23 +79,20 @@ class IngestionAction(Action):
         """
         log.debug(f"Processing {len(file_paths)} specific files")
 
-        # Preprocess the files
-        preprocessed_files = self.preprocessor.preprocess_files(file_paths)
+        # Create metadata for each file
+        metadata = [{"source": file_path} for file_path in file_paths]
 
-        # Count successful preprocessed files
-        successful = sum(1 for _, text in preprocessed_files if text is not None)
+        # Ingest the files
+        result = self.ingestor.ingest_documents(file_paths, metadata)
 
-        # Here you would typically store the preprocessed text in a vector database
-        # For now, we just log the results
-        for file_path, text in preprocessed_files:
-            if text:
-                log.debug(f"Successfully preprocessed: {file_path} ({len(text)} chars)")
-            else:
-                log.debug(f"Failed to preprocess: {file_path}")
-
-        return ActionResponse(
-            message=f"Ingestion completed. Successfully preprocessed {successful} out of {len(file_paths)} files."
-        )
+        if result["success"]:
+            log.info(result["message"])
+            return ActionResponse(message=result["message"])
+        else:
+            log.error(f"Ingestion failed: {result['message']}")
+            return ActionResponse(
+                message=f"Ingestion failed: {result['message']}", error=True
+            )
 
     def _process_file_changes(self) -> ActionResponse:
         """

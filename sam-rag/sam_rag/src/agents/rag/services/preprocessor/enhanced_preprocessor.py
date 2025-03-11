@@ -1,10 +1,11 @@
 """
-Main preprocessor service for handling document preprocessing.
+Enhanced preprocessor for handling various document formats and preprocessing steps.
 """
 
 import os
 from typing import Dict, Any, List, Tuple, Optional
 from .preprocessor_base import PreprocessorBase
+from .text_preprocessor import TextPreprocessor
 from .document_preprocessor import (
     TextFilePreprocessor,
     PDFPreprocessor,
@@ -15,20 +16,31 @@ from .document_preprocessor import (
 )
 
 
-class PreprocessorService:
+class EnhancedPreprocessorService:
     """
-    Service for preprocessing documents of various formats.
+    Enhanced service for preprocessing documents of various formats.
+    This service extends the base PreprocessorService with additional capabilities.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
         """
-        Initialize the preprocessor service.
+        Initialize the enhanced preprocessor service.
 
         Args:
             config: Configuration dictionary.
+                - lowercase: Whether to convert text to lowercase (default: True).
+                - normalize_unicode: Whether to normalize Unicode characters (default: True).
+                - normalize_whitespace: Whether to normalize whitespace (default: True).
+                - remove_punctuation: Whether to remove punctuation (default: True).
+                - remove_special_chars: Whether to remove special characters (default: True).
+                - remove_urls: Whether to remove URLs (default: True).
+                - remove_html_tags: Whether to remove HTML tags (default: True).
+                - remove_numbers: Whether to remove numbers (default: False).
+                - remove_non_ascii: Whether to remove non-ASCII characters (default: False).
         """
         self.config = config or {}
         self.preprocessors: List[PreprocessorBase] = []
+        self.text_preprocessor = TextPreprocessor(self.config)
         self._register_preprocessors()
 
     def _register_preprocessors(self) -> None:
@@ -61,6 +73,19 @@ class PreprocessorService:
                 return preprocessor
         return None
 
+    def _get_file_extension(self, file_path: str) -> str:
+        """
+        Get the file extension from a file path.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            The file extension (lowercase, with leading dot).
+        """
+        _, ext = os.path.splitext(file_path.lower())
+        return ext
+
     def preprocess_file(self, file_path: str) -> Optional[str]:
         """
         Preprocess a single file.
@@ -77,7 +102,11 @@ class PreprocessorService:
 
         preprocessor = self._get_preprocessor(file_path)
         if preprocessor:
-            return preprocessor.preprocess(file_path)
+            try:
+                return preprocessor.preprocess(file_path)
+            except Exception as e:
+                print(f"Error preprocessing file {file_path}: {str(e)}")
+                return None
         else:
             print(f"No suitable preprocessor found for file: {file_path}")
             return None
@@ -99,6 +128,23 @@ class PreprocessorService:
         for file_path in file_paths:
             preprocessed_text = self.preprocess_file(file_path)
             results.append((file_path, preprocessed_text))
+        return results
+
+    def preprocess_file_list(self, file_paths: List[str]) -> Dict[str, str]:
+        """
+        Preprocess a list of files and return a dictionary mapping file paths to preprocessed text.
+
+        Args:
+            file_paths: List of file paths.
+
+        Returns:
+            Dictionary mapping file paths to preprocessed text.
+            Files that could not be processed will not be included in the dictionary.
+        """
+        results = {}
+        for file_path, text in self.preprocess_files(file_paths):
+            if text:
+                results[file_path] = text
         return results
 
     def get_supported_extensions(self) -> List[str]:
@@ -123,3 +169,30 @@ class PreprocessorService:
             elif isinstance(preprocessor, ODTPreprocessor):
                 extensions.append(".odt")
         return list(set(extensions))  # Remove duplicates
+
+    def get_file_format(self, file_path: str) -> str:
+        """
+        Get the file format from a file path.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            The file format (e.g., "pdf", "docx", "txt").
+        """
+        ext = self._get_file_extension(file_path)
+        if ext:
+            return ext[1:]  # Remove the leading dot
+        return "unknown"
+
+    def clean_text(self, text: str) -> str:
+        """
+        Clean and normalize text using the text preprocessor.
+
+        Args:
+            text: The text to clean.
+
+        Returns:
+            Cleaned and normalized text.
+        """
+        return self.text_preprocessor.preprocess(text)

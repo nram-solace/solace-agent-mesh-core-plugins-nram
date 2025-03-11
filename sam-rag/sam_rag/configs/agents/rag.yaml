@@ -74,6 +74,79 @@ flows:
             schedule:
               interval: 60 # seconds
           
+          # # Preprocessor configuration
+          # preprocessor:
+          #   default_preprocessor:
+          #     type: enhanced
+          #     params:
+          #       remove_stopwords: false
+          #       remove_punctuation: false
+          #       lowercase: true
+          #       strip_html: true
+          #       strip_xml: true
+          #       fix_unicode: true
+          #       normalize_whitespace: true
+          #       remove_urls: false
+          #       remove_emails: false
+          #       language: "en"
+            
+          #   preprocessors:
+          #     # Text file configurations
+          #     text:
+          #       type: text
+          #       params:
+          #         remove_stopwords: false
+          #         remove_punctuation: false
+          #         lowercase: true
+          #         normalize_whitespace: true
+              
+          #     # Document file configurations
+          #     pdf:
+          #       type: document
+          #       params:
+          #         extract_images: false
+          #         extract_tables: true
+          #         ocr_enabled: false
+          #         language: "en"
+              
+          #     docx:
+          #       type: document
+          #       params:
+          #         extract_headers: true
+          #         extract_footers: true
+          #         extract_comments: false
+          #         extract_images: false
+              
+          #     # Structured data configurations
+          #     json:
+          #       type: structured
+          #       params:
+          #         flatten_nested: false
+          #         extract_keys: []
+          #         ignore_keys: []
+              
+          #     html:
+          #       type: html
+          #       params:
+          #         extract_text_only: true
+          #         preserve_structure: true
+          #         extract_metadata: true
+          #         tags_to_extract: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "span", "div"]
+              
+          #     markdown:
+          #       type: markdown
+          #       params:
+          #         strip_html: true
+          #         preserve_links: true
+          #         preserve_images: false
+              
+          #     csv:
+          #       type: csv
+          #       params:
+          #         header_handling: "use_first_row"
+          #         delimiter: ","
+          #         quote_char: "\""
+          
           # Text splitter configuration
           splitter:
             default_splitter:
@@ -150,59 +223,66 @@ flows:
           
           # Vector database configuration
           vector_db:
-            default: ${VECTOR_DB_TYPE, "chroma"}
-            # Chroma DB configuration
-            chroma:
-              host: ${CHROMA_HOST, "localhost"}
-              port: ${CHROMA_PORT, 8000}
-              collection_name: ${CHROMA_COLLECTION, "documents"}
-              persist_directory: ${CHROMA_PERSIST_DIR, "./chroma_db"}
-              embedding_function: ${CHROMA_EMBEDDING_FUNCTION, "default"}
-            # Pinecone configuration
-            pinecone:
-              api_key: ${PINECONE_API_KEY}
-              environment: ${PINECONE_ENVIRONMENT}
-              index_name: ${PINECONE_INDEX}
-              namespace: ${PINECONE_NAMESPACE, "default"}
-              dimensions: ${PINECONE_DIMENSIONS, 1536}
-              metric: ${PINECONE_METRIC, "cosine"}
-            # Weaviate configuration
-            weaviate:
-              url: ${WEAVIATE_URL}
-              api_key: ${WEAVIATE_API_KEY}
-              class_name: ${WEAVIATE_CLASS, "Document"}
-              batch_size: ${WEAVIATE_BATCH_SIZE, 100}
-              vector_field: ${WEAVIATE_VECTOR_FIELD, "vector"}
-            # Milvus configuration
-            milvus:
-              host: ${MILVUS_HOST, "localhost"}
-              port: ${MILVUS_PORT, 19530}
-              collection_name: ${MILVUS_COLLECTION, "documents"}
-              dimension: ${MILVUS_DIMENSION, 1536}
-              index_type: ${MILVUS_INDEX_TYPE, "IVF_FLAT"}
-              metric_type: ${MILVUS_METRIC_TYPE, "IP"}
-            # FAISS configuration
-            faiss:
-              index_file: ${FAISS_INDEX_FILE, "./faiss_index"}
-              dimension: ${FAISS_DIMENSION, 1536}
-              index_type: ${FAISS_INDEX_TYPE, "IndexFlatIP"}
-              metric_type: ${FAISS_METRIC_TYPE, "ip"}
-            # PostgreSQL with pgvector
-            pgvector:
-              host: ${PGVECTOR_HOST, "localhost"}
-              port: ${PGVECTOR_PORT, 5432}
-              database: ${PGVECTOR_DATABASE, "vectordb"}
-              user: ${PGVECTOR_USER, "postgres"}
-              password: ${PGVECTOR_PASSWORD}
-              table_name: ${PGVECTOR_TABLE, "document_embeddings"}
-              vector_column: ${PGVECTOR_VECTOR_COLUMN, "embedding"}
-              dimension: ${PGVECTOR_DIMENSION, 1536}
-              index_type: ${PGVECTOR_INDEX_TYPE, "ivfflat"}
-            # SQLite with sqlite-vss
-            sqlite_vss:
-              db_path: ${SQLITE_VSS_PATH, "./sqlite_vss.db"}
-              table_name: ${SQLITE_VSS_TABLE, "document_embeddings"}
-              dimension: ${SQLITE_VSS_DIMENSION, 1536}
+            default: ${VECTOR_DB_TYPE, "qdrant"}
+            # Qdrant configuration
+            qdrant:
+              host: ${QDRANT_HOST, "https://a57f2ac6-9d41-4a31-ab55-1194fc952bff.europe-west3-0.gcp.cloud.qdrant.io"}
+              port: ${QDRANT_PORT, 8080}
+              collection_name: ${QDRANT_COLLECTION, "documents"}
+              embedding_function: ${QDRANT_EMBEDDING_FUNCTION, "default"}
+              distance: ${QDRANT_DISTANCE, "Cosine"}
+            # # Chroma DB configuration
+            # chroma:
+            #   host: ${CHROMA_HOST, "localhost"}
+            #   port: ${CHROMA_PORT, 8000}
+            #   collection_name: ${CHROMA_COLLECTION, "documents"}
+            #   persist_directory: ${CHROMA_PERSIST_DIR, "./chroma_db"}
+            #   embedding_function: ${CHROMA_EMBEDDING_FUNCTION, "default"}
+            # # Pinecone configuration
+            # pinecone:
+            #   api_key: ${PINECONE_API_KEY}
+            #   environment: ${PINECONE_ENVIRONMENT}
+            #   index_name: ${PINECONE_INDEX}
+            #   namespace: ${PINECONE_NAMESPACE, "default"}
+            #   dimensions: ${PINECONE_DIMENSIONS, 1536}
+            #   metric: ${PINECONE_METRIC, "cosine"}
+            # # Weaviate configuration
+            # weaviate:
+            #   url: ${WEAVIATE_URL}
+            #   api_key: ${WEAVIATE_API_KEY}
+            #   class_name: ${WEAVIATE_CLASS, "Document"}
+            #   batch_size: ${WEAVIATE_BATCH_SIZE, 100}
+            #   vector_field: ${WEAVIATE_VECTOR_FIELD, "vector"}
+            # # Milvus configuration
+            # milvus:
+            #   host: ${MILVUS_HOST, "localhost"}
+            #   port: ${MILVUS_PORT, 19530}
+            #   collection_name: ${MILVUS_COLLECTION, "documents"}
+            #   dimension: ${MILVUS_DIMENSION, 1536}
+            #   index_type: ${MILVUS_INDEX_TYPE, "IVF_FLAT"}
+            #   metric_type: ${MILVUS_METRIC_TYPE, "IP"}
+            # # FAISS configuration
+            # faiss:
+            #   index_file: ${FAISS_INDEX_FILE, "./faiss_index"}
+            #   dimension: ${FAISS_DIMENSION, 1536}
+            #   index_type: ${FAISS_INDEX_TYPE, "IndexFlatIP"}
+            #   metric_type: ${FAISS_METRIC_TYPE, "ip"}
+            # # PostgreSQL with pgvector
+            # pgvector:
+            #   host: ${PGVECTOR_HOST, "localhost"}
+            #   port: ${PGVECTOR_PORT, 5432}
+            #   database: ${PGVECTOR_DATABASE, "vectordb"}
+            #   user: ${PGVECTOR_USER, "postgres"}
+            #   password: ${PGVECTOR_PASSWORD}
+            #   table_name: ${PGVECTOR_TABLE, "document_embeddings"}
+            #   vector_column: ${PGVECTOR_VECTOR_COLUMN, "embedding"}
+            #   dimension: ${PGVECTOR_DIMENSION, 1536}
+            #   index_type: ${PGVECTOR_INDEX_TYPE, "ivfflat"}
+            # # SQLite with sqlite-vss
+            # sqlite_vss:
+            #   db_path: ${SQLITE_VSS_PATH, "./sqlite_vss.db"}
+            #   table_name: ${SQLITE_VSS_TABLE, "document_embeddings"}
+            #   dimension: ${SQLITE_VSS_DIMENSION, 1536}
         
         broker_request_response:
           enabled: true

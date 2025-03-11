@@ -3,8 +3,7 @@ Document preprocessors for various file formats.
 """
 
 import os
-import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from .preprocessor_base import PreprocessorBase
 from .text_preprocessor import TextPreprocessor
 

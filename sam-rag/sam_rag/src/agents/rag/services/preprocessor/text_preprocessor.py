@@ -4,7 +4,7 @@ Text preprocessing utilities for cleaning and normalizing text.
 
 import re
 import unicodedata
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 
 class TextPreprocessor:
