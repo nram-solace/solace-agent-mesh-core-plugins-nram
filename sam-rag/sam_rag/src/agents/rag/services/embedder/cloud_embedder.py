@@ -22,6 +22,7 @@ class OpenAIEmbedder(EmbedderBase):
                 - model: The model to use (default: "text-embedding-ada-002").
                 - batch_size: The batch size to use (default: 32).
                 - dimensions: The dimensions of the embeddings (default: None, which uses the model's default).
+                - base_url: The base URL for the OpenAI API (default: None).
         """
         super().__init__(config)
         self.api_key = self.config.get("api_key")
@@ -30,6 +31,7 @@ class OpenAIEmbedder(EmbedderBase):
 
         self.model = self.config.get("model", "text-embedding-ada-002")
         self.dimensions = self.config.get("dimensions", None)
+        self.base_url = self.config.get("base_url", None)
         self.client = None
         self._setup_client()
 
@@ -40,9 +42,11 @@ class OpenAIEmbedder(EmbedderBase):
         try:
             from openai import OpenAI
 
-            self.client = OpenAI(
-                api_key=self.api_key,
-            )
+            client_kwargs = {"api_key": self.api_key}
+            if self.base_url:
+                client_kwargs["base_url"] = self.base_url
+
+            self.client = OpenAI(**client_kwargs)
         except ImportError:
             raise ImportError(
                 "The openai package is required for OpenAIEmbedder. "

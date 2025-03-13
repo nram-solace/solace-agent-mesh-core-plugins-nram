@@ -62,12 +62,12 @@ class RAGPipeline:
         # Initialize components
         self.preprocessor = DocumentProcessor(self.config.get("preprocessor", {}))
         self.splitter = SplitterService(self.config.get("splitter", {}))
-        self.embedder = EmbedderService(self.config.get("embedder", {}))
+        self.embedder = EmbedderService(self.config.get("embedding", {}))
         self.ingestor = IngestorService(
             {
                 "preprocessor": self.config.get("preprocessor", {}),
                 "splitter": self.config.get("splitter", {}),
-                "embedder": self.config.get("embedder", {}),
+                "embedder": self.config.get("embedding", {}),
                 "vector_db": self.config.get("vector_db", {}),
             }
         )
@@ -104,58 +104,58 @@ class RAGPipeline:
             logger.error(f"Error loading configuration from {config_path}: {str(e)}")
             return {}
 
-    def process_documents(
-        self, documents: List[str], document_types: Optional[List[str]] = None
+    def process_files(
+        self, file_paths: List[str], document_types: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Process documents through the RAG pipeline.
+        Process files through the RAG pipeline.
 
         Args:
-            documents: List of document file paths or content strings.
+            file_paths: List of file paths to process.
             document_types: Optional list of document types (e.g., "pdf", "text", "html").
                 If not provided, types will be inferred from file extensions.
 
         Returns:
             A dictionary containing the processing results.
         """
-        logger.info(f"Processing {len(documents)} documents through the RAG pipeline")
+        logger.info(f"Processing {len(file_paths)} files through the RAG pipeline")
 
-        # Step 1: Preprocess documents
+        # Step 1: Preprocess files
         preprocessed_docs = []
         preprocessed_metadata = []
 
-        for i, doc in enumerate(documents):
+        for i, file_path in enumerate(file_paths):
             try:
-                # Check if the document is a file path or content string
-                if os.path.exists(doc):
-                    # Process as a file
-                    text = self.preprocessor.process_document(doc)
-                    doc_type = (
-                        document_types[i]
-                        if document_types and i < len(document_types)
-                        else self._get_file_type(doc)
-                    )
-                    source = doc
-                else:
-                    # Process as a content string
-                    text = self.preprocessor.clean_text(doc)
-                    doc_type = (
-                        document_types[i]
-                        if document_types and i < len(document_types)
-                        else "text"
-                    )
-                    source = f"document_{i}"
+                # Verify the file exists
+                if not os.path.exists(file_path):
+                    logger.warning(f"File not found: {file_path}")
+                    continue
+
+                # Process the file
+                text = self.preprocessor.process_document(file_path)
+                doc_type = (
+                    document_types[i]
+                    if document_types and i < len(document_types)
+                    else self._get_file_type(file_path)
+                )
 
                 if text:
                     preprocessed_docs.append(text)
                     preprocessed_metadata.append(
-                        {"source": source, "document_type": doc_type, "index": i}
+                        {
+                            "source": file_path,
+                            "document_type": doc_type,
+                            "file_name": os.path.basename(file_path),
+                            "index": i,
+                        }
                     )
-                    logger.info(f"Successfully preprocessed document {i} ({doc_type})")
+                    logger.info(
+                        f"Successfully preprocessed file: {file_path} ({doc_type})"
+                    )
                 else:
-                    logger.warning(f"Failed to preprocess document {i}")
+                    logger.warning(f"Failed to preprocess file: {file_path}")
             except Exception as e:
-                logger.error(f"Error preprocessing document {i}: {str(e)}")
+                logger.error(f"Error preprocessing file {file_path}: {str(e)}")
 
         if not preprocessed_docs:
             logger.warning("No documents were successfully preprocessed")
@@ -208,7 +208,10 @@ class RAGPipeline:
         # Step 4: Ingest embeddings into vector database
         try:
             # Use the ingestor service to store the embeddings
-            result = self.ingestor.ingest_texts(chunks, chunks_metadata)
+            # Note: Using the new ingest_embeddings method that takes both chunks and embeddings
+            result = self.ingestor.ingestor.ingest_embeddings(
+                texts=chunks, embeddings=embeddings, metadata=chunks_metadata
+            )
             logger.info(f"Ingestion result: {result['message']}")
             return result
         except Exception as e:
@@ -246,94 +249,136 @@ class RAGPipeline:
         Returns:
             A list of dictionaries containing the search results.
         """
-        return self.ingestor.search(query, top_k, filter)
+        # Process and embed the query
+        try:
+            # Clean the query text
+            processed_query = query  # self.preprocessor.(query)
+
+            # Embed the query
+            query_embedding = self.embedder.embed_text(processed_query)
+
+            # Search using the query embedding
+            return self.ingestor.ingestor.search(query_embedding, top_k, filter)
+        except Exception as e:
+            logger.error(f"Error searching for query: {str(e)}")
+            return []
+
+    def process_documents(
+        self, documents: List[str], document_types: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process documents through the RAG pipeline.
+        This method handles both file paths and content strings.
+
+        Args:
+            documents: List of document file paths or content strings.
+            document_types: Optional list of document types (e.g., "pdf", "text", "html").
+                If not provided, types will be inferred from file extensions.
+
+        Returns:
+            A dictionary containing the processing results.
+        """
+        logger.info(f"Processing {len(documents)} documents through the RAG pipeline")
+
+        # Step 1: Preprocess documents
+        preprocessed_docs = []
+        preprocessed_metadata = []
+
+        for i, doc in enumerate(documents):
+            try:
+                # Check if the document is a file path or content string
+                if os.path.exists(doc):
+                    # Process as a file
+                    text = self.preprocessor.process_document(doc)
+                    doc_type = (
+                        document_types[i]
+                        if document_types and i < len(document_types)
+                        else self._get_file_type(doc)
+                    )
+                    source = doc
+                else:
+                    # Process as a content string
+                    text = self.preprocessor.clean_text(doc)
+                    doc_type = (
+                        document_types[i]
+                        if document_types and i < len(document_types)
+                        else "text"
+                    )
+                    source = f"document_{i}"
+
+                if text:
+                    preprocessed_docs.append(text)
+                    preprocessed_metadata.append(
+                        {"source": source, "document_type": doc_type, "index": i}
+                    )
+                    logger.info(f"Successfully preprocessed document {i} ({doc_type})")
+                else:
+                    logger.warning(f"Failed to preprocess document {i}")
+            except Exception as e:
+                logger.error(f"Error preprocessing document {i}: {str(e)}")
+
+
+def create_sample_files() -> List[str]:
+    """
+    Create sample files for demonstration.
+
+    Returns:
+        A list of file paths to the created sample files.
+    """
+    import tempfile
+
+    # Create a temporary directory
+    temp_dir = tempfile.mkdtemp()
+    logger.info(f"Created temporary directory: {temp_dir}")
+
+    # Create sample files
+    file_paths = []
+
+    # Create a sample markdown file
+    txt_file_path = os.path.join(temp_dir, "rag_overview.md")
+    with open(txt_file_path, "w") as f:
+        f.write(
+            """
+# Retrieval-Augmented Generation (RAG)
+
+Retrieval-Augmented Generation (RAG) is a technique that combines retrieval-based and generation-based approaches
+for natural language processing tasks. It enhances large language models by retrieving relevant information from
+external knowledge sources before generating responses.
+
+## How RAG Works
+
+1. **Retrieval**: Given a query, retrieve relevant documents from a corpus.
+2. **Augmentation**: Augment the query with the retrieved documents.
+3. **Generation**: Generate a response based on the augmented query.
+
+## Benefits of RAG
+
+- Improved accuracy
+- Reduced hallucinations
+- Better factual grounding
+- More up-to-date information
+        """
+        )
+    file_paths.append(txt_file_path)
+    logger.info(f"Created sample markdown file: {txt_file_path}")
+    return file_paths
 
 
 def main():
     """
-    Main function to demonstrate the RAG pipeline.
+    Main function to demonstrate the RAG pipeline with file processing.
     """
-    # Sample documents for demonstration
-    sample_documents = [
-        # Sample text content
-        """
-        # Retrieval-Augmented Generation (RAG)
-        
-        Retrieval-Augmented Generation (RAG) is a technique that combines retrieval-based and generation-based approaches
-        for natural language processing tasks. It enhances large language models by retrieving relevant information from
-        external knowledge sources before generating responses.
-        
-        ## How RAG Works
-        
-        1. **Retrieval**: Given a query, retrieve relevant documents from a corpus.
-        2. **Augmentation**: Augment the query with the retrieved documents.
-        3. **Generation**: Generate a response based on the augmented query.
-        
-        ## Benefits of RAG
-        
-        - Improved accuracy
-        - Reduced hallucinations
-        - Better factual grounding
-        - More up-to-date information
-        """,
-        # Sample JSON content
-        """
-        {
-            "title": "Vector Databases",
-            "description": "A comparison of vector databases for RAG applications",
-            "databases": [
-                {
-                    "name": "Qdrant",
-                    "description": "An open-source vector search engine",
-                    "features": ["High performance", "Scalable", "Python API"]
-                },
-                {
-                    "name": "FAISS",
-                    "description": "A library for efficient similarity search",
-                    "features": ["Fast", "Scalable", "Memory-efficient"]
-                },
-                {
-                    "name": "Milvus",
-                    "description": "An open-source vector database",
-                    "features": ["Cloud-native", "Scalable", "High performance"]
-                }
-            ]
-        }
-        """,
-        # Sample HTML content
-        """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Text Splitter Example</title>
-        </head>
-        <body>
-            <h1>Text Splitter Example</h1>
-            <p>This is an example of HTML content that will be split by the HTML splitter.</p>
-            
-            <h2>Features</h2>
-            <ul>
-                <li>Splits HTML content based on tags</li>
-                <li>Preserves the structure of the HTML</li>
-                <li>Handles nested elements</li>
-            </ul>
-            
-            <h2>How it Works</h2>
-            <p>The HTML splitter uses BeautifulSoup to parse the HTML and extract text from specified tags.</p>
-            <p>It can be configured to split by different tags, such as paragraphs, divs, or sections.</p>
-        </body>
-        </html>
-        """,
-    ]
+    # Create sample files
+    file_paths = create_sample_files()
 
-    # Document types
-    document_types = ["markdown", "json", "html"]
+    # Document types (optional, will be inferred from file extensions if not provided)
+    document_types = ["text"]
 
     # Initialize the RAG pipeline
     pipeline = RAGPipeline()
 
-    # Process the documents
-    result = pipeline.process_documents(sample_documents, document_types)
+    # Process the files
+    result = pipeline.process_files(file_paths, document_types)
 
     # Print the result
     print(f"\nProcessing result: {result['message']}")

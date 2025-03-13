@@ -74,78 +74,78 @@ flows:
             schedule:
               interval: 60 # seconds
           
-          # # Preprocessor configuration
-          # preprocessor:
-          #   default_preprocessor:
-          #     type: enhanced
-          #     params:
-          #       remove_stopwords: false
-          #       remove_punctuation: false
-          #       lowercase: true
-          #       strip_html: true
-          #       strip_xml: true
-          #       fix_unicode: true
-          #       normalize_whitespace: true
-          #       remove_urls: false
-          #       remove_emails: false
-          #       language: "en"
+          # Preprocessor configuration
+          preprocessor:
+            default_preprocessor:
+              type: enhanced
+              params:
+                remove_stopwords: false
+                remove_punctuation: false
+                lowercase: true
+                strip_html: true
+                strip_xml: true
+                fix_unicode: true
+                normalize_whitespace: true
+                remove_urls: false
+                remove_emails: false
+                language: "en"
             
-          #   preprocessors:
-          #     # Text file configurations
-          #     text:
-          #       type: text
-          #       params:
-          #         remove_stopwords: false
-          #         remove_punctuation: false
-          #         lowercase: true
-          #         normalize_whitespace: true
+            preprocessors:
+              # Text file configurations
+              text:
+                type: text
+                params:
+                  remove_stopwords: false
+                  remove_punctuation: false
+                  lowercase: true
+                  normalize_whitespace: true
               
-          #     # Document file configurations
-          #     pdf:
-          #       type: document
-          #       params:
-          #         extract_images: false
-          #         extract_tables: true
-          #         ocr_enabled: false
-          #         language: "en"
+              # Document file configurations
+              pdf:
+                type: document
+                params:
+                  extract_images: false
+                  extract_tables: true
+                  ocr_enabled: false
+                  language: "en"
               
-          #     docx:
-          #       type: document
-          #       params:
-          #         extract_headers: true
-          #         extract_footers: true
-          #         extract_comments: false
-          #         extract_images: false
+              docx:
+                type: document
+                params:
+                  extract_headers: true
+                  extract_footers: true
+                  extract_comments: false
+                  extract_images: false
               
-          #     # Structured data configurations
-          #     json:
-          #       type: structured
-          #       params:
-          #         flatten_nested: false
-          #         extract_keys: []
-          #         ignore_keys: []
+              # Structured data configurations
+              json:
+                type: structured
+                params:
+                  flatten_nested: false
+                  extract_keys: []
+                  ignore_keys: []
               
-          #     html:
-          #       type: html
-          #       params:
-          #         extract_text_only: true
-          #         preserve_structure: true
-          #         extract_metadata: true
-          #         tags_to_extract: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "span", "div"]
+              html:
+                type: html
+                params:
+                  extract_text_only: true
+                  preserve_structure: true
+                  extract_metadata: true
+                  tags_to_extract: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "span", "div"]
               
-          #     markdown:
-          #       type: markdown
-          #       params:
-          #         strip_html: true
-          #         preserve_links: true
-          #         preserve_images: false
+              markdown:
+                type: markdown
+                params:
+                  strip_html: true
+                  preserve_links: true
+                  preserve_images: false
               
-          #     csv:
-          #       type: csv
-          #       params:
-          #         header_handling: "use_first_row"
-          #         delimiter: ","
-          #         quote_char: "\""
+              csv:
+                type: csv
+                params:
+                  header_handling: "use_first_row"
+                  delimiter: ","
+                  quote_char: "\""
           
           # Text splitter configuration
           splitter:
@@ -160,8 +160,8 @@ flows:
               text:
                 type: recursive_character
                 params:
-                  chunk_size: 10
-                  chunk_overlap: 2
+                  chunk_size: 1000
+                  chunk_overlap: 200
                   separators: ["\n\n", "\n", " "]
               txt:
                 type: recursive_character
@@ -172,65 +172,73 @@ flows:
               json:
                 type: recursive_json
                 params:
-                  chunk_size: 10
-                  chunk_overlap: 2
+                  chunk_size: 1000
+                  chunk_overlap: 200
               html:
                 type: html
                 params:
-                  chunk_size: 10
-                  chunk_overlap: 2
+                  chunk_size: 1000
+                  chunk_overlap: 200
                   tags_to_extract: ["p", "h1", "h2", "h3", "li"]
               markdown:
                 type: markdown
                 params:
-                  chunk_size: 10
-                  chunk_overlap: 2
+                  chunk_size: 1000
+                  chunk_overlap: 200
                   strip_headers: false
               csv:
                 type: csv
                 params:
-                  chunk_size: 500
-                  chunk_overlap: 50
+                  chunk_size: 1000
+                  chunk_overlap: 200
                   delimiter: ","
           # Embedding configuration
           embedding:
-            default: "openai"
-            models:
+            # default: "openai"
+            embedder_type: "openai"
+            embedder_params:
               # OpenAI embeddings
-              openai:
-                model: ${OPENAI_EMBEDDING_MODEL, "text-embedding-3-small"}
-                dimensions: 1536
-                api_key: ${OPENAI_API_KEY}
-                batch_size: 100
-              # Hugging Face embeddings
-              huggingface:
-                model: ${HF_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
-                dimensions: 384
-                device: ${HF_DEVICE, "cpu"}
-                batch_size: 32
-              # Cohere embeddings
-              cohere:
-                model: ${COHERE_EMBEDDING_MODEL, "embed-english-v3.0"}
-                dimensions: 1024
-                api_key: ${COHERE_API_KEY}
-                batch_size: 96
-              # Local embeddings
-              local:
-                model: ${LOCAL_EMBEDDING_MODEL, "all-MiniLM-L6-v2"}
-                dimensions: 384
-                device: ${LOCAL_DEVICE, "cpu"}
-                batch_size: 32
+              model: "bedrock-cohere-embed-english-v3" #${OPENAI_EMBEDDING_MODEL, "text-embedding-3-small"}
+              api_key: sk-AuOItNUssenat1iIcA2qlQ #${OPENAI_API_KEY}
+              base_url: https://lite-llm.mymaas.net #${OPENAI_API_ENDPOINT}
+              batch_size: 100
+            normalize_embeddings: True
+
+            # # Hugging Face embeddings
+            # embedder_type: "huggingface"
+            # embedder_params:
+            #     model: ${HF_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
+            #     dimensions: 1536
+            #     device: ${HF_DEVICE, "cpu"}
+            #     batch_size: 32
+
+            #   # Cohere embeddings
+            #   embedder_type: "cohere"
+            #   embedder_params:
+            #     model: ${COHERE_EMBEDDING_MODEL, "embed-english-v3.0"}
+            #     dimensions: 1024
+            #     api_key: ${COHERE_API_KEY}
+            #     batch_size: 96
+
+            #   # Local embeddings
+            #   embedder_type: "local"
+            #   embedder_params:
+            #     model: ${LOCAL_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
+            #     dimensions: 1536
+            #     device: ${LOCAL_DEVICE, "cpu"}
+            #     batch_size: 32
           
           # Vector database configuration
           vector_db:
-            default: ${VECTOR_DB_TYPE, "qdrant"}
-            # Qdrant configuration
-            qdrant:
-              host: ${QDRANT_HOST, "https://a57f2ac6-9d41-4a31-ab55-1194fc952bff.europe-west3-0.gcp.cloud.qdrant.io"}
-              port: ${QDRANT_PORT, 8080}
-              collection_name: ${QDRANT_COLLECTION, "documents"}
-              embedding_function: ${QDRANT_EMBEDDING_FUNCTION, "default"}
-              distance: ${QDRANT_DISTANCE, "Cosine"}
+            # Qdrant
+            db_type: "qdrant"
+            db_params:
+              url: "https://a57f2ac6-9d41-4a31-ab55-1194fc952bff.europe-west3-0.gcp.cloud.qdrant.io" #${QDRANT_URL}
+              api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.n2k3wVZneKUv6Q2hX3v7DXeKdPYW8rWxLgfYuzNFlJQ #${QDRANT_API_KEY}
+              collection_name: "sample" #${QDRANT_COLLECTION}
+              embedding_dimension: 1024 #${QDRANT_EMBEDDING_DIMENSION, 1536}
+              # distance: ${QDRANT_DISTANCE, "Cosine"}
+
             # # Chroma DB configuration
             # chroma:
             #   host: ${CHROMA_HOST, "localhost"}
@@ -239,6 +247,7 @@ flows:
             #   persist_directory: ${CHROMA_PERSIST_DIR, "./chroma_db"}
             #   embedding_function: ${CHROMA_EMBEDDING_FUNCTION, "default"}
             # # Pinecone configuration
+
             # pinecone:
             #   api_key: ${PINECONE_API_KEY}
             #   environment: ${PINECONE_ENVIRONMENT}
@@ -247,6 +256,7 @@ flows:
             #   dimensions: ${PINECONE_DIMENSIONS, 1536}
             #   metric: ${PINECONE_METRIC, "cosine"}
             # # Weaviate configuration
+
             # weaviate:
             #   url: ${WEAVIATE_URL}
             #   api_key: ${WEAVIATE_API_KEY}
@@ -254,6 +264,7 @@ flows:
             #   batch_size: ${WEAVIATE_BATCH_SIZE, 100}
             #   vector_field: ${WEAVIATE_VECTOR_FIELD, "vector"}
             # # Milvus configuration
+
             # milvus:
             #   host: ${MILVUS_HOST, "localhost"}
             #   port: ${MILVUS_PORT, 19530}
@@ -262,12 +273,14 @@ flows:
             #   index_type: ${MILVUS_INDEX_TYPE, "IVF_FLAT"}
             #   metric_type: ${MILVUS_METRIC_TYPE, "IP"}
             # # FAISS configuration
+
             # faiss:
             #   index_file: ${FAISS_INDEX_FILE, "./faiss_index"}
             #   dimension: ${FAISS_DIMENSION, 1536}
             #   index_type: ${FAISS_INDEX_TYPE, "IndexFlatIP"}
             #   metric_type: ${FAISS_METRIC_TYPE, "ip"}
             # # PostgreSQL with pgvector
+
             # pgvector:
             #   host: ${PGVECTOR_HOST, "localhost"}
             #   port: ${PGVECTOR_PORT, 5432}
@@ -278,6 +291,7 @@ flows:
             #   vector_column: ${PGVECTOR_VECTOR_COLUMN, "embedding"}
             #   dimension: ${PGVECTOR_DIMENSION, 1536}
             #   index_type: ${PGVECTOR_INDEX_TYPE, "ivfflat"}
+
             # # SQLite with sqlite-vss
             # sqlite_vss:
             #   db_path: ${SQLITE_VSS_PATH, "./sqlite_vss.db"}
