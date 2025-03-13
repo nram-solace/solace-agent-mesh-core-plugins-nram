@@ -110,9 +110,7 @@ class PreprocessorService:
         """
         extensions = []
         for preprocessor in self.preprocessors:
-            if hasattr(preprocessor, "extensions"):
-                extensions.extend(preprocessor.extensions)
-            elif isinstance(preprocessor, PDFPreprocessor):
+            if isinstance(preprocessor, PDFPreprocessor):
                 extensions.append(".pdf")
             elif isinstance(preprocessor, DocxPreprocessor):
                 extensions.extend([".doc", ".docx"])
