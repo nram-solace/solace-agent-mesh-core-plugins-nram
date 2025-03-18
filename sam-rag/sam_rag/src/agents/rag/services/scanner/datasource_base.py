@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Any
 
 
 # Abstract base class for data sources
@@ -12,16 +12,18 @@ class DataSource(ABC):
         """
         Initialize the DataSource with the given configuration.
 
-        :param config: A dictionary containing the configuration.
+        Args:
+            config: A dictionary containing the configuration.
         """
         self.config = config
 
     @abstractmethod
-    def process_config(self) -> List[str]:
+    def process_config(self, source: Dict = {}) -> None:
         """
-        Retrieve the list of files from the data source.
+        Process the source configuration.
 
-        :return: A list of file paths.
+        Args:
+            source: A dictionary containing the source configuration.
         """
         pass
 
@@ -33,3 +35,12 @@ class DataSource(ABC):
         This method should be implemented by concrete data source classes.
         """
         pass
+
+    def get_tracked_files(self) -> List[Dict[str, Any]]:
+        """
+        Get all tracked files.
+
+        Returns:
+            A list of tracked files with their metadata.
+        """
+        return []

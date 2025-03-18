@@ -21,6 +21,12 @@ dependencies = [
     "pandas>=1.5.0",  # For Excel processing
     "odfpy>=1.4.1",  # For ODT processing
     "lxml>=4.9.1",  # XML parser for BeautifulSoup
+    "PyYAML~=6.0.2",  # For YAML processing
+    "beautifulsoup4>=4.13.3",  # Updated to the latest version
+    "openai~=1.66.3",  # For OpenAI API access
+    "qdrant-client~=1.13.3",  # For Qdrant vector database access
+    "PyPDF2~=3.0.1",  # For PDF processing
+    "watchdog==6.0.0"  # Fixed syntax for watchdog dependency
 ]
 
 [project.optional-dependencies]

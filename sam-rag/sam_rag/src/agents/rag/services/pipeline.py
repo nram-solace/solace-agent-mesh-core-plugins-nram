@@ -14,12 +14,20 @@ Usage:
 import os
 import yaml
 import logging
+import threading
+import time
 from typing import Dict, List, Any, Optional, Tuple
 
 from src.agents.rag.services.preprocessor.document_processor import DocumentProcessor
 from src.agents.rag.services.splitter.splitter_service import SplitterService
 from src.agents.rag.services.embedder.embedder_service import EmbedderService
 from src.agents.rag.services.ingestor.ingestor_service import IngestorService
+
+from src.agents.rag.services.scanner.file_tracker import FileChangeTracker
+from src.agents.rag.services.memory.memory_storage import memory_storage
+
+SCANNER_AVAILABLE = True
+
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +48,7 @@ class RAGPipeline:
 
         Args:
             config_path: Path to the configuration file. If None, uses the default path.
+            use_memory_storage: Whether to use memory storage instead of database.
         """
         # Set default config path if not provided
         if config_path is None:
@@ -71,6 +80,20 @@ class RAGPipeline:
                 "vector_db": self.config.get("vector_db", {}),
             }
         )
+
+        # Initialize file tracker if scanner is available
+        self.file_tracker = None
+        if SCANNER_AVAILABLE:
+            scanner_config = self.config.get("scanner", {})
+            if scanner_config:
+                self.use_memory_storage = scanner_config["use_memory_storage"]
+                self.batch = scanner_config["batch"]
+                self.file_tracker = FileChangeTracker(scanner_config)
+                logger.info(
+                    "File tracker initialized with memory storage"
+                    if self.use_memory_storage
+                    else "File tracker initialized with database"
+                )
 
         logger.info("RAG Pipeline initialized")
 
@@ -104,40 +127,45 @@ class RAGPipeline:
             logger.error(f"Error loading configuration from {config_path}: {str(e)}")
             return {}
 
-    def process_files(
-        self, file_paths: List[str], document_types: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+    def process_files(self, files: List[str]) -> Dict[str, Any]:
         """
         Process files through the RAG pipeline.
 
         Args:
-            file_paths: List of file paths to process.
+            files: List of files to process.
             document_types: Optional list of document types (e.g., "pdf", "text", "html").
                 If not provided, types will be inferred from file extensions.
 
         Returns:
             A dictionary containing the processing results.
         """
-        logger.info(f"Processing {len(file_paths)} files through the RAG pipeline")
+        logger.info(f"Processing {len(files)} files through the RAG pipeline")
 
         # Step 1: Preprocess files
         preprocessed_docs = []
         preprocessed_metadata = []
 
-        for i, file_path in enumerate(file_paths):
+        for i, file in enumerate(files):
             try:
+                file_path = file.get("path", None)  # Get the file path
+                if not file_path:
+                    logger.warning(f"Invalid file path: {file}")
+                    continue
+
                 # Verify the file exists
                 if not os.path.exists(file_path):
                     logger.warning(f"File not found: {file_path}")
                     continue
 
+                file_status = file.get("status", None)  # Get the file status
+                if file_status not in {"modified", "new"}:
+                    continue
+
+                # Get document type from extension if not provided
+                doc_type = self._get_file_type(file_path)
+
                 # Process the file
                 text = self.preprocessor.process_document(file_path)
-                doc_type = (
-                    document_types[i]
-                    if document_types and i < len(document_types)
-                    else self._get_file_type(file_path)
-                )
 
                 if text:
                     preprocessed_docs.append(text)
@@ -154,6 +182,10 @@ class RAGPipeline:
                     )
                 else:
                     logger.warning(f"Failed to preprocess file: {file_path}")
+
+                # update the file status in the tracker
+                if SCANNER_AVAILABLE and self.file_tracker:
+                    memory_storage.update_document(path=file_path, status="done")
             except Exception as e:
                 logger.error(f"Error preprocessing file {file_path}: {str(e)}")
 
@@ -263,138 +295,87 @@ class RAGPipeline:
             logger.error(f"Error searching for query: {str(e)}")
             return []
 
-    def process_documents(
-        self, documents: List[str], document_types: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+    def get_tracked_files(self) -> List[Dict[str, Any]]:
         """
-        Process documents through the RAG pipeline.
-        This method handles both file paths and content strings.
-
-        Args:
-            documents: List of document file paths or content strings.
-            document_types: Optional list of document types (e.g., "pdf", "text", "html").
-                If not provided, types will be inferred from file extensions.
+        Get all tracked files from the file tracker.
 
         Returns:
-            A dictionary containing the processing results.
+            A list of tracked files with their metadata.
         """
-        logger.info(f"Processing {len(documents)} documents through the RAG pipeline")
+        if SCANNER_AVAILABLE and self.file_tracker:
+            return self.file_tracker.get_tracked_files()
+        else:
+            logger.warning(
+                "Scanner module not available or file tracker not initialized"
+            )
+            return []
 
-        # Step 1: Preprocess documents
-        preprocessed_docs = []
-        preprocessed_metadata = []
+    def scan_files(self) -> Dict[str, List[str]]:
+        """
+        Scan for file changes using the file tracker.
 
-        for i, doc in enumerate(documents):
-            try:
-                # Check if the document is a file path or content string
-                if os.path.exists(doc):
-                    # Process as a file
-                    text = self.preprocessor.process_document(doc)
-                    doc_type = (
-                        document_types[i]
-                        if document_types and i < len(document_types)
-                        else self._get_file_type(doc)
-                    )
-                    source = doc
-                else:
-                    # Process as a content string
-                    text = self.preprocessor.clean_text(doc)
-                    doc_type = (
-                        document_types[i]
-                        if document_types and i < len(document_types)
-                        else "text"
-                    )
-                    source = f"document_{i}"
-
-                if text:
-                    preprocessed_docs.append(text)
-                    preprocessed_metadata.append(
-                        {"source": source, "document_type": doc_type, "index": i}
-                    )
-                    logger.info(f"Successfully preprocessed document {i} ({doc_type})")
-                else:
-                    logger.warning(f"Failed to preprocess document {i}")
-            except Exception as e:
-                logger.error(f"Error preprocessing document {i}: {str(e)}")
+        Returns:
+            A dictionary containing the scan results.
+        """
+        if SCANNER_AVAILABLE and self.file_tracker:
+            return self.file_tracker.scan()
+        else:
+            logger.warning(
+                "Scanner module not available or file tracker not initialized"
+            )
+            return {"added": [], "removed": [], "changed": []}
 
 
-def create_sample_files() -> List[str]:
+def scan_files_thread(pipeline):
     """
-    Create sample files for demonstration.
+    Run the file scanner in a separate thread.
+
+    Args:
+        pipeline: The RAGPipeline instance
 
     Returns:
-        A list of file paths to the created sample files.
+        The started thread object
     """
-    import tempfile
-
-    # Create a temporary directory
-    temp_dir = tempfile.mkdtemp()
-    logger.info(f"Created temporary directory: {temp_dir}")
-
-    # Create sample files
-    file_paths = []
-
-    # Create a sample markdown file
-    txt_file_path = os.path.join(temp_dir, "rag_overview.md")
-    with open(txt_file_path, "w") as f:
-        f.write(
-            """
-# Retrieval-Augmented Generation (RAG)
-
-Retrieval-Augmented Generation (RAG) is a technique that combines retrieval-based and generation-based approaches
-for natural language processing tasks. It enhances large language models by retrieving relevant information from
-external knowledge sources before generating responses.
-
-## How RAG Works
-
-1. **Retrieval**: Given a query, retrieve relevant documents from a corpus.
-2. **Augmentation**: Augment the query with the retrieved documents.
-3. **Generation**: Generate a response based on the augmented query.
-
-## Benefits of RAG
-
-- Improved accuracy
-- Reduced hallucinations
-- Better factual grounding
-- More up-to-date information
-        """
-        )
-    file_paths.append(txt_file_path)
-    logger.info(f"Created sample markdown file: {txt_file_path}")
-    return file_paths
+    scan_thread = threading.Thread(target=pipeline.scan_files)
+    scan_thread.daemon = True  # Thread will exit when main program exits
+    scan_thread.start()
+    return scan_thread
 
 
 def main():
     """
     Main function to demonstrate the RAG pipeline with file processing.
     """
-    # Create sample files
-    file_paths = create_sample_files()
-
-    # Document types (optional, will be inferred from file extensions if not provided)
-    document_types = ["text"]
 
     # Initialize the RAG pipeline
     pipeline = RAGPipeline()
 
-    # Process the files
-    result = pipeline.process_files(file_paths, document_types)
+    run_scanner = input("Would you like to scan and ingest new documents? (Yes/No) ")
 
-    # Print the result
-    print(f"\nProcessing result: {result['message']}")
-    print(f"Document IDs: {result['document_ids']}")
+    if run_scanner.lower() == "yes":
+        # Scan files in a background thread
+        scan_files_thread(pipeline)
 
-    # Perform a search
-    query = "What is RAG and how does it work?"
-    search_results = pipeline.search(query, top_k=3)
+        # Ingest files
+        for _ in range(1, 4):  # Loop from 1 to 3 inclusive
+            time.sleep(2)  # Wait for file changes
+            # Process the files
+            files = pipeline.get_tracked_files()
+            if not files:
+                print("No files to process. Exiting...")
+                continue
 
-    # Print the search results
-    print(f"\nSearch results for query: '{query}'")
-    for i, result in enumerate(search_results):
-        print(f"\nResult {i + 1}:")
-        print(f"Document: {result['document'][:150]}...")
-        print(f"Metadata: {result['metadata']}")
-        print(f"Distance: {result['distance']}")
+            result = pipeline.process_files(files)
+
+            # Print the result
+            print(f"\nProcessing result: {result['message']}")
+            print(f"Document IDs: {result['document_ids']}")
+
+    # Search
+    while True:
+        query = input("How can I help you? ")
+        result = pipeline.search(query=query)
+        print(f"output is {result}")
 
 
 if __name__ == "__main__":

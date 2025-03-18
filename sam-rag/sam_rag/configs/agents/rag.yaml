@@ -49,11 +49,12 @@ flows:
           embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
           # Scanner configuration
           scanner:
+            batch: true
+            use_memory_storage: true
             source:
               type: filesystem
               directories:
-                - ${DATA_DIRECTORY, "/data/documents"}
-                - ${ADDITIONAL_DATA_DIRECTORY, "/data/additional"}
+                - "/Users/alirezaparvizimosaed/Desktop/test/sample"
               filters:
                 file_formats:
                   - ".txt"
@@ -150,47 +151,48 @@ flows:
           # Text splitter configuration
           splitter:
             default_splitter:
-              type: recursive_character
+              type: character
               params:
-                chunk_size: 1000
-                chunk_overlap: 200
-                separators: ["\n\n", "\n", " "]
+                chunk_size: 100
+                chunk_overlap: 10
+                separator: " "
             splitters:
               # Text file configurations
               text:
-                type: recursive_character
+                type: character
                 params:
-                  chunk_size: 1000
-                  chunk_overlap: 200
-                  separators: ["\n\n", "\n", " "]
+                  chunk_size: 100
+                  chunk_overlap: 10
+                  separator: " "
               txt:
-                type: recursive_character
+                type: character
                 params:
-                  chunk_size: 1000
-                  chunk_overlap: 200
+                  chunk_size: 100
+                  chunk_overlap: 10
+                  separator: " "
               # Structured data configurations
               json:
                 type: recursive_json
                 params:
-                  chunk_size: 1000
-                  chunk_overlap: 200
+                  chunk_size: 100
+                  chunk_overlap: 10
               html:
                 type: html
                 params:
-                  chunk_size: 1000
-                  chunk_overlap: 200
+                  chunk_size: 100
+                  chunk_overlap: 10
                   tags_to_extract: ["p", "h1", "h2", "h3", "li"]
               markdown:
                 type: markdown
                 params:
-                  chunk_size: 1000
-                  chunk_overlap: 200
+                  chunk_size: 100
+                  chunk_overlap: 10
                   strip_headers: false
               csv:
                 type: csv
                 params:
-                  chunk_size: 1000
-                  chunk_overlap: 200
+                  chunk_size: 100
+                  chunk_overlap: 10
                   delimiter: ","
           # Embedding configuration
           embedding:
@@ -201,7 +203,7 @@ flows:
               model: "bedrock-cohere-embed-english-v3" #${OPENAI_EMBEDDING_MODEL, "text-embedding-3-small"}
               api_key: sk-AuOItNUssenat1iIcA2qlQ #${OPENAI_API_KEY}
               base_url: https://lite-llm.mymaas.net #${OPENAI_API_ENDPOINT}
-              batch_size: 100
+              batch_size: 1
             normalize_embeddings: True
 
             # # Hugging Face embeddings

@@ -1,13 +1,24 @@
 import os
 import time
 import threading
-from typing import Dict
+import logging
+from typing import Dict, List, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from solace_ai_connector.common.log import log
 
 from .datasource_base import DataSource
-from ..database.connect import get_db, insert_document, update_document, delete_document
+from ..memory.memory_storage import memory_storage
+
+# Try to import database modules, but don't fail if they're not available
+try:
+    from ..database.connect import get_db, insert_document, update_document, delete_document
+
+    DATABASE_AVAILABLE = True
+except ImportError:
+    DATABASE_AVAILABLE = False
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 # Concrete implementation for Local File System
@@ -20,8 +31,8 @@ class LocalFileSystemDataSource(DataSource):
         """
         Initialize the LocalFileSystemDataSource with the given source configuration.
 
-        :param source: A dictionary containing the source configuration.
-        :param metadata_db: The database connection for metadata storage.
+        Args:
+            source: A dictionary containing the source configuration.
         """
         super().__init__(source)
         self.directories = []
@@ -29,31 +40,82 @@ class LocalFileSystemDataSource(DataSource):
         self.max_file_size = None
         self.file_changes = []
         self.interval = 10
+        self.use_memory_storage = False
+        self.batch = False
         self.process_config(source)
 
     def process_config(self, source: Dict = {}) -> None:
         """
         Process the source configuration to set up directories, file formats, and max file size.
 
-        :param source: A dictionary containing the source configuration.
+        Args:
+            source: A dictionary containing the source configuration.
         """
         self.directories = source.get("directories", [])
         if not self.directories:
-            log.info("No folder paths configured.")
+            logger.info("No folder paths configured.")
             return
+
         filters = source.get("filters", {})
         if filters:
-            self.formats = source.get("file_formats", [])
-            self.max_file_size = source.get("max_file_size", None)
+            self.formats = filters.get("file_formats", [])
+            self.max_file_size = filters.get("max_file_size", None)
 
         schedule = source.get("schedule", {})
         if schedule:
             self.interval = schedule.get("interval", 10)
 
+        # Check if memory storage is enabled
+        self.use_memory_storage = source.get("use_memory_storage", False)
+
+        # Extract batch processing configuration
+        self.batch = source.get("batch", False)
+
+    def batch_scan(self) -> None:
+        """
+        Scan all existing files in configured directories that match the format filters.
+        """
+        logger.info(f"Starting batch scan of directories: {self.directories}")
+
+        for directory in self.directories:
+            for root, _, files in os.walk(directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+
+                    if self.is_valid_file(file_path):
+                        if self.use_memory_storage:
+                            memory_storage.insert_document(
+                                path=file_path,
+                                file=os.path.basename(file_path),
+                                status="new",
+                            )
+                            logger.info(
+                                f"Batch: Document inserted in memory: {file_path}"
+                            )
+                        elif DATABASE_AVAILABLE:
+                            insert_document(
+                                get_db(),
+                                status="new",
+                                path=file_path,
+                                file=os.path.basename(file_path),
+                            )
+                            logger.info(
+                                f"Batch: Document inserted in database: {file_path}"
+                            )
+                        else:
+                            logger.warning(
+                                "Neither memory storage nor database is available"
+                            )
+
     def scan(self) -> None:
         """
         Monitor the configured directories for file system changes.
+        If batch mode is enabled, first scan all existing files.
         """
+        # If batch mode is enabled, first scan existing files
+        if self.batch:
+            self.batch_scan()
+
         event_handler = FileSystemEventHandler()
         event_handler.on_created = self.on_created
         event_handler.on_deleted = self.on_deleted
@@ -69,6 +131,7 @@ class LocalFileSystemDataSource(DataSource):
                 time.sleep(self.interval)
 
         thread = threading.Thread(target=run_periodically)
+        thread.daemon = True  # Make thread a daemon so it exits when main thread exits
         thread.start()
 
         try:
@@ -81,61 +144,103 @@ class LocalFileSystemDataSource(DataSource):
         """
         Handle the event when a file is created.
 
-        :param event: The file system event.
+        Args:
+            event: The file system event.
         """
-        if not self.is_valid_file(event):
+        if not self.is_valid_file(event.src_path):
             return
 
-        insert_document(
-            get_db(),
-            status="new",
-            path=event.src_path,
-            file=os.path.basename(event.src_path),
-        )
-        log.info(f"Document inserted: {event.src_path}")
+        if self.use_memory_storage:
+            memory_storage.insert_document(
+                path=event.src_path, file=os.path.basename(event.src_path), status="new"
+            )
+            logger.info(f"Document inserted in memory: {event.src_path}")
+        elif DATABASE_AVAILABLE:
+            insert_document(
+                get_db(),
+                status="new",
+                path=event.src_path,
+                file=os.path.basename(event.src_path),
+            )
+            logger.info(f"Document inserted in database: {event.src_path}")
+        else:
+            logger.warning("Neither memory storage nor database is available")
 
     def on_deleted(self, event):
         """
         Handle the event when a file is deleted.
 
-        :param event: The file system event.
+        Args:
+            event: The file system event.
         """
-        if not self.is_valid_file(event):
+        if not self.is_valid_file(event.src_path):
             return
 
-        delete_document(get_db(), path=event.src_path)
-        log.info(f"Document deleted: {event.src_path}")
+        if self.use_memory_storage:
+            memory_storage.delete_document(path=event.src_path)
+            logger.info(f"Document deleted from memory: {event.src_path}")
+        elif DATABASE_AVAILABLE:
+            delete_document(get_db(), path=event.src_path)
+            logger.info(f"Document deleted from database: {event.src_path}")
+        else:
+            logger.warning("Neither memory storage nor database is available")
 
     def on_modified(self, event):
         """
         Handle the event when a file is modified.
 
-        :param event: The file system event.
+        Args:
+            event: The file system event.
         """
-        if not self.is_valid_file(event):
+        if not self.is_valid_file(event.src_path):
             return
 
-        update_document(get_db(), path=event.src_path, status="modified")
-        log.info(f"Document updated: {event.src_path}")
+        if self.use_memory_storage:
+            memory_storage.update_document(path=event.src_path, status="modified")
+            logger.info(f"Document updated in memory: {event.src_path}")
+        elif DATABASE_AVAILABLE:
+            update_document(get_db(), path=event.src_path, status="modified")
+            logger.info(f"Document updated in database: {event.src_path}")
+        else:
+            logger.warning("Neither memory storage nor database is available")
 
-    def is_valid_file(self, event: FileSystemEventHandler) -> bool:
+    def is_valid_file(self, path: str) -> bool:
         """
         Check if the file is valid based on the configured formats and size.
 
-        :param event: The file system event.
-        :return: True if the file is valid, False otherwise.
+        Args:
+            path: The file path to validate.
+
+        Returns:
+            True if the file is valid, False otherwise.
         """
-        if os.path.isdir(event.src_path):
+        if os.path.isdir(path):
             return False
-        if event.src_path.endswith(".DS_Store"):
+        if path.endswith(".DS_Store"):
             return False
-        if self.formats and not any(
-            event.src_path.endswith(fmt) for fmt in self.formats
-        ):
+        if self.formats and not any(path.endswith(fmt) for fmt in self.formats):
             return False
         if (
             self.max_file_size is not None
-            and os.path.getsize(event.src_path) > self.max_file_size * 1024
+            and os.path.getsize(path) > self.max_file_size * 1024
         ):
             return False
         return True
+
+    def get_tracked_files(self) -> List[Dict[str, Any]]:
+        """
+        Get all tracked files.
+
+        Returns:
+            A list of tracked files with their metadata.
+        """
+        if self.use_memory_storage:
+            return memory_storage.get_all_documents()
+        elif DATABASE_AVAILABLE:
+            # This would need to be implemented based on your database structure
+            # For now, we'll just return an empty list
+            logger.warning("Database retrieval not implemented")
+            return []
+        else:
+            logger.warning("Neither memory storage nor database is available")
+            return []

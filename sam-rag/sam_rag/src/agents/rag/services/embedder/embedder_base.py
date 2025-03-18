@@ -21,7 +21,7 @@ class EmbedderBase(ABC):
         """
         self.config = config or {}
         self.embedding_dimension = self.config.get("embedding_dimension", None)
-        self.batch_size = self.config.get("batch_size", 32)
+        self.batch_size = self.config.get("batch_size", 1)
 
     @abstractmethod
     def embed_text(self, text: str) -> List[float]:

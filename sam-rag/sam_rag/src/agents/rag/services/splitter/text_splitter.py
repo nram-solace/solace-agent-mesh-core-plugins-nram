@@ -62,7 +62,7 @@ class CharacterTextSplitter(SplitterBase):
                 # Keep some overlap for context
                 overlap_splits = current_chunk[-self.chunk_overlap :]
                 current_chunk = overlap_splits
-                current_length = sum(len(s) for s in current_chunk)
+                current_length = self.chunk_overlap
 
             # Add the current split to the current chunk
             current_chunk.append(split)
@@ -100,12 +100,12 @@ class RecursiveCharacterTextSplitter(SplitterBase):
             config: A dictionary containing configuration parameters.
                 - chunk_size: The size of each chunk (default: 1000).
                 - chunk_overlap: The overlap between chunks (default: 200).
-                - separators: The separators to use for splitting (default: ["\n\n", "\n", " ", ""]).
+                - separators: The separators to use for splitting (default: ["\n\n", "\n", " "]).
         """
         super().__init__(config)
         self.chunk_size = self.config.get("chunk_size", 1000)
         self.chunk_overlap = self.config.get("chunk_overlap", 200)
-        self.separators = self.config.get("separators", ["\n\n", "\n", " ", ""])
+        self.separators = self.config.get("separators", ["\n\n", "\n", " "])
 
     def split_text(self, text: str) -> List[str]:
         """
