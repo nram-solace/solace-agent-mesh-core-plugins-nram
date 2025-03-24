@@ -19,6 +19,13 @@ info.update(
         "description": "MongoDB agent for executing queries based on natural language prompts",
         "config_parameters": [
             {
+                "name": "always_open",
+                "required": False,
+                "description": "Whether this agent should always be open",
+                "type": "boolean",
+                "default": False
+            },
+            {
                 "name": "database_host",
                 "required": True,
                 "description": "MongoDB host",
@@ -98,7 +105,6 @@ info.update(
 class MongoDBAgentComponent(BaseAgentComponent):
     """Component for handling MongoDB database operations."""
 
-    info = info
     actions = [SearchQuery]
 
     def __init__(self, module_info: Dict[str, Any] = None, **kwargs):
@@ -114,6 +120,8 @@ class MongoDBAgentComponent(BaseAgentComponent):
         module_info = module_info or info
 
         super().__init__(module_info, **kwargs)
+        self.info = copy.deepcopy(module_info)
+        self.info["always_open"] = self.get_config("always_open", False)
 
         self.agent_name = self.get_config("agent_name")
         self.database_purpose = self.get_config("database_purpose")

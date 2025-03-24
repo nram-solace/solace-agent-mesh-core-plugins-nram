@@ -35,6 +35,13 @@ info.update(
                 "default": "Event Mesh agent for publishing requests to and receiving responses from the Solace event mesh",
             },
             {
+                "name": "always_open",
+                "required": False,
+                "description": "Whether this agent should always be open",
+                "type": "boolean",
+                "default": False
+            },
+            {
                 "name": "actions",
                 "required": True,
                 "description": "List of actions this agent can perform",
@@ -137,6 +144,7 @@ class SolaceEventMeshAgentComponent(BaseAgentComponent):
 
         self.agent_description = self.get_config("agent_description")
         module_info["agent_name"] = self.agent_name
+        self.info["always_open"] = self.get_config("always_open", False)
 
         # Create action instances from configuration
         actions_config = self.get_config("actions", [])
