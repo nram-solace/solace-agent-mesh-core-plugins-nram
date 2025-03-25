@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - ".github/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  label-pr:
+    runs-on: ubuntu-24.04
+    outputs:
+      all_plugins: ${{ steps.label-pr.outputs.all-labels }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Lable PR based on changes
+        id: label-pr
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          sync-labels: true
+          configuration-path: .github/pr_labeler.yaml
+
+  builds:
+    needs: label-pr
+    if: ${{ needs.label-pr.outputs.all_plugins != '[]' }} # Skip if matrix is an empty array
+    strategy:
+      matrix:
+        plugin_directory: ${{ needs.label-pr.outputs.all_plugins }}
+    name: Build Plugin - ${{matrix.plugin_directory}}
+    uses: ./.github/workflows/build-plugin.yaml
+    with:
+      plugin_directory: ${{matrix.plugin_directory}}
+    secrets:
+      COMMIT_KEY: ${{ secrets.COMMIT_KEY }}
