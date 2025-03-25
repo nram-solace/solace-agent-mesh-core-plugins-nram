@@ -49,9 +49,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
-            ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+            ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
       - name: Install Hatch
         shell: bash
         run: |
@@ -63,6 +63,8 @@ jobs:
         shell: bash
         run: |
           cd ${{ inputs.plugin_directory }}
+          hatch run pip install solace-agent-mesh
+          hatch run solace-agent-mesh plugin add ${{ inputs.plugin_directory }} -u ${{ github.workspace }}/${{ inputs.plugin_directory }}
           hatch test
 
       - name: Install dependencies
