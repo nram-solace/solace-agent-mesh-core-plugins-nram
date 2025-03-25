@@ -63,8 +63,9 @@ jobs:
         shell: bash
         run: |
           cd ${{ inputs.plugin_directory }}
-          hatch run pip install solace-agent-mesh
-          hatch run solace-agent-mesh plugin add ${{ inputs.plugin_directory }} -u ${{ github.workspace }}/${{ inputs.plugin_directory }}
+          dir=$(pwd)
+          hatch run pip install solace-agent-mesh twine -q
+          hatch run solace-agent-mesh plugin add ${{ inputs.plugin_directory }} -u $dir
           hatch test
 
       - name: Install dependencies
