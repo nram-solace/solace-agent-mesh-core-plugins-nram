@@ -229,12 +229,12 @@ class HTMLSplitter(SplitterBase):
             config: A dictionary containing configuration parameters.
                 - chunk_size: The size of each chunk (default: 1000).
                 - chunk_overlap: The overlap between chunks (default: 200).
-                - split_by_tag: The HTML tag to split by (default: ["div", "p", "section", "article"]).
+                - tags_to_extract: The HTML tags to extract (default: ["div", "p", "section", "article"]).
         """
         super().__init__(config)
         self.chunk_size = self.config.get("chunk_size", 1000)
         self.chunk_overlap = self.config.get("chunk_overlap", 200)
-        self.split_by_tag = self.config.get(
+        self.tags_to_extract = self.config.get(
             "tags_to_extract", ["div", "p", "section", "article"]
         )
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -268,7 +268,7 @@ class HTMLSplitter(SplitterBase):
             chunks = []
 
             # Find all elements of the specified tags
-            for tag in self.split_by_tag:
+            for tag in self.tags_to_extract:
                 elements = soup.find_all(tag)
                 for element in elements:
                     # Extract text from the element
@@ -317,7 +317,8 @@ class HTMLSplitter(SplitterBase):
 
 class MarkdownSplitter(SplitterBase):
     """
-    Split Markdown data into chunks.
+    Split Markdown data into chunks based on headers.
+    Inspired by LangChain's MarkdownHeaderTextSplitter.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -328,62 +329,128 @@ class MarkdownSplitter(SplitterBase):
             config: A dictionary containing configuration parameters.
                 - chunk_size: The size of each chunk (default: 1000).
                 - chunk_overlap: The overlap between chunks (default: 200).
-                - split_by_heading: Whether to split by headings (default: True).
+                - headers_to_split_on: List of headers to split on, ordered by hierarchy level
+                  (default: ["#", "##", "###", "####", "#####", "######"]).
+                - return_each_line: Whether to return each line with its header metadata (default: False).
+                - strip_headers: Whether to strip headers from the content (default: False).
         """
         super().__init__(config)
         self.chunk_size = self.config.get("chunk_size", 1000)
         self.chunk_overlap = self.config.get("chunk_overlap", 200)
-        self.split_by_heading = self.config.get("strip_headers", True)
+        self.headers_to_split_on = self.config.get(
+            "headers_to_split_on", ["#", "##", "###", "####", "#####", "######"]
+        )
+        self.return_each_line = self.config.get("return_each_line", False)
+        self.strip_headers = self.config.get("strip_headers", False)
         self.text_splitter = RecursiveCharacterTextSplitter(
             {"chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap}
         )
 
-    def split_text(self, text: str) -> List[str]:
+        # Create a pattern to match any of the headers, allowing for indentation
+        self.header_pattern = re.compile(
+            r"^\s*("
+            + "|".join(map(re.escape, self.headers_to_split_on))
+            + r")\s+(.+)$",
+            re.MULTILINE,
+        )
+
+    def split_text(self, text: str) -> List[Dict[str, Any]]:
         """
-        Split the Markdown text into chunks.
+        Split the Markdown text into chunks based on headers.
 
         Args:
             text: The Markdown text to split.
 
         Returns:
-            A list of text chunks.
+            A list of dictionaries with 'content' and 'metadata' keys.
         """
         if not text:
             return []
 
-        if self.split_by_heading:
-            # Split by headings
-            heading_pattern = r"^(#{1,6})\s+(.+)$"
-            lines = text.split("\n")
-            chunks = []
-            current_chunk = []
+        # Extract all headers and their positions
+        headers_with_positions = []
+        for match in self.header_pattern.finditer(text):
+            header_level = match.group(1)
+            header_text = match.group(2).strip()
+            position = match.start()
+            headers_with_positions.append((header_level, header_text, position))
 
-            for line in lines:
-                heading_match = re.match(heading_pattern, line)
+        # If no headers found, use the text splitter
+        if not headers_with_positions:
+            chunks = self.text_splitter.split_text(text)
+            return [{"content": chunk, "metadata": {}} for chunk in chunks]
 
-                if heading_match and current_chunk:
-                    # Start a new chunk at each heading
-                    chunks.append("\n".join(current_chunk))
-                    current_chunk = [line]
-                else:
-                    current_chunk.append(line)
+        # Sort headers by position
+        headers_with_positions.sort(key=lambda x: x[2])
 
-            # Add the last chunk
-            if current_chunk:
-                chunks.append("\n".join(current_chunk))
+        # Split text by headers
+        documents = []
+        for i, (header_level, header_text, position) in enumerate(
+            headers_with_positions
+        ):
+            # Get the content until the next header or the end of the text
+            if i < len(headers_with_positions) - 1:
+                next_position = headers_with_positions[i + 1][2]
+                content = text[position:next_position]
+            else:
+                content = text[position:]
 
-            # If the chunks are too large, split them further
-            final_chunks = []
-            for chunk in chunks:
-                if len(chunk) > self.chunk_size:
-                    final_chunks.extend(self.text_splitter.split_text(chunk))
-                else:
-                    final_chunks.append(chunk)
+            # Remove the header from the content if strip_headers is True
+            if self.strip_headers:
+                content = content.split("\n", 1)[1] if "\n" in content else ""
 
-            return final_chunks
-        else:
-            # Use the text splitter
-            return self.text_splitter.split_text(text)
+            # Add the document if content is not empty
+            if content.strip():
+                # Create metadata dictionary with header hierarchy
+                metadata = {}
+                current_level_idx = self.headers_to_split_on.index(header_level)
+
+                # Map header levels to user-friendly names
+                header_name_map = {
+                    "#": "Header 1",
+                    "##": "Header 2",
+                    "###": "Header 3",
+                    "####": "Header 4",
+                    "#####": "Header 5",
+                    "######": "Header 6",
+                }
+
+                # Add the current header to metadata
+                current_header_name = header_name_map.get(
+                    header_level, f"Header {current_level_idx + 1}"
+                )
+                metadata[current_header_name] = header_text
+
+                # Look back to find parent headers
+                for j in range(i - 1, -1, -1):
+                    prev_level = headers_with_positions[j][0]
+                    prev_level_idx = self.headers_to_split_on.index(prev_level)
+                    prev_header_name = header_name_map.get(
+                        prev_level, f"Header {prev_level_idx + 1}"
+                    )
+
+                    # If this is a parent header level (lower index means higher level)
+                    if prev_level_idx < current_level_idx:
+                        if prev_header_name not in metadata:
+                            metadata[prev_header_name] = headers_with_positions[j][1]
+
+                # Create document with content and metadata
+                document = {"content": content.strip(), "metadata": metadata}
+                documents.append(document)
+
+        # If documents are too large, split them further
+        final_documents = []
+        for doc in documents:
+            if len(doc["content"]) > self.chunk_size:
+                chunks = self.text_splitter.split_text(doc["content"])
+                for chunk in chunks:
+                    final_documents.append(
+                        {"content": chunk, "metadata": doc["metadata"].copy()}
+                    )
+            else:
+                final_documents.append(doc)
+
+        return final_documents
 
     def can_handle(self, data_type: str) -> bool:
         """

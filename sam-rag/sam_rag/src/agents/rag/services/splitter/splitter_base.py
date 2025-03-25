@@ -3,7 +3,10 @@ Base class for text splitters.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union, TypeVar
+
+# Define a type variable for chunk types
+ChunkType = TypeVar("ChunkType", str, Dict[str, Any])
 
 
 class SplitterBase(ABC):
@@ -21,7 +24,7 @@ class SplitterBase(ABC):
         self.config = config or {}
 
     @abstractmethod
-    def split_text(self, text: str) -> List[str]:
+    def split_text(self, text: str) -> List[Union[str, Dict[str, Any]]]:
         """
         Split the text into chunks.
 
@@ -29,7 +32,7 @@ class SplitterBase(ABC):
             text: The text to split.
 
         Returns:
-            A list of text chunks.
+            A list of text chunks or dictionaries with 'content' and 'metadata' keys.
         """
         pass
 

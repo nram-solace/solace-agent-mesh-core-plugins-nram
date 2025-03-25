@@ -135,7 +135,7 @@ class SplitterService:
         # If no suitable splitter is found, return the default splitter
         return self.default_splitter
 
-    def split_text(self, text: str, data_type: str) -> List[str]:
+    def split_text(self, text: str, data_type: str) -> List[Any]:
         """
         Split the text into chunks using the appropriate splitter.
 
@@ -144,7 +144,7 @@ class SplitterService:
             data_type: The type of data to split.
 
         Returns:
-            A list of text chunks.
+            A list of text chunks or dictionaries with 'content' and 'metadata' keys.
         """
         if not text:
             return []
@@ -153,7 +153,10 @@ class SplitterService:
         splitter = self.get_splitter(data_type)
 
         # Split the text
-        return splitter.split_text(text)
+        chunks = splitter.split_text(text)
+
+        # Handle both string chunks and dictionary chunks
+        return chunks
 
     def split_file(self, file_path: str, data_type: Optional[str] = None) -> List[str]:
         """
