@@ -2,7 +2,8 @@
 Text splitters for unstructured text.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Callable, Tuple, Collection, Union
+import re
 from .splitter_base import SplitterBase
 
 try:
@@ -15,7 +16,8 @@ except ImportError:
 
 class CharacterTextSplitter(SplitterBase):
     """
-    Split text by characters.
+    Implementation of splitting text that looks at characters.
+    Adapted from LangChain's CharacterTextSplitter.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -27,11 +29,18 @@ class CharacterTextSplitter(SplitterBase):
                 - chunk_size: The size of each chunk (default: 1000).
                 - chunk_overlap: The overlap between chunks (default: 200).
                 - separator: The separator to use for splitting (default: "\n\n").
+                - is_separator_regex: Whether the separator is a regex (default: False).
+                - keep_separator: Whether to keep the separator in the chunks (default: True).
+                - strip_whitespace: Whether to strip whitespace from the chunks (default: True).
         """
         super().__init__(config)
         self.chunk_size = self.config.get("chunk_size", 1000)
         self.chunk_overlap = self.config.get("chunk_overlap", 200)
-        self.separator = self.config.get("separator", "\n\n")
+        self.separator = self.config.get("separator", "\n")
+        self.is_separator_regex = self.config.get("is_separator_regex", False)
+        self.keep_separator = self.config.get("keep_separator", True)
+        self.strip_whitespace = self.config.get("strip_whitespace", True)
+        self._length_function = len
 
     def split_text(self, text: str) -> List[str]:
         """
@@ -46,31 +55,110 @@ class CharacterTextSplitter(SplitterBase):
         if not text:
             return []
 
-        # Split the text by separator
-        splits = text.split(self.separator)
+        # First, get appropriate splits
+        if self.is_separator_regex:
+            splits = re.split(self.separator, text)
+        else:
+            splits = text.split(self.separator)
 
-        # Initialize chunks
+        # Now, clean and filter out empty splits
+        cleaned_splits = []
+        separator = (
+            self.separator
+            if not self.is_separator_regex
+            else re.search(self.separator, text).group()
+            if re.search(self.separator, text)
+            else ""
+        )
+
+        for i, split in enumerate(splits):
+            if self.strip_whitespace:
+                split = split.strip()
+            if split == "":
+                continue
+            if i == len(splits) - 1:
+                cleaned_splits.append(split)
+            elif self.keep_separator:
+                cleaned_splits.append(split + separator)
+            else:
+                cleaned_splits.append(split)
+
+        # If we have no splits, return the original text
+        if not cleaned_splits:
+            if self.strip_whitespace:
+                text = text.strip()
+            return [text] if text else []
+
+        # Create chunks with proper overlap
+        return self._create_overlapping_chunks(cleaned_splits)
+
+    def _create_overlapping_chunks(self, splits: List[str]) -> List[str]:
+        """
+        Create chunks from splits with proper overlap.
+
+        Args:
+            splits: List of text splits
+
+        Returns:
+            List of text chunks with proper overlap
+        """
+        # If we only have one split and it's smaller than chunk size, return it
+        if len(splits) == 1 and self._length_function(splits[0]) <= self.chunk_size:
+            return splits
+
+        # Create chunks
         chunks = []
-        current_chunk = []
-        current_length = 0
+        current_chunk: List[str] = []
+        current_chunk_len = 0
 
-        # Process each split
-        for split in splits:
-            # If adding this split would exceed the chunk size, add the current chunk to chunks
-            if current_length + len(split) > self.chunk_size and current_chunk:
-                chunks.append(self.separator.join(current_chunk))
-                # Keep some overlap for context
-                overlap_splits = current_chunk[-self.chunk_overlap :]
+        for i, split in enumerate(splits):
+            split_len = self._length_function(split)
+
+            # If this split alone exceeds chunk size, we need to handle it separately
+            if split_len > self.chunk_size:
+                # If we have accumulated content, add it as a chunk
+                if current_chunk:
+                    chunks.append("".join(current_chunk))
+                    current_chunk = []
+                    current_chunk_len = 0
+
+                # Split this large piece by characters
+                for j in range(0, len(split), self.chunk_size - self.chunk_overlap):
+                    chunks.append(split[j : j + self.chunk_size])
+
+                continue
+
+            # If adding this split would exceed chunk size, finalize current chunk
+            if current_chunk_len + split_len > self.chunk_size and current_chunk:
+                chunks.append("".join(current_chunk))
+
+                # Calculate how many splits to keep for overlap
+                overlap_splits = []
+                overlap_len = 0
+
+                # Work backwards through current_chunk to find splits for overlap
+                for j in range(len(current_chunk) - 1, -1, -1):
+                    split_to_keep = current_chunk[j]
+                    split_to_keep_len = self._length_function(split_to_keep)
+
+                    if overlap_len + split_to_keep_len <= self.chunk_overlap:
+                        overlap_splits.insert(0, split_to_keep)
+                        overlap_len += split_to_keep_len
+                    else:
+                        # If this split would exceed overlap size, we're done
+                        break
+
+                # Start new chunk with overlap content
                 current_chunk = overlap_splits
-                current_length = self.chunk_overlap
+                current_chunk_len = overlap_len
 
-            # Add the current split to the current chunk
+            # Add the current split to the chunk
             current_chunk.append(split)
-            current_length += len(split)
+            current_chunk_len += split_len
 
-        # Add the last chunk if it's not empty
+        # Add the final chunk if there's anything left
         if current_chunk:
-            chunks.append(self.separator.join(current_chunk))
+            chunks.append("".join(current_chunk))
 
         return chunks
 
@@ -87,9 +175,10 @@ class CharacterTextSplitter(SplitterBase):
         return data_type.lower() in ["text", "txt", "plaintext"]
 
 
-class RecursiveCharacterTextSplitter(SplitterBase):
+class RecursiveCharacterTextSplitter(CharacterTextSplitter):
     """
-    Split text recursively by different separators.
+    Implementation of splitting text that looks at characters recursively.
+    Adapted from LangChain's RecursiveCharacterTextSplitter.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -100,12 +189,17 @@ class RecursiveCharacterTextSplitter(SplitterBase):
             config: A dictionary containing configuration parameters.
                 - chunk_size: The size of each chunk (default: 1000).
                 - chunk_overlap: The overlap between chunks (default: 200).
-                - separators: The separators to use for splitting (default: ["\n\n", "\n", " "]).
+                - separators: The separators to use for splitting (default: ["\n\n", "\n", " ", ""]).
+                - is_separator_regex: Whether the separators are regexes (default: False).
+                - keep_separator: Whether to keep the separator in the chunks (default: True).
+                - strip_whitespace: Whether to strip whitespace from the chunks (default: True).
         """
         super().__init__(config)
-        self.chunk_size = self.config.get("chunk_size", 1000)
-        self.chunk_overlap = self.config.get("chunk_overlap", 200)
-        self.separators = self.config.get("separators", ["\n\n", "\n", " "])
+        self.separators = self.config.get("separators", ["\n\n", "\n", " ", ""])
+
+        # Ensure we have a final default separator that will catch everything
+        if not self.separators or self.separators[-1] != "":
+            self.separators.append("")
 
     def split_text(self, text: str) -> List[str]:
         """
@@ -120,68 +214,122 @@ class RecursiveCharacterTextSplitter(SplitterBase):
         if not text:
             return []
 
-        # Use the first separator to split the text
-        separator = self.separators[0]
-        splits = text.split(separator)
+        # Get the appropriate separator to use
+        separator = self._get_separator_for_text(text)
 
-        # If we're at the final separator or the splits are small enough, join and return
-        if len(self.separators) == 1 or all(len(s) <= self.chunk_size for s in splits):
-            return self._merge_splits(splits, separator)
-
-        # Otherwise, recursively split each piece using the next separator
-        chunks = []
-        for split in splits:
-            if len(split) > self.chunk_size:
-                # Create a new splitter with the remaining separators
-                sub_splitter = RecursiveCharacterTextSplitter(
-                    {
-                        "chunk_size": self.chunk_size,
-                        "chunk_overlap": self.chunk_overlap,
-                        "separators": self.separators[1:],
-                    }
-                )
-                # Recursively split this piece
-                sub_chunks = sub_splitter.split_text(split)
-                chunks.extend(sub_chunks)
+        # Now split the text
+        if separator:
+            if self.is_separator_regex:
+                splits = re.split(separator, text)
             else:
-                chunks.append(split)
+                splits = text.split(separator)
+        else:
+            # If no separator is found, use the default behavior
+            return self._split_text_with_size_limit(text)
 
-        # Merge the chunks with the current separator
-        return self._merge_splits(chunks, separator)
+        # Now process the splits
+        final_chunks = []
 
-    def _merge_splits(self, splits: List[str], separator: str) -> List[str]:
+        # Clean and filter splits
+        good_splits = []
+        for split in splits:
+            if self.strip_whitespace:
+                split = split.strip()
+            if split:
+                good_splits.append(split)
+
+        # Process each split
+        for split in good_splits:
+            if self._length_function(split) < self.chunk_size:
+                final_chunks.append(split)
+            else:
+                # If the split is too big, recursively split it
+                # using the next separator
+                other_info = self._get_next_splitter_config()
+                if other_info:
+                    # Create a new splitter with the next separator
+                    sub_splitter = RecursiveCharacterTextSplitter(other_info)
+                    sub_chunks = sub_splitter.split_text(split)
+                    final_chunks.extend(sub_chunks)
+                else:
+                    # If there are no more separators, split by character
+                    final_chunks.extend(self._split_text_with_size_limit(split))
+
+        # Create chunks with proper overlap
+        if len(final_chunks) > 1:
+            # Join the chunks first to handle any separators properly
+            joined_chunks = []
+            for chunk in final_chunks:
+                joined_chunks.append(chunk)
+
+            # Then create overlapping chunks
+            return self._create_overlapping_chunks(joined_chunks)
+
+        return final_chunks
+
+    def _get_separator_for_text(self, text: str) -> str:
         """
-        Merge the splits into chunks of the desired size.
+        Get the first separator that appears in the text.
 
         Args:
-            splits: The text splits.
-            separator: The separator to use for joining.
+            text: The text to check.
+
+        Returns:
+            The first separator that appears in the text, or None if none are found.
+        """
+        for separator in self.separators:
+            if separator == "":
+                # Special case: empty separator always matches
+                return separator
+
+            if self.is_separator_regex:
+                if re.search(separator, text):
+                    return separator
+            else:
+                if separator in text:
+                    return separator
+
+        return self.separators[-1]  # Default to the last separator (usually "")
+
+    def _get_next_splitter_config(self) -> Dict[str, Any]:
+        """
+        Get the configuration for the next splitter in the recursive chain.
+
+        Returns:
+            A dictionary containing the configuration for the next splitter,
+            or None if there are no more separators.
+        """
+        if len(self.separators) <= 1:
+            return None
+
+        # Create a new config with the next separator
+        next_config = self.config.copy() if self.config else {}
+        next_config["separators"] = self.separators[1:]
+
+        return next_config
+
+    def _split_text_with_size_limit(self, text: str) -> List[str]:
+        """
+        Split text by characters to ensure chunks are below the chunk size.
+
+        Args:
+            text: The text to split.
 
         Returns:
             A list of text chunks.
         """
-        chunks = []
-        current_chunk = []
-        current_length = 0
+        # If the text is already small enough, return it as is
+        if self._length_function(text) <= self.chunk_size:
+            return [text]
 
-        for split in splits:
-            # If adding this split would exceed the chunk size, add the current chunk to chunks
-            if current_length + len(split) > self.chunk_size and current_chunk:
-                chunks.append(separator.join(current_chunk))
-                # Keep some overlap for context
-                overlap_start = max(0, len(current_chunk) - self.chunk_overlap)
-                current_chunk = current_chunk[overlap_start:]
-                current_length = sum(len(s) for s in current_chunk)
+        # Otherwise, split it by characters
+        result = []
+        for i in range(0, len(text), self.chunk_size - self.chunk_overlap):
+            chunk = text[i : i + self.chunk_size]
+            if chunk:
+                result.append(chunk)
 
-            # Add the current split to the current chunk
-            current_chunk.append(split)
-            current_length += len(split)
-
-        # Add the last chunk if it's not empty
-        if current_chunk:
-            chunks.append(separator.join(current_chunk))
-
-        return chunks
+        return result
 
     def can_handle(self, data_type: str) -> bool:
         """
@@ -240,7 +388,11 @@ class TokenTextSplitter(SplitterBase):
         # Tokenize the text
         tokens = self.tokenizer.encode(text)
 
-        # Split the tokens into chunks
+        # If the text is small enough, return it as is
+        if len(tokens) <= self.chunk_size:
+            return [text]
+
+        # Split the tokens into chunks with proper overlap
         chunks = []
         for i in range(0, len(tokens), self.chunk_size - self.chunk_overlap):
             # Get the tokens for this chunk

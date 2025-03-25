@@ -161,7 +161,7 @@ flows:
               text:
                 type: character
                 params:
-                  chunk_size: 100
+                  chunk_size: 100 # minimum chunk size
                   chunk_overlap: 10
                   separator: " "
               txt:
