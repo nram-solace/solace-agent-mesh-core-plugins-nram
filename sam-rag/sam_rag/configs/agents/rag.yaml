@@ -191,9 +191,7 @@ flows:
               csv:
                 type: csv
                 params:
-                  chunk_size: 100
-                  chunk_overlap: 10
-                  delimiter: ","
+                  chunk_size: 100 # chunk size in number of rows
           # Embedding configuration
           embedding:
             # default: "openai"
