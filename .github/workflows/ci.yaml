@@ -58,6 +58,7 @@ jobs:
     needs: label-pr
     if: ${{ needs.label-pr.outputs.all_plugins != '[]' }}
     strategy:
+      fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.label-pr.outputs.all_plugins) }}
     name: Build Plugin - ${{matrix.plugin_directory}}
