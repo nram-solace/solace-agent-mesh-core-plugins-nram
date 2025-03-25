@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
-          path: ${{ inputs.plugin_directory }}
+          sparse-checkout: ${{ inputs.plugin_directory }}
       - name: Set up Python
         uses: actions/setup-python@v5.5.0
         with:
@@ -62,8 +62,10 @@ jobs:
       - name: Test Plugin
         shell: bash
         run: |
-          cd ${{ inputs.plugin_directory }}
+          cd ${{ inputs.plugin_directory }}/
+          ls -la
           dir=$(pwd)
+          echo "Directory: $dir"
           hatch run pip install solace-agent-mesh twine -q
           hatch run solace-agent-mesh plugin add ${{ inputs.plugin_directory }} -u $dir
           hatch test
