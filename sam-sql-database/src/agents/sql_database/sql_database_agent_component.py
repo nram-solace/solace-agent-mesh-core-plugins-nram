@@ -272,7 +272,6 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             return "Schema information not available."
             
         try:
-            # If it's already a string, return it directly
             if isinstance(self.detailed_schema, str):
                 schema_dict = yaml.safe_load(self.detailed_schema)
                 if isinstance(schema_dict, dict):
@@ -284,6 +283,8 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
                     return "\n".join(summary_lines)
                 else:
                     return ("Schema information not available in a valid format")
+            else:
+                return ("Schema information not available in a valid format")
         except yaml.YAMLError:
             return self.detailed_schema
 
@@ -314,6 +315,8 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
                             description += "No tables found in database.\n"
                     else:
                         description += "Schema information not available in a valid format"
+                else:
+                    description += "Schema information not available in a valid format"
             except yaml.YAMLError:
                 # If not valid YAML, don't show anything
                 pass
