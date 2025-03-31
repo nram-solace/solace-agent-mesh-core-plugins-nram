@@ -193,7 +193,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             if not self.schema_summary:
                 raise ValueError(
                     "schema_summary is required when auto_detect_schema is False. "
-                    "This text should give a summary of the database schema in natural language "
+                    "This text should describe the database schema in natural language "
                     "to help the agent understand how to query the database."
                 )
         
@@ -204,6 +204,9 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
                 schema_info = f"\n\nDatabase Schema:\n{self.schema_summary}"
                 action._prompt_directive = current_directive + schema_info
                 break
+
+        # Generate and store the agent description
+        self._generate_agent_description()
 
     def _create_db_handler(self) -> DatabaseService:
         """Create appropriate database handler based on configuration.
@@ -305,13 +308,8 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
 
         return "\n".join(summary_lines)
 
-
-    def get_db_handler(self) -> DatabaseService:
-        """Get the database handler instance."""
-        return self.db_handler
-
-    def get_agent_summary(self):
-        """Get a summary of the agent's capabilities."""
+    def _generate_agent_description(self):
+        """Generate and store the agent description."""
         description = f"This agent provides read-only access to a {self.db_type} database.\n\n"
 
         if self.database_purpose:
@@ -321,19 +319,27 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             description += f"Data Description:\n{self.data_description}\n"
         
         # Extract table information if schema exists
-        if isinstance(self.detailed_schema, str):
-            try:
-                schema_dict = yaml.safe_load(self.detailed_schema)
-                if isinstance(schema_dict, dict) and schema_dict:
-                    tables = list(schema_dict.keys())
-                    description += f"Contains {len(tables)} tables: {', '.join(tables)}\n"
-            except yaml.YAMLError:
-                pass  # Silently fail if YAML parsing fails
+        try:
+            schema_dict = yaml.safe_load(self.detailed_schema)
+            if isinstance(schema_dict, dict) and schema_dict:
+                tables = list(schema_dict.keys())
+                description += f"Contains {len(tables)} tables: {', '.join(tables)}\n"
+        except yaml.YAMLError:
+            pass  # Silently fail if YAML parsing fails
 
-        return {
+        self._agent_description = {
             "agent_name": self.agent_name,
             "description": description.strip(),
             "always_open": self.info.get("always_open", False),
             "actions": self.get_actions_summary(),
         }
+
+    def get_agent_summary(self):
+        """Get a summary of the agent's capabilities."""
+        return self._agent_description
+    
+    def get_db_handler(self) -> DatabaseService:
+        """Get the database handler instance."""
+        return self.db_handler
+
 
