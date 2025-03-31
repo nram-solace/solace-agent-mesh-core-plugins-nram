@@ -125,6 +125,7 @@ class SearchQuery(Action):
         data_description = agent.data_description
         db_type = agent.db_type
         db_schema_yaml = yaml.dump(db_schema)
+        current_timestamp = datetime.datetime.now().isoformat()
 
         system_prompt = f"""
 You are an SQL expert and will convert the provided natural language query to one or more SQL queries for {db_type}.
@@ -142,6 +143,9 @@ Additional information about the data:
 {data_description}
 </data_description>
 
+The current date and time are available as:
+current_date_time: {current_timestamp}
+
 For each query needed to answer the user's request, respond with the following format:
 
 <query_purpose>
@@ -158,6 +162,7 @@ Or if the request is invalid, respond with an error message:
 <error>
 ...Error message...
 </error>
+
 
 Ensure that all SQL queries are compatible with {db_type}.
 """
