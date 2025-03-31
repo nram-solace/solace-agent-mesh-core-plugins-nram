@@ -101,6 +101,12 @@ info.update(
                 "type": "string",
             },
             {
+                "name": "schema_summary",
+                "required": False,
+                "description": "Summary of the database schema if auto_detect_schema is False. Will be used in agent description.",
+                "type": "string",
+            },
+            {
                 "name": "csv_files",
                 "required": False,
                 "description": "List of CSV files to import as tables on startup",
@@ -163,11 +169,18 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             schema_dict = self._detect_schema()
             # Convert dictionary to YAML string
             self.detailed_schema = yaml.dump(schema_dict, default_flow_style=False)
+            # Generate schema prompt from detected schema
+            self.schema_summary = self._get_schema_summary()
+            if not self.schema_summary:
+                raise ValueError("Failed to generate schema summary from auto-detected schema")
         else:
             # Get schema from config
             schema = self.get_config("database_schema")
             if schema is None:
-                self.detailed_schema = ""
+                raise ValueError(
+                    "database_schema is required when auto_detect_schema is False. "
+                    "This text should describe the database structure."
+                )
             elif isinstance(schema, dict):
                 # Convert dictionary to YAML string
                 self.detailed_schema = yaml.dump(schema, default_flow_style=False)
@@ -175,16 +188,20 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
                 # Already a string, use as is
                 self.detailed_schema = str(schema)
             
-        # Generate schema summary for action description
-        self.schema_summary = self._get_schema_summary()
+            # Only use provided schema_summary, don't try to generate one
+            self.schema_summary = self.get_config("schema_summary")
+            if not self.schema_summary:
+                raise ValueError(
+                    "schema_summary is required when auto_detect_schema is False. "
+                    "This text should give a summary of the database schema in natural language "
+                    "to help the agent understand how to query the database."
+                )
         
         # Update the search_query action with schema information
         for action in self.action_list.actions:
             if action.name == "search_query":
-                # Access the action's configuration dictionary instead of the prompt_directive attribute
                 current_directive = action._prompt_directive
                 schema_info = f"\n\nDatabase Schema:\n{self.schema_summary}"
-                # Update the prompt_directive in the action's configuration
                 action._prompt_directive = current_directive + schema_info
                 break
 
@@ -266,27 +283,27 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         """Gets a terse formatted summary of the database schema.
 
         Returns:
-            A string containing a one-line summary of each table and its columns.
+            A string with a one-line summary of each table and its columns.
         """
         if not self.detailed_schema:
             return "Schema information not available."
-            
+
         try:
-            if isinstance(self.detailed_schema, str):
-                schema_dict = yaml.safe_load(self.detailed_schema)
-                if isinstance(schema_dict, dict):
-                    summary_lines = []
-                    for table_name, table_info in schema_dict.items():
-                        # Get all column names
-                        columns = list(table_info["columns"].keys())
-                        summary_lines.append(f"{table_name}: {', '.join(columns)}")
-                    return "\n".join(summary_lines)
-                else:
-                    return ("Schema information not available in a valid format")
-            else:
-                return ("Schema information not available in a valid format")
-        except yaml.YAMLError:
-            return self.detailed_schema
+            schema_dict = yaml.safe_load(self.detailed_schema)  # Convert YAML to dictionary
+            if not isinstance(schema_dict, dict):
+                raise ValueError("Error: Parsed schema is not a valid dictionary.")
+
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Error: Failed to parse schema. Invalid YAML format. Details: {exc}") from exc
+
+        # Construct summary lines
+        summary_lines = []
+        for table_name, table_info in schema_dict.items():
+            columns = table_info.get("columns")
+            if isinstance(columns, dict):
+                summary_lines.append(f"{table_name}: {', '.join(columns.keys())}")
+
+        return "\n".join(summary_lines)
 
 
     def get_db_handler(self) -> DatabaseService:
@@ -302,28 +319,21 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
 
         if self.data_description:
             description += f"Data Description:\n{self.data_description}\n"
-        else:
+        
+        # Extract table information if schema exists
+        if isinstance(self.detailed_schema, str):
             try:
-                # Only try to parse as YAML if we have a string that might be YAML
-                if isinstance(self.detailed_schema, str):
-                    schema_dict = yaml.safe_load(self.detailed_schema)
-                    if isinstance(schema_dict, dict):
-                        tables = list(schema_dict.keys())
-                        if tables:
-                            description += f"Contains {len(tables)} tables: {', '.join(tables)}\n"
-                        else:
-                            description += "No tables found in database.\n"
-                    else:
-                        description += "Schema information not available in a valid format"
-                else:
-                    description += "Schema information not available in a valid format"
+                schema_dict = yaml.safe_load(self.detailed_schema)
+                if isinstance(schema_dict, dict) and schema_dict:
+                    tables = list(schema_dict.keys())
+                    description += f"Contains {len(tables)} tables: {', '.join(tables)}\n"
             except yaml.YAMLError:
-                # If not valid YAML, don't show anything
-                pass
-                
+                pass  # Silently fail if YAML parsing fails
+
         return {
             "agent_name": self.agent_name,
-            "description": description,
+            "description": description.strip(),
             "always_open": self.info.get("always_open", False),
             "actions": self.get_actions_summary(),
         }
+
