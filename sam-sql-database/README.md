@@ -55,6 +55,9 @@ For database connection:
 - **<AGENT_NAME>_QUERY_TIMEOUT** - Query timeout in seconds (optional, default 30)
 - **<AGENT_NAME>_DB_PURPOSE** - Description of the database purpose
 - **<AGENT_NAME>_DB_DESCRIPTION** - Detailed description of the data
+- **<AGENT_NAME>_AUTO_DETECT_SCHEMA** - Whether to automatically detect schema (optional, default true)
+- **<AGENT_NAME>_DB_SCHEMA** - Database schema text (required if auto_detect_schema is false)
+- **<AGENT_NAME>_SCHEMA_SUMMARY** - Natural language summary of the schema (required if auto_detect_schema is false)
 
 ## Actions
 
@@ -79,14 +82,20 @@ This allows you to interact with multiple databases through natural language que
 
 ## Schema Detection
 
-The agent automatically detects and analyzes the database schema including:
-- Table structures
-- Column types and constraints
-- Primary/foreign key relationships
-- Indexes
-- Sample data and statistics
+The agent can handle database schemas in two ways:
 
-This information helps the LLM generate more accurate SQL queries from natural language.
+1. **Automatic Schema Detection** (default):
+   - Automatically detects and analyzes the database schema
+   - Generates a natural language summary of the schema
+   - Includes table structures, column types, and relationships
+
+2. **Manual Schema Configuration**:
+   - Set `AUTO_DETECT_SCHEMA=false` to disable automatic detection
+   - Provide `DB_SCHEMA` with the database structure description
+   - Provide `SCHEMA_SUMMARY` with a natural language summary
+   - Useful when you want to control exactly how the schema is presented to the agent
+
+The schema information helps the LLM generate more accurate SQL queries from natural language.
 
 ## CSV File Import
 
