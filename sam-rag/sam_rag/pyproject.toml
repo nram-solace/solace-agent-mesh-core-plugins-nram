@@ -9,7 +9,7 @@ allow-direct-references = true
 name = "sam_rag"
 dynamic = ["version"]
 authors = [
-  { name="Alireza Parvizimosaed", email="" },
+  { name="Alireza Parvizimosaed", email="alireza.parvizimosaed@solace.com" },
 ]
 description = "A document-ingesting agent that monitors specified directories, keeping stored documents up to date in a vector database for Retrieval-Augmented Generation (RAG) queries."
 readme = "README.md"
@@ -17,7 +17,7 @@ requires-python = ">=3.10"
 dependencies = [
     "PyPDF2>=3.0.0",  # For PDF processing
     "python-docx>=0.8.11",  # For DOCX processing
-    "beautifulsoup4>=4.11.1",  # For HTML processing
+    "beautifulsoup4>=4.12.3",  # For HTML processing
     "pandas>=1.5.0",  # For Excel processing
     "odfpy>=1.4.1",  # For ODT processing
     "lxml>=4.9.1",  # XML parser for BeautifulSoup

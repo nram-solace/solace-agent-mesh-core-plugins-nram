@@ -29,6 +29,10 @@ info.update(
                 "desc": "Configuration for the document scanner.",
                 "type": "object",
                 "properties": {
+                    "batch": {
+                        "type": "boolean",
+                        "desc": "Whether to process documents in batch mode",
+                    },
                     "use_memory_storage": {
                         "type": "boolean",
                         "desc": "Whether to use in-memory storage",
@@ -155,25 +159,101 @@ info.update(
                             "text": {
                                 "type": "object",
                                 "desc": "Text file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
                             },
-                            "pdf": {"type": "object", "desc": "PDF file preprocessor"},
+                            "pdf": {
+                                "type": "object",
+                                "desc": "PDF file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
+                            },
                             "docx": {
                                 "type": "object",
                                 "desc": "DOCX file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
                             },
                             "json": {
                                 "type": "object",
                                 "desc": "JSON file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
                             },
                             "html": {
                                 "type": "object",
                                 "desc": "HTML file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
                             },
                             "markdown": {
                                 "type": "object",
                                 "desc": "Markdown file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
                             },
-                            "csv": {"type": "object", "desc": "CSV file preprocessor"},
+                            "csv": {
+                                "type": "object",
+                                "desc": "CSV file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -200,10 +280,9 @@ info.update(
                                         "type": "number",
                                         "desc": "Overlap between chunks",
                                     },
-                                    "separators": {
-                                        "type": "array",
-                                        "desc": "Text separators",
-                                        "items": {"type": "string"},
+                                    "separator": {
+                                        "type": "string",
+                                        "desc": "Text separator",
                                     },
                                 },
                             },
@@ -213,15 +292,72 @@ info.update(
                         "type": "object",
                         "desc": "File-specific text splitters",
                         "properties": {
-                            "text": {"type": "object", "desc": "Text file splitter"},
-                            "txt": {"type": "object", "desc": "TXT file splitter"},
-                            "json": {"type": "object", "desc": "JSON file splitter"},
-                            "html": {"type": "object", "desc": "HTML file splitter"},
+                            "text": {
+                                "type": "object",
+                                "desc": "Text file splitter",
+                                "properties": {
+                                    "type": {"type": "string", "desc": "Splitter type"},
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Splitter parameters",
+                                    },
+                                },
+                            },
+                            "txt": {
+                                "type": "object",
+                                "desc": "TXT file splitter",
+                                "properties": {
+                                    "type": {"type": "string", "desc": "Splitter type"},
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Splitter parameters",
+                                    },
+                                },
+                            },
+                            "json": {
+                                "type": "object",
+                                "desc": "JSON file splitter",
+                                "properties": {
+                                    "type": {"type": "string", "desc": "Splitter type"},
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Splitter parameters",
+                                    },
+                                },
+                            },
+                            "html": {
+                                "type": "object",
+                                "desc": "HTML file splitter",
+                                "properties": {
+                                    "type": {"type": "string", "desc": "Splitter type"},
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Splitter parameters",
+                                    },
+                                },
+                            },
                             "markdown": {
                                 "type": "object",
                                 "desc": "Markdown file splitter",
+                                "properties": {
+                                    "type": {"type": "string", "desc": "Splitter type"},
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Splitter parameters",
+                                    },
+                                },
                             },
-                            "csv": {"type": "object", "desc": "CSV file splitter"},
+                            "csv": {
+                                "type": "object",
+                                "desc": "CSV file splitter",
+                                "properties": {
+                                    "type": {"type": "string", "desc": "Splitter type"},
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Splitter parameters",
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -238,6 +374,29 @@ info.update(
                     "embedder_params": {
                         "type": "object",
                         "desc": "Parameters for the embedder",
+                        "properties": {
+                            "model": {"type": "string", "desc": "Embedding model name"},
+                            "api_key": {
+                                "type": "string",
+                                "desc": "API key for embedding service",
+                            },
+                            "base_url": {
+                                "type": "string",
+                                "desc": "Base URL for embedding service",
+                            },
+                            "batch_size": {
+                                "type": "number",
+                                "desc": "Batch size for embedding generation",
+                            },
+                            "dimensions": {
+                                "type": "number",
+                                "desc": "Dimensions of the embedding vector",
+                            },
+                            "device": {
+                                "type": "string",
+                                "desc": "Device to use for local embeddings",
+                            },
+                        },
                     },
                     "normalize_embeddings": {
                         "type": "boolean",
@@ -257,6 +416,24 @@ info.update(
                     "db_params": {
                         "type": "object",
                         "desc": "Parameters for the vector database",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "desc": "URL for the vector database",
+                            },
+                            "api_key": {
+                                "type": "string",
+                                "desc": "API key for the vector database",
+                            },
+                            "collection_name": {
+                                "type": "string",
+                                "desc": "Collection name in the vector database",
+                            },
+                            "embedding_dimension": {
+                                "type": "number",
+                                "desc": "Dimension of the embedding vectors",
+                            },
+                        },
                     },
                 },
             },
@@ -289,6 +466,7 @@ class IngestionAgentComponent(BaseAgentComponent):
         # Scanner configuration
         scanner_config = self.get_config("scanner", {})
         if scanner_config:
+            self.batch_mode = scanner_config.get("batch", False)
             source_config = scanner_config.get("source", {})
             if source_config:
                 self.source_type = source_config.get("type")

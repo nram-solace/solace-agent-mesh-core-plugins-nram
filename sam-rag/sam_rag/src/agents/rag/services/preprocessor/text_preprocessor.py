@@ -145,15 +145,23 @@ class TextPreprocessor:
 
     def _remove_punctuation(self, text: str) -> str:
         """
-        Remove punctuation from text.
+        Remove punctuation from text, except for specified characters.
+
+        Preserves:
+        - Standard punctuation: ., ,, ;, :, !, ?, ', ", -
+        - Brackets and parentheses: (), [], {}, <>
+        - Mathematical symbols: +, *, /, =, %
+        - Currency symbols: $, €, £, ¥
 
         Args:
             text: The input text.
 
         Returns:
-            Text with punctuation removed.
+            Text with unwanted punctuation removed.
         """
-        punctuation_pattern = r"[^\w\s]"
+        # Define punctuation to keep
+        preserved_punct = r".,;:!?\'\"\-\(\)\[\]\{\}<>\+\*/=\%\$€£¥"
+        punctuation_pattern = f"[^\\w\\s{preserved_punct}]"
         return re.sub(punctuation_pattern, " ", text)
 
     def _remove_numbers(self, text: str) -> str:

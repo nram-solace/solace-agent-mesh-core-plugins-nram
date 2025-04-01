@@ -142,18 +142,12 @@ class IngestionAction(Action):
     def invoke(self, params, meta={}) -> ActionResponse:
         log.debug("Starting document ingestion process")
 
-        # Initialize database if needed
-        # init_db(params.get("database"))
-
         # Initialize ingestor if not already initialized
         if not self.ingestor:
             self.ingestor = IngestorService(params)
 
-        # Check if specific file paths were provided
-        file_paths = params.get("file_paths", [])
-
-        # If no explicit file paths, check scanner configuration
-        if not file_paths and "scanner" in params:
+        # If no explicit directories, check scanner configuration
+        if "scanner" in params:
             scanner_config = params.get("scanner", {})
             source_config = scanner_config.get("source", {})
 
@@ -163,25 +157,22 @@ class IngestionAction(Action):
                 and "directories" in source_config
             ):
                 directories = source_config.get("directories", [])
-                # Here we're just setting directories as file paths to scan
-                # In a real implementation, you might want to list all files in these directories
-                file_paths = directories
 
-        if file_paths:
-            # Process files through the complete pipeline
-            result = self._process_files(file_paths, params)
-            return ActionResponse(
-                message=result.get("message", "Files processed successfully."),
-                error=not result.get("success", True),
-                result=result,
-            )
-        else:
-            log.warning("No file paths provided for ingestion.")
-            return ActionResponse(
-                message="No file paths provided.",
-                error=True,
-                result=None,
-            )
+            if directories:
+                # Process files through the complete pipeline
+                result = self._process_files(directories, params)
+                return ActionResponse(
+                    message=result.get("message", "Files processed successfully."),
+                    error=not result.get("success", True),
+                    result=result,
+                )
+
+        log.warning("No directories provided for ingestion.")
+        return ActionResponse(
+            message="No directories provided.",
+            error=True,
+            result=None,
+        )
 
     def _process_files(self, file_paths: List[str], params=None) -> Dict[str, Any]:
         """
@@ -311,6 +302,6 @@ class IngestionAction(Action):
         _, ext = os.path.splitext(file_path.lower())
         return ext[1:] if ext else "text"  # Remove the leading dot
 
-    def do_action(self, sample) -> ActionResponse:
-        sample += " Action performed"
-        return ActionResponse(message=sample)
+    def do_action(self, action) -> ActionResponse:
+        action += " Action performed"
+        return ActionResponse(message=action)

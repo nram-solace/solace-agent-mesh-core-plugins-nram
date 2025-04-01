@@ -5,7 +5,6 @@ This module provides a high-level interface for processing documents from variou
 formats and converting them to clean text suitable for embedding.
 """
 
-import sys
 from typing import Dict, List, Optional, Any
 from .enhanced_preprocessor import EnhancedPreprocessorService
 
@@ -81,46 +80,3 @@ class DocumentProcessor:
             The file format (e.g., "pdf", "docx", "txt").
         """
         return self.preprocessor.get_file_format(file_path)
-
-
-def main():
-    """
-    Command-line interface for the document processor.
-    """
-    # Parse command-line arguments
-    if len(sys.argv) < 2:
-        print(
-            "Usage: python -m src.agents.rag.services.preprocessor.document_processor file1 [file2 ...]"
-        )
-        return
-
-    file_paths = sys.argv[1:]
-
-    # Create document processor with default configuration
-    processor = DocumentProcessor()
-
-    # Print supported formats
-    print("Supported formats:", ", ".join(processor.get_supported_formats()))
-    print()
-
-    # Process the documents
-    print(f"Processing {len(file_paths)} documents...")
-    results = processor.process_documents(file_paths)
-
-    # Print results
-    print(
-        f"\nSuccessfully processed {len(results)} out of {len(file_paths)} documents:"
-    )
-    for file_path, text in results.items():
-        format_name = processor.get_file_format(file_path)
-        print(f"\nFile: {file_path}")
-        print(f"Format: {format_name}")
-
-        # Print preview of the processed text
-        preview = text[:200] + "..." if len(text) > 200 else text
-        print(f"Processed text preview: {preview}")
-        print(f"Text length: {len(text)} characters")
-
-
-if __name__ == "__main__":
-    main()
