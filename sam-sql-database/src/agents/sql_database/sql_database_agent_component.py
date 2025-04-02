@@ -167,8 +167,10 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         # Get schema information
         if self.auto_detect_schema:
             schema_dict = self._detect_schema()
+            # Clean the schema before converting to YAML
+            schema_dict_cleaned = self._clean_schema(schema_dict)
             # Convert dictionary to YAML string
-            self.detailed_schema = yaml.dump(schema_dict, default_flow_style=False)
+            self.detailed_schema = yaml.dump(schema_dict_cleaned, default_flow_style=False, allow_unicode=True)
             # Generate schema prompt from detected schema
             self.schema_summary = self._get_schema_summary()
             if not self.schema_summary:
@@ -281,6 +283,21 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             schema[table] = table_info
 
         return schema
+
+    def _clean_schema(self, schema_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Clean the schema dictionary by removing problematic fields.
+        
+        Args:
+            schema_dict: The schema dictionary to clean
+            
+        Returns:
+            Cleaned schema dictionary
+        """
+        for table, table_data in schema_dict.items():
+            for column, column_data in table_data["columns"].items():
+                # Remove problematic fields (if they exist)
+                column_data.pop("statistics", None)
+        return schema_dict
 
     def _get_schema_summary(self) -> str:
         """Gets a terse formatted summary of the database schema.
