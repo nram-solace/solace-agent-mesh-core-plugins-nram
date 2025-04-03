@@ -1,7 +1,7 @@
 import os
 import time
 import threading
-import logging
+from solace_ai_connector.common.log import log as logger
 from typing import Dict, List, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -16,9 +16,6 @@ try:
     DATABASE_AVAILABLE = True
 except ImportError:
     DATABASE_AVAILABLE = False
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 # Concrete implementation for Local File System
@@ -42,6 +39,7 @@ class LocalFileSystemDataSource(DataSource):
         self.interval = 10
         self.use_memory_storage = False
         self.batch = False
+        self.existing_sources = source.get("existing_sources", [])
         self.process_config(source)
 
     def process_config(self, source: Dict = {}) -> None:
@@ -83,6 +81,13 @@ class LocalFileSystemDataSource(DataSource):
                     file_path = os.path.join(root, file)
 
                     if self.is_valid_file(file_path):
+                        # Check if the document already exists in the vector database
+                        if file_path in self.existing_sources:
+                            logger.info(
+                                f"Batch: Document already exists in vector database: {file_path}"
+                            )
+                            continue
+
                         if self.use_memory_storage:
                             memory_storage.insert_document(
                                 path=file_path,
@@ -116,29 +121,29 @@ class LocalFileSystemDataSource(DataSource):
         if self.batch:
             self.batch_scan()
 
-        event_handler = FileSystemEventHandler()
-        event_handler.on_created = self.on_created
-        event_handler.on_deleted = self.on_deleted
-        event_handler.on_modified = self.on_modified
+        # event_handler = FileSystemEventHandler()
+        # event_handler.on_created = self.on_created
+        # event_handler.on_deleted = self.on_deleted
+        # event_handler.on_modified = self.on_modified
 
-        observer = Observer()
-        for directory in self.directories:
-            observer.schedule(event_handler, directory, recursive=True)
-        observer.start()
+        # observer = Observer()
+        # for directory in self.directories:
+        #     observer.schedule(event_handler, directory, recursive=True)
+        # observer.start()
 
-        def run_periodically():
-            while True:
-                time.sleep(self.interval)
+        # def run_periodically():
+        #     while True:
+        #         time.sleep(self.interval)
 
-        thread = threading.Thread(target=run_periodically)
-        thread.daemon = True  # Make thread a daemon so it exits when main thread exits
-        thread.start()
+        # thread = threading.Thread(target=run_periodically)
+        # thread.daemon = True  # Make thread a daemon so it exits when main thread exits
+        # thread.start()
 
-        try:
-            thread.join()
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
+        # try:
+        #     thread.join()
+        # except KeyboardInterrupt:
+        #     observer.stop()
+        # observer.join()
 
     def on_created(self, event):
         """
@@ -148,6 +153,11 @@ class LocalFileSystemDataSource(DataSource):
             event: The file system event.
         """
         if not self.is_valid_file(event.src_path):
+            return
+
+        # Check if the document already exists in the vector database
+        if event.src_path in self.existing_sources:
+            logger.info(f"Document already exists in vector database: {event.src_path}")
             return
 
         if self.use_memory_storage:
@@ -194,6 +204,14 @@ class LocalFileSystemDataSource(DataSource):
         """
         if not self.is_valid_file(event.src_path):
             return
+
+        # Check if the document already exists in the vector database
+        # For modified files, we still want to update them even if they exist
+        # But we'll log that they exist for tracking purposes
+        if event.src_path in self.existing_sources:
+            logger.info(
+                f"Modified document exists in vector database: {event.src_path}"
+            )
 
         if self.use_memory_storage:
             memory_storage.update_document(path=event.src_path, status="modified")

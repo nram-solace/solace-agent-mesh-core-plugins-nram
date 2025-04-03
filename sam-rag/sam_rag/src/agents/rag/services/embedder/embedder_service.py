@@ -2,8 +2,9 @@
 Service for embedding text chunks into vector representations.
 """
 
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Tuple
 import numpy as np
+
 from .embedder_base import EmbedderBase
 from .local_embedder import (
     SentenceTransformerEmbedder,

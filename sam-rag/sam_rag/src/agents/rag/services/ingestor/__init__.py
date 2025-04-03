@@ -3,7 +3,6 @@ Ingestor package for RAG.
 """
 
 from .ingestor_base import IngestorBase
-from .ingestor import DocumentIngestor
-from .ingestor_service import IngestorService
+from .ingestor import Ingestor
 
-__all__ = ["IngestorBase", "DocumentIngestor", "IngestorService"]
+__all__ = ["IngestorBase", "Ingestor"]

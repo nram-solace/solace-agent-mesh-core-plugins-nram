@@ -7,9 +7,7 @@ allowing it to store file information in memory instead of a database.
 
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-import logging
-
-logger = logging.getLogger(__name__)
+from solace_ai_connector.common.log import log as logger
 
 
 class MemoryStorage:

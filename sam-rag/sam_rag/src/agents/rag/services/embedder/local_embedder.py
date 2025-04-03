@@ -2,8 +2,8 @@
 Local embedders that run on the local machine.
 """
 
-from typing import Dict, Any, List, Optional, Union
-import numpy as np
+from typing import Dict, Any, List
+
 from .embedder_base import EmbedderBase
 
 

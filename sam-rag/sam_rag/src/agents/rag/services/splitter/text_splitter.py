@@ -2,8 +2,9 @@
 Text splitters for unstructured text.
 """
 
-from typing import Dict, Any, List, Optional, Callable, Tuple, Collection, Union
+from typing import Dict, Any, List
 import re
+
 from .splitter_base import SplitterBase
 
 try:

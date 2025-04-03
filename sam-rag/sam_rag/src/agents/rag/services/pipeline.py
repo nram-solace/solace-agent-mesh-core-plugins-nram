@@ -16,15 +16,16 @@ import yaml
 import logging
 import threading
 import time
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
+from solace_ai_connector.common.log import log
 
-from src.agents.rag.services.preprocessor.document_processor import DocumentProcessor
-from src.agents.rag.services.splitter.splitter_service import SplitterService
-from src.agents.rag.services.embedder.embedder_service import EmbedderService
-from src.agents.rag.services.ingestor.ingestor_service import IngestorService
+from ..services.preprocessor.document_processor import DocumentProcessor
+from ..services.splitter.splitter_service import SplitterService
+from ..services.embedder.embedder_service import EmbedderService
+from ..services.ingestor.ingestor_service import IngestorService
 
-from src.agents.rag.services.scanner.file_tracker import FileChangeTracker
-from src.agents.rag.services.memory.memory_storage import memory_storage
+from ..services.scanner.file_tracker import FileChangeTracker
+from ..services.memory.memory_storage import memory_storage
 
 SCANNER_AVAILABLE = True
 
@@ -34,7 +35,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger(__name__)
 
 
 class RAGPipeline:

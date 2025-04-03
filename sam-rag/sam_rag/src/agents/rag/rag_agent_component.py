@@ -3,23 +3,34 @@
 import os
 import copy
 import sys
-from typing import Any, Dict
+from typing import Dict, List, Any
+from solace_ai_connector.common.log import log
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 
+from solace_agent_mesh.common.action_response import ActionResponse
 from solace_agent_mesh.agents.base_agent_component import (
     agent_info,
     BaseAgentComponent,
 )
 
 # Ingestion action import
-from rag.actions.ingestion import IngestAction
+from ..rag.actions.ingestion import IngestionAction
+
+# Adding imports for file tracking and ingestor functionality
+from .services.ingestor.ingestor import Ingestor
+from .services.scanner.file_tracker import FileChangeTracker
+
+# Add new imports for the RAG pipeline
+from .services.preprocessor.document_processor import DocumentProcessor
+from .services.splitter.splitter_service import SplitterService
+from .services.embedder.embedder_service import EmbedderService
 
 info = copy.deepcopy(agent_info)
 info.update(
     {
-        "agent_name": "ingestion",
+        "agent_name": "rag",
         "class_name": "IngestionAgentComponent",
         "description": "The agent scans documents of resources, ingests documents in a vector database, and "
         "provides relevant information when a user explicitly requests it.",
@@ -445,7 +456,7 @@ info.update(
 class IngestionAgentComponent(BaseAgentComponent):
     info = info
     # ingest action
-    actions = [IngestAction]
+    actions = [IngestionAction]
 
     def __init__(self, module_info: Dict[str, Any] = None, **kwargs):
         """Initialize the ingestion agent component.
@@ -463,52 +474,232 @@ class IngestionAgentComponent(BaseAgentComponent):
 
         self.agent_name = self.get_config("agent_name")
 
-        # Scanner configuration
-        scanner_config = self.get_config("scanner", {})
-        if scanner_config:
-            self.batch_mode = scanner_config.get("batch", False)
-            source_config = scanner_config.get("source", {})
-            if source_config:
-                self.source_type = source_config.get("type")
-                self.directories = source_config.get("directories", [])
-                self.filters = source_config.get("filters", {})
-            self.use_memory_storage = scanner_config.get("use_memory_storage", False)
-            self.schedule = scanner_config.get("schedule")
-            # Get database config if available
-            self.db_config = scanner_config.get("database", {})
-
-        # Preprocessor configuration
-        preprocessor_config = self.get_config("preprocessor", {})
-        if preprocessor_config:
-            self.default_preprocessor = preprocessor_config.get(
-                "default_preprocessor", {}
-            )
-            self.preprocessors = preprocessor_config.get("preprocessors", {})
-
-        # Splitter configuration
-        splitter_config = self.get_config("splitter", {})
-        if splitter_config:
-            self.default_splitter = splitter_config.get("default_splitter", {})
-            self.splitters = splitter_config.get("splitters", {})
-
-        # Embedding configuration
-        embedding_config = self.get_config("embedding", {})
-        if embedding_config:
-            self.embedder_type = embedding_config.get("embedder_type")
-            self.embedder_params = embedding_config.get("embedder_params", {})
-            self.normalize_embeddings = embedding_config.get(
-                "normalize_embeddings", False
-            )
-
-        # Vector DB configuration
-        vector_db_config = self.get_config("vector_db", {})
-        if vector_db_config:
-            self.db_type = vector_db_config.get("db_type")
-            self.db_params = vector_db_config.get("db_params", {})
-
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
 
         module_info["agent_name"] = self.agent_name
+
+        # Initialize ingestor
+        self.component_config = self.get_config("component_config")
+        self.ingestor = Ingestor(self.component_config)
+        # Run the ingestion process
+        self._ingest()
+
+    def _ingest(self):
+
+        # If no explicit directories, check scanner configuration
+        scanner_config = self.get_config("scanner", {})
+        if scanner_config:
+            source_config = scanner_config.get("source", {})
+
+            # Get directories from scanner configuration
+            if (
+                source_config.get("type") == "filesystem"
+                and "directories" in source_config
+            ):
+                directories = source_config.get("directories", [])
+
+                if directories:
+                    self.file_tracker = FileChangeTracker(scanner_config)
+                    self.use_memory_storage = scanner_config["use_memory_storage"]
+                    log.info(
+                        "File tracker initialized with memory storage"
+                        if self.use_memory_storage
+                        else "File tracker initialized with database"
+                    )
+                    # Real-time scanner: Scan for file changes
+                    self._scan_files()
+
+                    # Batch scanner: Get files
+                    files = self._get_tracked_files()
+
+                    if files:
+                        # Process files through the complete pipeline
+                        result = self._process_files(files, self.component_config)
+                        log.info(f"Processing result: {result}")
+                        # return ActionResponse(
+                        #     message=result.get("message", "Files processed successfully."),
+                        #     error=not result.get("success", True),
+                        #     result=result,
+                        # )
+                    else:
+                        log.info("No files found to process.")
+                else:
+                    log.info("No directories provided for ingestion.")
+            else:
+                log.info("No directories provided in scanner configuration.")
+
+    def _process_files(self, file_paths: List[str], params=None) -> Dict[str, Any]:
+        """
+        Process files through a complete RAG pipeline: preprocess, chunk, embed, and ingest.
+
+        Args:
+            file_paths: List of file paths to process.
+            params: Configuration parameters.
+
+        Returns:
+            A dictionary containing the processing results.
+        """
+        log.info(f"Processing {len(file_paths)} files through the RAG pipeline")
+
+        # Initialize pipeline components with configuration from params
+        preprocessor = DocumentProcessor(params.get("preprocessor", {}))
+        splitter = SplitterService(params.get("splitter", {}))
+        embedder = EmbedderService(params.get("embedding", {}))
+
+        # Step 1: Preprocess files
+        preprocessed_docs = []
+        preprocessed_metadata = []
+
+        for i, file_path in enumerate(file_paths):
+            try:
+                # Verify the file exists
+                if not os.path.exists(file_path):
+                    log.warning(f"File not found: {file_path}")
+                    continue
+
+                # Process the file
+                text = preprocessor.process_document(file_path)
+                doc_type = self._get_file_type(file_path)
+
+                if text:
+                    preprocessed_docs.append(text)
+                    preprocessed_metadata.append(
+                        {
+                            "source": file_path,
+                            "document_type": doc_type,
+                            "file_name": os.path.basename(file_path),
+                            "index": i,
+                        }
+                    )
+                    log.info(
+                        f"Successfully preprocessed file: {file_path} ({doc_type})"
+                    )
+                else:
+                    log.warning(f"Failed to preprocess file: {file_path}")
+            except Exception as e:
+                log.error(f"Error preprocessing file {file_path}: {str(e)}")
+
+        if not preprocessed_docs:
+            log.warning("No documents were successfully preprocessed")
+            return {
+                "success": False,
+                "message": "No documents were successfully preprocessed",
+                "document_ids": [],
+            }
+
+        # Step 2: Split documents into chunks
+        chunks = []
+        chunks_metadata = []
+
+        for i, (doc, meta) in enumerate(zip(preprocessed_docs, preprocessed_metadata)):
+            try:
+                # Get the document type
+                doc_type = meta.get("document_type", "text")
+
+                # Split the document
+                doc_chunks = splitter.split_text(doc, doc_type)
+
+                # Add chunks and metadata
+                chunks.extend(doc_chunks)
+                chunks_metadata.extend([meta.copy() for _ in range(len(doc_chunks))])
+
+                log.info(f"Split document {i} into {len(doc_chunks)} chunks")
+            except Exception as e:
+                log.error(f"Error splitting document {i}: {str(e)}")
+
+        if not chunks:
+            log.warning("No chunks were created from the documents")
+            return {
+                "success": False,
+                "message": "No chunks were created from the documents",
+                "document_ids": [],
+            }
+
+        # Step 3: Embed chunks
+        try:
+            embeddings = embedder.embed_texts(chunks)
+            log.info(f"Created {len(embeddings)} embeddings")
+        except Exception as e:
+            log.error(f"Error embedding chunks: {str(e)}")
+            return {
+                "success": False,
+                "message": f"Error embedding chunks: {str(e)}",
+                "document_ids": [],
+            }
+
+        # Step 4: Ingest embeddings into vector database
+        try:
+            # Use the ingestor to store the embeddings
+            result = self.ingestor.ingest_embeddings(
+                texts=chunks, embeddings=embeddings, metadata=chunks_metadata
+            )
+            log.info(f"Ingestion result: {result['message']}")
+            return result
+        except Exception as e:
+            log.error(f"Error ingesting embeddings: {str(e)}")
+            return {
+                "success": False,
+                "message": f"Error ingesting embeddings: {str(e)}",
+                "document_ids": [],
+            }
+
+    def _get_file_type(self, file_path: str) -> str:
+        """
+        Get the file type from a file path.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            The file type (e.g., "pdf", "text", "html").
+        """
+        _, ext = os.path.splitext(file_path.lower())
+        return ext[1:] if ext else "text"  # Remove the leading dot
+
+    def _get_tracked_files(self) -> List[Dict[str, Any]]:
+        """
+        Get all tracked files from the file tracker.
+
+        Returns:
+            A list of tracked files with their metadata.
+        """
+        if self.file_tracker:
+            try:
+                files = []
+                tracked_files = self.file_tracker.get_tracked_files()
+                for i, file in enumerate(tracked_files):
+                    file_path = file.get("path", None)  # Get the file path
+                    if not file_path:
+                        log.warning(f"Invalid file path: {file}")
+                        continue
+
+                    # Verify the file exists
+                    if not os.path.exists(file_path):
+                        log.warning(f"File not found: {file_path}")
+                        continue
+
+                    file_status = file.get("status", None)  # Get the file status
+                    if file_status not in {"modified", "new"}:
+                        continue
+
+                    files.append(file_path)
+                return files
+            except Exception as e:
+                log.error(f"Error getting tracked files: {str(e)}")
+                return []
+
+    def _scan_files(self) -> Dict[str, List[str]]:
+        """
+        Scan for file changes using the file tracker.
+
+        Returns:
+            A dictionary containing the scan results.
+        """
+        if self.file_tracker:
+            return self.file_tracker.scan()
+        else:
+            log.warning("Scanner module not available or file tracker not initialized")
+            return {"added": [], "removed": [], "changed": []}
 
     def get_agent_summary(self):
         """Get a summary of the agent's capabilities."""
@@ -517,8 +708,6 @@ class IngestionAgentComponent(BaseAgentComponent):
             "description": f"This agent ingests documents and retrieves relevant information.\n",
             "detailed_description": (
                 "This agent ingests various types of documents in a vector database and retrieves relevant information.\n\n"
-                f"Source of documents:\n{self.source_type}\n\n"
-                f"Document types:\n{self.filters}\n\n"
             ),
             "always_open": self.info.get("always_open", False),
             "actions": self.get_actions_summary(),

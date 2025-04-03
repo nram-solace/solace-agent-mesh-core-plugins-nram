@@ -3,7 +3,7 @@ Base class for embedders.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List
 import numpy as np
 
 

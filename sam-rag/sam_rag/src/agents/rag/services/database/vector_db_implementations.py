@@ -13,11 +13,10 @@ This module contains implementations for various vector databases:
 - Zilliz
 """
 
-import os
 import uuid
 import json
-from typing import Dict, Any, List, Optional, Union, Tuple
-import numpy as np
+from typing import Dict, Any, List, Optional
+
 from .vector_db_base import VectorDBBase
 
 

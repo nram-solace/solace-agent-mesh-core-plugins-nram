@@ -5,8 +5,9 @@ Vector database implementations.
 import os
 import uuid
 import json
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional
 import numpy as np
+
 from .vector_db_base import VectorDBBase
 
 

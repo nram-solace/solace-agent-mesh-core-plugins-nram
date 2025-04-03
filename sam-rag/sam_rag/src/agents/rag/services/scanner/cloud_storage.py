@@ -1,4 +1,5 @@
 from typing import Dict, List, Any
+from solace_ai_connector.common.log import log as logger
 
 from .datasource_base import DataSource
 from ..memory.memory_storage import memory_storage
@@ -19,6 +20,7 @@ class CloudStorageDataSource(DataSource):
         """
         super().__init__(config)
         self.use_memory_storage = config.get("use_memory_storage", False)
+        self.existing_sources = config.get("existing_sources", [])
         self.process_config(config)
 
     def process_config(self, source: Dict = {}) -> None:
@@ -39,6 +41,13 @@ class CloudStorageDataSource(DataSource):
                 f"cloud://{self.bucket}/{self.prefix}file2.txt",
             ]
             for file_path in mock_files:
+                # Check if the document already exists in the vector database
+                if file_path in self.existing_sources:
+                    logger.info(
+                        f"Document already exists in vector database: {file_path}"
+                    )
+                    continue
+
                 memory_storage.insert_document(
                     path=file_path,
                     file=file_path.split("/")[-1],

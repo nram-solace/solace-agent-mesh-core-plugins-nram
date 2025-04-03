@@ -2,7 +2,8 @@
 Service for vector database operations.
 """
 
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional
+
 from .vector_db_base import VectorDBBase
 from .vector_db import ChromaDB, FAISS, Milvus
 from .vector_db_implementations import (

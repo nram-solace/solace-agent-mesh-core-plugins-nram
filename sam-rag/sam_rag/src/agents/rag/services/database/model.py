@@ -4,8 +4,7 @@ from typing import Dict
 from sqlalchemy import create_engine, Column, String, Enum, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
-
-from ..utils.log import log
+from solace_ai_connector.common.log import log
 
 Base = declarative_base()
 

@@ -5,9 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from sqlalchemy import inspect
 from datetime import datetime
+from solace_ai_connector.common.log import log
 
 from .model import Document, StatusEnum, config_db
-from ..utils.log import log
 
 SessionLocal = None
 

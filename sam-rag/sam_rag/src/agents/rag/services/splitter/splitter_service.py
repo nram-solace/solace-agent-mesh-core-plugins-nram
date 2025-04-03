@@ -4,6 +4,7 @@ Service for splitting documents into chunks for embedding.
 
 import os
 from typing import Dict, Any, List, Optional, Tuple
+
 from .splitter_base import SplitterBase
 from .text_splitter import (
     CharacterTextSplitter,

@@ -42,10 +42,11 @@ flows:
       - component_name: action_request_processor
         component_base_path: .
         # path is completed at build time
-        component_module: src.agents.rag.rag_agent_component #{{MODULE_DIRECTORY}}.agents.rag.rag_agent_component
+        component_module: {{MODULE_DIRECTORY}}.agents.rag.rag_agent_component
         component_config:
           llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
           embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
+          agent_name: rag
           # Scanner configuration
           scanner:
             batch: true

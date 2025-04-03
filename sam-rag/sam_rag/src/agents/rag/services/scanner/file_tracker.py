@@ -1,9 +1,10 @@
-from typing import List, Dict, Any, Optional
-import logging
+from typing import List, Dict, Any, Optional, Set
+from solace_ai_connector.common.log import log as logger
 
 from .file_system import LocalFileSystemDataSource
 from .cloud_storage import CloudStorageDataSource
 from ..memory.memory_storage import memory_storage
+from ..database.vector_db_service import VectorDBService
 
 # Try to import database modules, but don't fail if they're not available
 try:
@@ -12,9 +13,6 @@ try:
     DATABASE_AVAILABLE = True
 except ImportError:
     DATABASE_AVAILABLE = False
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 # Class to track file changes
@@ -34,6 +32,39 @@ class FileChangeTracker:
         self.data_source = None
         self.use_memory_storage = config.get("use_memory_storage", False)
         self.batch = config.get("batch", False)
+
+        # Initialize vector database service to check for existing documents
+        self.vector_db = VectorDBService(config.get("vector_db", {}))
+
+    def get_source_documents(self) -> List[str]:
+        """
+        Get a list of source document paths from the vector database.
+
+        Returns:
+            A list of document paths that are already in the vector database.
+        """
+        try:
+            # Use a dummy embedding to search for all documents
+            # We'll use a large number to get all documents
+            # The actual similarity doesn't matter since we just want to extract metadata
+            dummy_embedding = [0.0] * 768  # Common embedding dimension
+            results = self.vector_db.search(
+                query_embedding=dummy_embedding, top_k=10000
+            )
+
+            # Extract source paths from metadata
+            sources = set()
+            for result in results:
+                if "metadata" in result and "source" in result["metadata"]:
+                    sources.add(result["metadata"]["source"])
+
+            logger.info(f"Found {len(sources)} existing documents in vector database")
+            return list(sources)
+        except Exception as e:
+            logger.warning(
+                f"Error getting source documents from vector database: {str(e)}"
+            )
+            return []
 
     def scan(self) -> None:
         """
@@ -61,6 +92,12 @@ class FileChangeTracker:
         # Set memory storage flag in source config
         source_config["use_memory_storage"] = self.use_memory_storage
         source_config["batch"] = self.batch
+
+        # Get existing source documents from vector database
+        existing_sources = self.get_source_documents()
+
+        # Add existing sources to source config
+        source_config["existing_sources"] = existing_sources
 
         # Create data source based on type
         source_type = source_config.get("type", "filesystem")

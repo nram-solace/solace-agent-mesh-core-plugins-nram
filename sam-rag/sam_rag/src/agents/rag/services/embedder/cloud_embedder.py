@@ -2,8 +2,8 @@
 Cloud-based embedders that use external APIs.
 """
 
-from typing import Dict, Any, List, Optional, Union
-import numpy as np
+from typing import Dict, Any, List
+
 from .embedder_base import EmbedderBase
 
 
