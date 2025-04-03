@@ -16,6 +16,11 @@ To instantiate the agent, you can use the following code: (you can repeat this s
 solace-agent-mesh add agent rag --copy-from sam_rag
 ```
 
+Rebuild the Solace Agent Mesh to add the agent configurations.
+```sh
+solace-agent-mesh build
+```
+
 This will create a new config file in your agent config directory. Rename this file to the agent name you want to use. 
 Also update the following fields in the config file:
 - **agent_name**
