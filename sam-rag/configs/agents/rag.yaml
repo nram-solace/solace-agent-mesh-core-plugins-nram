@@ -192,15 +192,16 @@ flows:
                 type: csv
                 params:
                   chunk_size: 100 # chunk size in number of rows
+                  include_header: false
           # Embedding configuration
           embedding:
             # default: "openai"
             embedder_type: "openai"
             embedder_params:
               # OpenAI embeddings
-              model: "bedrock-cohere-embed-english-v3" #${OPENAI_EMBEDDING_MODEL, "text-embedding-3-small"}
-              api_key: sk-AuOItNUssenat1iIcA2qlQ #${OPENAI_API_KEY}
-              base_url: https://lite-llm.mymaas.net #${OPENAI_API_ENDPOINT}
+              model: ${OPENAI_EMBEDDING_MODEL}
+              api_key: ${OPENAI_API_KEY}
+              base_url: ${OPENAI_API_ENDPOINT}
               batch_size: 1
             normalize_embeddings: True
 
@@ -233,10 +234,10 @@ flows:
             # Qdrant
             db_type: "qdrant"
             db_params:
-              url: "https://a57f2ac6-9d41-4a31-ab55-1194fc952bff.europe-west3-0.gcp.cloud.qdrant.io" #${QDRANT_URL}
-              api_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.n2k3wVZneKUv6Q2hX3v7DXeKdPYW8rWxLgfYuzNFlJQ #${QDRANT_API_KEY}
-              collection_name: "sample" #${QDRANT_COLLECTION}
-              embedding_dimension: 1024 #${QDRANT_EMBEDDING_DIMENSION, 1536}
+              url: ${QDRANT_URL}
+              api_key: ${QDRANT_API_KEY}
+              collection_name: ${QDRANT_COLLECTION}
+              embedding_dimension: ${QDRANT_EMBEDDING_DIMENSION}
               # distance: ${QDRANT_DISTANCE, "Cosine"}
 
             # # Chroma DB configuration

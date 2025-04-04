@@ -3,6 +3,7 @@
 import os
 import copy
 import sys
+import threading
 from typing import Dict, List, Any
 from solace_ai_connector.common.log import log
 
@@ -481,8 +482,14 @@ class IngestionAgentComponent(BaseAgentComponent):
         # Initialize ingestor
         self.component_config = self.get_config("component_config")
         self.ingestor = Ingestor(self.component_config)
-        # Run the ingestion process
-        self._ingest()
+
+        # Run the ingestion process in a separate thread
+        self.ingestion_thread = threading.Thread(target=self._ingest)
+        self.ingestion_thread.daemon = (
+            True  # Set as daemon so it exits when main thread exits
+        )
+        self.ingestion_thread.start()
+        log.info(f"Started ingestion process on background thread")
 
     def _ingest(self):
 
@@ -499,7 +506,7 @@ class IngestionAgentComponent(BaseAgentComponent):
                 directories = source_config.get("directories", [])
 
                 if directories:
-                    self.file_tracker = FileChangeTracker(scanner_config)
+                    self.file_tracker = FileChangeTracker(self.component_config)
                     self.use_memory_storage = scanner_config["use_memory_storage"]
                     log.info(
                         "File tracker initialized with memory storage"
@@ -516,11 +523,6 @@ class IngestionAgentComponent(BaseAgentComponent):
                         # Process files through the complete pipeline
                         result = self._process_files(files, self.component_config)
                         log.info(f"Processing result: {result}")
-                        # return ActionResponse(
-                        #     message=result.get("message", "Files processed successfully."),
-                        #     error=not result.get("success", True),
-                        #     result=result,
-                        # )
                     else:
                         log.info("No files found to process.")
                 else:

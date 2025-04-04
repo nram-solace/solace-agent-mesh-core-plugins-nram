@@ -344,3 +344,50 @@ class ODTPreprocessor(PreprocessorBase):
         except Exception as e:
             print(f"Error preprocessing ODT file {file_path}: {str(e)}")
             return ""
+
+
+class CSVFilePreprocessor(PreprocessorBase):
+    """
+    Preprocessor for plain text files.
+    """
+
+    def __init__(self, config: Dict[str, Any] = None):
+        """
+        Initialize the text file preprocessor.
+
+        Args:
+            config: Configuration dictionary.
+        """
+        super().__init__(config)
+        self.extensions = [".csv"]
+
+    def can_process(self, file_path: str) -> bool:
+        """
+        Check if this preprocessor can handle the given file.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            True if this preprocessor can handle the file, False otherwise.
+        """
+        ext = os.path.splitext(file_path.lower())[1]
+        return ext in self.extensions
+
+    def preprocess(self, file_path: str) -> str:
+        """
+        Preprocess a text file.
+
+        Args:
+            file_path: Path to the text file.
+
+        Returns:
+            Return text content.
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+            return content
+        except Exception as e:
+            print(f"Error preprocessing text file {file_path}: {str(e)}")
+            return ""

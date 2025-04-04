@@ -14,6 +14,7 @@ from .document_preprocessor import (
     HTMLPreprocessor,
     ExcelPreprocessor,
     ODTPreprocessor,
+    CSVFilePreprocessor,
 )
 
 
@@ -55,6 +56,7 @@ class EnhancedPreprocessorService:
             HTMLPreprocessor(self.config),
             ExcelPreprocessor(self.config),
             ODTPreprocessor(self.config),
+            CSVFilePreprocessor(self.config),
             # TextFilePreprocessor should be last as it handles many generic formats
             TextFilePreprocessor(self.config),
         ]
@@ -167,6 +169,8 @@ class EnhancedPreprocessorService:
                 extensions.extend([".xls", ".xlsx"])
             elif isinstance(preprocessor, ODTPreprocessor):
                 extensions.append(".odt")
+            elif isinstance(preprocessor, CSVFilePreprocessor):
+                extensions.append(".csv")
         return list(set(extensions))  # Remove duplicates
 
     def get_file_format(self, file_path: str) -> str:

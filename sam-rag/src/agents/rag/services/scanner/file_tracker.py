@@ -28,13 +28,14 @@ class FileChangeTracker:
         Args:
             config: A dictionary containing the configuration.
         """
-        self.config = config
+        self.scanner_config = config.get("scanner", {})
+        self.vector_db_config = config.get("vector_db", {})
         self.data_source = None
-        self.use_memory_storage = config.get("use_memory_storage", False)
-        self.batch = config.get("batch", False)
+        self.use_memory_storage = self.scanner_config.get("use_memory_storage", False)
+        self.batch = self.scanner_config.get("batch", False)
 
         # Initialize vector database service to check for existing documents
-        self.vector_db = VectorDBService(config.get("vector_db", {}))
+        self.vector_db = VectorDBService(self.vector_db_config)
 
     def get_source_documents(self) -> List[str]:
         """
@@ -47,9 +48,12 @@ class FileChangeTracker:
             # Use a dummy embedding to search for all documents
             # We'll use a large number to get all documents
             # The actual similarity doesn't matter since we just want to extract metadata
-            dummy_embedding = [0.0] * 768  # Common embedding dimension
+            dimension = self.vector_db_config.get("db_params").get(
+                "embedding_dimension", 768
+            )
+            dummy_embedding = [0.0] * dimension
             results = self.vector_db.search(
-                query_embedding=dummy_embedding, top_k=10000
+                query_embedding=dummy_embedding, top_k=100000000
             )
 
             # Extract source paths from metadata
@@ -75,7 +79,7 @@ class FileChangeTracker:
         """
         # If using database, connect to it
         if not self.use_memory_storage and DATABASE_AVAILABLE:
-            db_config = self.config.get("database", {})
+            db_config = self.scanner_config.get("database", {})
             if not db_config:
                 logger.warning(
                     "Database configuration is missing, using memory storage"
@@ -85,7 +89,7 @@ class FileChangeTracker:
                 connect(db_config)
 
         # Get data source configuration
-        source_config = self.config.get("source", {})
+        source_config = self.scanner_config.get("source", {})
         if not source_config:
             raise ValueError("Source configuration is missing")
 
@@ -110,9 +114,6 @@ class FileChangeTracker:
 
         # Start scanning
         self.data_source.scan()
-
-        # Return empty result for now
-        # return {"added": [], "removed": [], "changed": []}
 
     def get_tracked_files(self) -> List[Dict[str, Any]]:
         """
