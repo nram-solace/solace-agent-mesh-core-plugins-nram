@@ -2,8 +2,7 @@
 Service for splitting documents into chunks for embedding.
 """
 
-import os
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List
 
 from .splitter_base import SplitterBase
 from .text_splitter import (
@@ -158,70 +157,3 @@ class SplitterService:
 
         # Handle both string chunks and dictionary chunks
         return chunks
-
-    # def split_file(self, file_path: str, data_type: Optional[str] = None) -> List[str]:
-    #     """
-    #     Split the contents of a file into chunks.
-
-    #     Args:
-    #         file_path: The path to the file.
-    #         data_type: The type of data in the file. If None, inferred from the file extension.
-
-    #     Returns:
-    #         A list of text chunks.
-    #     """
-    #     if not os.path.exists(file_path):
-    #         print(f"File not found: {file_path}")
-    #         return []
-
-    #     # Infer data type from file extension if not provided
-    #     if data_type is None:
-    #         _, ext = os.path.splitext(file_path)
-    #         data_type = ext[1:] if ext else "text"  # Remove the leading dot
-
-    #     # Read the file
-    #     try:
-    #         with open(file_path, "r", encoding="utf-8") as file:
-    #             text = file.read()
-
-    #         # Split the text
-    #         return self.split_text(text, data_type)
-    #     except Exception as e:
-    #         print(f"Error splitting file {file_path}: {str(e)}")
-    #         return []
-
-    # def split_files(
-    #     self, file_paths: List[str], data_types: Optional[List[str]] = None
-    # ) -> List[Tuple[str, List[str]]]:
-    #     """
-    #     Split multiple files into chunks.
-
-    #     Args:
-    #         file_paths: List of file paths.
-    #         data_types: List of data types corresponding to the files. If None, inferred from file extensions.
-
-    #     Returns:
-    #         List of tuples containing (file_path, chunks).
-    #     """
-    #     results = []
-
-    #     for i, file_path in enumerate(file_paths):
-    #         # Get the data type for this file
-    #         data_type = data_types[i] if data_types and i < len(data_types) else None
-
-    #         # Split the file
-    #         chunks = self.split_file(file_path, data_type)
-
-    #         # Add the result
-    #         results.append((file_path, chunks))
-
-    #     return results
-
-    # def get_supported_data_types(self) -> List[str]:
-    #     """
-    #     Get a list of all supported data types.
-
-    #     Returns:
-    #         List of supported data types.
-    #     """
-    #     return list(self.splitters.keys())

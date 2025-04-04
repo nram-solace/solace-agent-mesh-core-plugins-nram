@@ -54,7 +54,7 @@ flows:
             source:
               type: filesystem
               directories:
-                - "/Users/alirezaparvizimosaed/Desktop/test/sample"
+                - "DIRECTORY PATH" # e.g. "/path/to/documents"
               filters:
                 file_formats:
                   - ".txt"
@@ -164,12 +164,15 @@ flows:
                   chunk_size: 100 # minimum chunk size
                   chunk_overlap: 10
                   separator: " "
+                  is_separator_regex: false
+                  keep_separator: true
+                  strip_whitespace: true
               txt:
-                type: character
+                type: token
                 params:
                   chunk_size: 100
                   chunk_overlap: 10
-                  separator: " "
+                  encoding_name: "cl100k_base"
               # Structured data configurations
               json:
                 type: recursive_json
@@ -187,6 +190,7 @@ flows:
                 params:
                   chunk_size: 100
                   chunk_overlap: 10
+                  headers_to_split_on: ["#", "##", "###", "####", "#####", "######"]
                   strip_headers: false
               csv:
                 type: csv

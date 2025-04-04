@@ -333,7 +333,6 @@ class MarkdownSplitter(SplitterBase):
                 - headers_to_split_on: List of headers to split on, ordered by hierarchy level
                   (default: ["#", "##", "###", "####", "#####", "######"]).
                 - return_each_line: Whether to return each line with its header metadata (default: False).
-                - strip_headers: Whether to strip headers from the content (default: False).
         """
         super().__init__(config)
         self.chunk_size = self.config.get("chunk_size", 1000)
@@ -341,7 +340,6 @@ class MarkdownSplitter(SplitterBase):
         self.headers_to_split_on = self.config.get(
             "headers_to_split_on", ["#", "##", "###", "####", "#####", "######"]
         )
-        self.return_each_line = self.config.get("return_each_line", False)
         self.strip_headers = self.config.get("strip_headers", False)
         self.text_splitter = RecursiveCharacterTextSplitter(
             {"chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap}

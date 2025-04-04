@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any
 from solace_ai_connector.common.log import log as logger
 
 from .file_system import LocalFileSystemDataSource

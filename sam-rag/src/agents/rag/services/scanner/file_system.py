@@ -1,6 +1,4 @@
 import os
-import time
-import threading
 from solace_ai_connector.common.log import log as logger
 from typing import Dict, List, Any
 from watchdog.observers import Observer
@@ -165,6 +163,8 @@ class LocalFileSystemDataSource(DataSource):
                 path=event.src_path, file=os.path.basename(event.src_path), status="new"
             )
             logger.info(f"Document inserted in memory: {event.src_path}")
+            # Add the new document to the existing sources list
+            self.existing_sources.append(event.src_path)
         elif DATABASE_AVAILABLE:
             insert_document(
                 get_db(),
@@ -173,6 +173,8 @@ class LocalFileSystemDataSource(DataSource):
                 file=os.path.basename(event.src_path),
             )
             logger.info(f"Document inserted in database: {event.src_path}")
+            # Add the new document to the existing sources list
+            self.existing_sources.append(event.src_path)
         else:
             logger.warning("Neither memory storage nor database is available")
 

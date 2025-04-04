@@ -24,7 +24,7 @@ from .services.ingestor.ingestor import Ingestor
 from .services.scanner.file_tracker import FileChangeTracker
 
 # Add new imports for the RAG pipeline
-from .services.preprocessor.document_processor import DocumentProcessor
+from .services.preprocessor.enhanced_preprocessor import EnhancedPreprocessorService
 from .services.splitter.splitter_service import SplitterService
 from .services.embedder.embedder_service import EmbedderService
 
@@ -544,7 +544,7 @@ class IngestionAgentComponent(BaseAgentComponent):
         log.info(f"Processing {len(file_paths)} files through the RAG pipeline")
 
         # Initialize pipeline components with configuration from params
-        preprocessor = DocumentProcessor(params.get("preprocessor", {}))
+        preprocessor = EnhancedPreprocessorService(params.get("preprocessor", {}))
         splitter = SplitterService(params.get("splitter", {}))
         embedder = EmbedderService(params.get("embedding", {}))
 
@@ -560,7 +560,7 @@ class IngestionAgentComponent(BaseAgentComponent):
                     continue
 
                 # Process the file
-                text = preprocessor.process_document(file_path)
+                text = preprocessor.preprocess_file(file_path)
                 doc_type = self._get_file_type(file_path)
 
                 if text:
@@ -644,6 +644,20 @@ class IngestionAgentComponent(BaseAgentComponent):
                 "message": f"Error ingesting embeddings: {str(e)}",
                 "document_ids": [],
             }
+
+        # Step 5: Add metadata to the memory storage
+        # if self.use_memory_storage:
+        #     try:
+        #         for meta_data in chunks_metadata:
+        #             self.file_tracker.add_file(
+        #                 path=meta_data["source"],
+        #                 file=meta_data["file_name"],
+        #                 status="new",
+        #                 timestamp=time.time(),
+        #             )
+        #         log.info("Metadata added to memory storage")
+        #     except Exception as e:
+        #         log.error(f"Error adding metadata to memory storage: {str(e)}")
 
     def _get_file_type(self, file_path: str) -> str:
         """
