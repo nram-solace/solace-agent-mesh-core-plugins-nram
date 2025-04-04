@@ -3,6 +3,7 @@ Enhanced preprocessor for handling various document formats and preprocessing st
 """
 
 import os
+import re
 from typing import Dict, Any, List, Tuple, Optional
 
 from .preprocessor_base import PreprocessorBase
@@ -34,15 +35,14 @@ class EnhancedPreprocessorService:
                 - normalize_unicode: Whether to normalize Unicode characters (default: True).
                 - normalize_whitespace: Whether to normalize whitespace (default: True).
                 - remove_punctuation: Whether to remove punctuation (default: True).
-                - remove_special_chars: Whether to remove special characters (default: True).
                 - remove_urls: Whether to remove URLs (default: True).
                 - remove_html_tags: Whether to remove HTML tags (default: True).
                 - remove_numbers: Whether to remove numbers (default: False).
                 - remove_non_ascii: Whether to remove non-ASCII characters (default: False).
+                - remove_emails: Whether to remove email addresses (default: True).
         """
         self.config = config or {}
         self.preprocessors: List[PreprocessorBase] = []
-        self.text_preprocessor = TextPreprocessor(self.config)
         self._register_preprocessors()
 
     def _register_preprocessors(self) -> None:
@@ -187,15 +187,3 @@ class EnhancedPreprocessorService:
         if ext:
             return ext[1:]  # Remove the leading dot
         return "unknown"
-
-    def clean_text(self, text: str) -> str:
-        """
-        Clean and normalize text using the text preprocessor.
-
-        Args:
-            text: The text to clean.
-
-        Returns:
-            Cleaned and normalized text.
-        """
-        return self.text_preprocessor.preprocess(text)

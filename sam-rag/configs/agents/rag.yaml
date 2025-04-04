@@ -64,6 +64,9 @@ flows:
                   - ".html"
                   - ".csv"
                   - ".json"
+                  - ".odt"
+                  - ".xlsx"
+                  - ".xls"
                 max_file_size: 10240  # in KB (10MB)
             database:
               type: postgresql
@@ -80,73 +83,136 @@ flows:
             default_preprocessor:
               type: enhanced
               params:
-                remove_stopwords: false
-                remove_punctuation: false
-                lowercase: true
-                strip_html: true
-                strip_xml: true
-                fix_unicode: true
-                normalize_whitespace: true
-                remove_urls: false
-                remove_emails: false
-                language: "en"
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: false
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: false
+                  remove_html_tags: false
             
             preprocessors:
               # Text file configurations
               text:
                 type: text
                 params:
-                  remove_stopwords: false
-                  remove_punctuation: false
                   lowercase: true
                   normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: true
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: false
+                  remove_html_tags: false
               
               # Document file configurations
               pdf:
                 type: document
                 params:
-                  extract_images: false
-                  extract_tables: true
-                  ocr_enabled: false
-                  language: "en"
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: true
+                  remove_numbers: false
+                  remove_non_ascii: true
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
               
               docx:
                 type: document
                 params:
-                  extract_headers: true
-                  extract_footers: true
-                  extract_comments: false
-                  extract_images: false
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: true
+                  remove_numbers: false
+                  remove_non_ascii: true
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
+
+              odt:
+                type: document
+                params:
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: true
+                  remove_numbers: false
+                  remove_non_ascii: true
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
               
               # Structured data configurations
               json:
                 type: structured
                 params:
-                  flatten_nested: false
-                  extract_keys: []
-                  ignore_keys: []
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: false
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
               
               html:
                 type: html
                 params:
-                  extract_text_only: true
-                  preserve_structure: true
-                  extract_metadata: true
-                  tags_to_extract: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "span", "div"]
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: false
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
               
               markdown:
                 type: markdown
                 params:
-                  strip_html: true
-                  preserve_links: true
-                  preserve_images: false
-              
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: false
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
+
               csv:
                 type: csv
                 params:
-                  header_handling: "use_first_row"
-                  delimiter: ","
-                  quote_char: "\""
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: true
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
+
+              xls:
+                type: xls
+                params:
+                  lowercase: true
+                  normalize_whitespace: true
+                  remove_stopwords: false
+                  remove_punctuation: true
+                  remove_numbers: false
+                  remove_non_ascii: false
+                  remove_urls: true
+                  remove_emails: true
+                  remove_html_tags: false
           
           # Text splitter configuration
           splitter:

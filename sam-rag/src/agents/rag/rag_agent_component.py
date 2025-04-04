@@ -132,18 +132,6 @@ info.update(
                                         "type": "boolean",
                                         "desc": "Whether to convert text to lowercase",
                                     },
-                                    "strip_html": {
-                                        "type": "boolean",
-                                        "desc": "Whether to strip HTML tags",
-                                    },
-                                    "strip_xml": {
-                                        "type": "boolean",
-                                        "desc": "Whether to strip XML tags",
-                                    },
-                                    "fix_unicode": {
-                                        "type": "boolean",
-                                        "desc": "Whether to fix unicode issues",
-                                    },
                                     "normalize_whitespace": {
                                         "type": "boolean",
                                         "desc": "Whether to normalize whitespace",
@@ -155,10 +143,6 @@ info.update(
                                     "remove_emails": {
                                         "type": "boolean",
                                         "desc": "Whether to remove email addresses",
-                                    },
-                                    "language": {
-                                        "type": "string",
-                                        "desc": "Language code",
                                     },
                                 },
                             },
@@ -199,6 +183,20 @@ info.update(
                             "docx": {
                                 "type": "object",
                                 "desc": "DOCX file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
+                            },
+                            "odt": {
+                                "type": "object",
+                                "desc": "ODT file preprocessor",
                                 "properties": {
                                     "type": {
                                         "type": "string",
@@ -255,6 +253,20 @@ info.update(
                             "csv": {
                                 "type": "object",
                                 "desc": "CSV file preprocessor",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "desc": "Preprocessor type",
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "desc": "Preprocessor parameters",
+                                    },
+                                },
+                            },
+                            "xls": {
+                                "type": "object",
+                                "desc": "Excel file preprocessor",
                                 "properties": {
                                     "type": {
                                         "type": "string",
@@ -543,8 +555,24 @@ class IngestionAgentComponent(BaseAgentComponent):
         """
         log.info(f"Processing {len(file_paths)} files through the RAG pipeline")
 
+        # Extract preprocessor configuration
+        preprocessor_config = params.get("preprocessor", {})
+        default_preprocessor = preprocessor_config.get("default_preprocessor", {})
+        file_specific_preprocessors = preprocessor_config.get("preprocessors", {})
+
+        # Log the extracted configuration for debugging
+        log.debug(f"Using default preprocessor config: {default_preprocessor}")
+        log.debug(
+            f"Using file-specific preprocessor configs: {file_specific_preprocessors}"
+        )
+
         # Initialize pipeline components with configuration from params
-        preprocessor = EnhancedPreprocessorService(params.get("preprocessor", {}))
+        preprocessor = EnhancedPreprocessorService(
+            {
+                "default_preprocessor": default_preprocessor,
+                "preprocessors": file_specific_preprocessors,
+            }
+        )
         splitter = SplitterService(params.get("splitter", {}))
         embedder = EmbedderService(params.get("embedding", {}))
 
@@ -559,9 +587,12 @@ class IngestionAgentComponent(BaseAgentComponent):
                     log.warning(f"File not found: {file_path}")
                     continue
 
-                # Process the file
-                text = preprocessor.preprocess_file(file_path)
+                # Get the document type
                 doc_type = self._get_file_type(file_path)
+
+                # Process the file with the appropriate preprocessor config
+                # The preprocessor service will select the right preprocessor based on file type
+                text = preprocessor.preprocess_file(file_path)
 
                 if text:
                     preprocessed_docs.append(text)

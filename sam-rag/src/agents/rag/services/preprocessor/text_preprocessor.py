@@ -5,6 +5,7 @@ Text preprocessing utilities for cleaning and normalizing text.
 import re
 import unicodedata
 from typing import Dict, Any
+from solace_ai_connector.common.log import log
 
 
 class TextPreprocessor:
@@ -22,24 +23,24 @@ class TextPreprocessor:
                 - normalize_unicode: Whether to normalize Unicode characters.
                 - normalize_whitespace: Whether to normalize whitespace.
                 - remove_punctuation: Whether to remove punctuation.
-                - remove_special_chars: Whether to remove special characters.
                 - remove_urls: Whether to remove URLs.
                 - remove_html_tags: Whether to remove HTML tags.
                 - remove_numbers: Whether to remove numbers.
                 - remove_non_ascii: Whether to remove non-ASCII characters.
+                - remove_emails: Whether to remove email addresses.
         """
         self.config = config or {}
 
         # Default configuration
-        self.lowercase = self.config.get("lowercase", True)
-        self.normalize_unicode = self.config.get("normalize_unicode", True)
-        self.normalize_whitespace = self.config.get("normalize_whitespace", True)
-        self.remove_punctuation = self.config.get("remove_punctuation", True)
-        self.remove_special_chars = self.config.get("remove_special_chars", True)
-        self.remove_urls = self.config.get("remove_urls", True)
-        self.remove_html_tags = self.config.get("remove_html_tags", True)
+        self.lowercase = self.config.get("lowercase", False)
+        self.normalize_unicode = self.config.get("normalize_unicode", False)
+        self.normalize_whitespace = self.config.get("normalize_whitespace", False)
+        self.remove_punctuation = self.config.get("remove_punctuation", False)
+        self.remove_urls = self.config.get("remove_urls", False)
+        self.remove_html_tags = self.config.get("remove_html_tags", False)
         self.remove_numbers = self.config.get("remove_numbers", False)
         self.remove_non_ascii = self.config.get("remove_non_ascii", False)
+        self.remove_emails = self.config.get("remove_emails", False)
 
     def preprocess(self, text: str) -> str:
         """
@@ -56,38 +57,47 @@ class TextPreprocessor:
 
         # Unicode normalization
         if self.normalize_unicode:
+            log.debug("Normalizing unicode characters: %s", text)
             text = self._normalize_unicode(text)
 
         # Lowercase conversion
         if self.lowercase:
+            log.debug("Converting text to lowercase: %s", text)
             text = text.lower()
 
         # Remove URLs
         if self.remove_urls:
+            log.debug("Removing URLs from text: %s", text)
             text = self._remove_urls(text)
+
+        # Remove Emails
+        if self._remove_emails:
+            log.debug("Removing Emails from text: %s", text)
+            text = self._remove_emails(text)
 
         # Remove HTML tags
         if self.remove_html_tags:
+            log.debug("Removing HTML tags from text: %s", text)
             text = self._remove_html_tags(text)
-
-        # Remove special characters
-        if self.remove_special_chars:
-            text = self._remove_special_chars(text)
 
         # Remove punctuation
         if self.remove_punctuation:
+            log.debug("Removing punctuation from text: %s", text)
             text = self._remove_punctuation(text)
 
         # Remove numbers
         if self.remove_numbers:
+            log.debug("Removing numbers from text: %s", text)
             text = self._remove_numbers(text)
 
         # Remove non-ASCII characters
         if self.remove_non_ascii:
+            log.debug("Removing non-ASCII characters from text: %s", text)
             text = self._remove_non_ascii(text)
 
         # Normalize whitespace
         if self.normalize_whitespace:
+            log.debug("Normalizing whitespace in text: %s", text)
             text = self._normalize_whitespace(text)
 
         return text
@@ -117,6 +127,19 @@ class TextPreprocessor:
         url_pattern = r"https?://\S+|www\.\S+"
         return re.sub(url_pattern, " ", text)
 
+    def _remove_emails(self, text: str) -> str:
+        """
+        Remove email addresses from text.
+
+        Args:
+            text: The input text.
+
+        Returns:
+            Text with email addresses removed.
+        """
+        email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+        return re.sub(email_pattern, " ", text)
+
     def _remove_html_tags(self, text: str) -> str:
         """
         Remove HTML tags from text.
@@ -129,19 +152,6 @@ class TextPreprocessor:
         """
         html_pattern = r"<.*?>"
         return re.sub(html_pattern, " ", text)
-
-    def _remove_special_chars(self, text: str) -> str:
-        """
-        Remove special characters from text.
-
-        Args:
-            text: The input text.
-
-        Returns:
-            Text with special characters removed.
-        """
-        special_chars_pattern = r"[^\w\s]"
-        return re.sub(special_chars_pattern, " ", text)
 
     def _remove_punctuation(self, text: str) -> str:
         """

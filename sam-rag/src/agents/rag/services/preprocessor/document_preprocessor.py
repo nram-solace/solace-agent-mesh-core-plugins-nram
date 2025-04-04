@@ -8,6 +8,33 @@ from .preprocessor_base import PreprocessorBase
 from .text_preprocessor import TextPreprocessor
 
 
+def filter_config(config: Dict[str, Any], key: str) -> Dict[str, Any]:
+    """
+    Filter the configuration dictionary to get the specific settings for a given key.
+
+    Args:
+        config: The original configuration dictionary.
+        key: The key to filter by (e.g., 'text', 'pdf', 'html').
+
+    Returns:
+        A filtered configuration dictionary with the parameters for the specified file type.
+    """
+    if not config:
+        return {}
+
+    # First try to get file-specific preprocessor config
+    preprocessors = config.get("preprocessors", {})
+    file_config = preprocessors.get(key, {})
+
+    # Extract the params section if it exists
+    if "params" in file_config:
+        return file_config.get("params", {})
+
+    # If no specific config found, try to use default preprocessor
+    default_preprocessor = config.get("default_preprocessor", {})
+    return default_preprocessor.get("params", {})
+
+
 class TextFilePreprocessor(PreprocessorBase):
     """
     Preprocessor for plain text files.
@@ -21,7 +48,6 @@ class TextFilePreprocessor(PreprocessorBase):
             config: Configuration dictionary.
         """
         super().__init__(config)
-        self.text_preprocessor = TextPreprocessor(config)
         self.extensions = [".txt", ".md", ".csv", ".json", ".yaml", ".yml", ".xml"]
 
     def can_process(self, file_path: str) -> bool:
@@ -50,6 +76,8 @@ class TextFilePreprocessor(PreprocessorBase):
         try:
             with open(file_path, "r", encoding="utf-8") as file:
                 text = file.read()
+            text_config = filter_config(self.config, "text")
+            self.text_preprocessor = TextPreprocessor(text_config)
             return self.text_preprocessor.preprocess(text)
         except Exception as e:
             print(f"Error preprocessing text file {file_path}: {str(e)}")
@@ -69,7 +97,6 @@ class PDFPreprocessor(PreprocessorBase):
             config: Configuration dictionary.
         """
         super().__init__(config)
-        self.text_preprocessor = TextPreprocessor(config)
         # We'll import PyPDF2 only when needed to avoid unnecessary dependencies
         self.pdf_reader = None
 
@@ -98,6 +125,9 @@ class PDFPreprocessor(PreprocessorBase):
         try:
             # Import PyPDF2 only when needed
             import PyPDF2
+
+            pdf_config = filter_config(self.config, "pdf")
+            self.text_preprocessor = TextPreprocessor(pdf_config)
 
             text = ""
             with open(file_path, "rb") as file:
@@ -130,7 +160,6 @@ class DocxPreprocessor(PreprocessorBase):
             config: Configuration dictionary.
         """
         super().__init__(config)
-        self.text_preprocessor = TextPreprocessor(config)
 
     def can_process(self, file_path: str) -> bool:
         """
@@ -157,6 +186,9 @@ class DocxPreprocessor(PreprocessorBase):
         try:
             # Import docx only when needed
             import docx
+
+            doc_config = filter_config(self.config, "doc")
+            self.text_preprocessor = TextPreprocessor(doc_config)
 
             doc = docx.Document(file_path)
             text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
@@ -185,7 +217,6 @@ class HTMLPreprocessor(PreprocessorBase):
             config: Configuration dictionary.
         """
         super().__init__(config)
-        self.text_preprocessor = TextPreprocessor(config)
 
     def can_process(self, file_path: str) -> bool:
         """
@@ -212,6 +243,9 @@ class HTMLPreprocessor(PreprocessorBase):
         try:
             # Import BeautifulSoup only when needed
             from bs4 import BeautifulSoup
+
+            html_config = filter_config(self.config, "html")
+            self.text_preprocessor = TextPreprocessor(html_config)
 
             with open(file_path, "r", encoding="utf-8") as file:
                 soup = BeautifulSoup(file.read(), "html.parser")
@@ -242,7 +276,6 @@ class ExcelPreprocessor(PreprocessorBase):
             config: Configuration dictionary.
         """
         super().__init__(config)
-        self.text_preprocessor = TextPreprocessor(config)
 
     def can_process(self, file_path: str) -> bool:
         """
@@ -269,6 +302,9 @@ class ExcelPreprocessor(PreprocessorBase):
         try:
             # Import pandas only when needed
             import pandas as pd
+
+            xls_config = filter_config(self.config, "xls")
+            self.text_preprocessor = TextPreprocessor(xls_config)
 
             # Read all sheets
             excel_file = pd.ExcelFile(file_path)
@@ -304,7 +340,6 @@ class ODTPreprocessor(PreprocessorBase):
             config: Configuration dictionary.
         """
         super().__init__(config)
-        self.text_preprocessor = TextPreprocessor(config)
 
     def can_process(self, file_path: str) -> bool:
         """
@@ -332,6 +367,9 @@ class ODTPreprocessor(PreprocessorBase):
             # Import odfpy only when needed
             from odf import text, teletype
             from odf.opendocument import load
+
+            odt_config = filter_config(self.config, "odt")
+            self.text_preprocessor = TextPreprocessor(odt_config)
 
             textdoc = load(file_path)
             allparas = textdoc.getElementsByType(text.P)
