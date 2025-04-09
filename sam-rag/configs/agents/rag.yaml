@@ -368,7 +368,26 @@ flows:
             #   db_path: ${SQLITE_VSS_PATH, "./sqlite_vss.db"}
             #   table_name: ${SQLITE_VSS_TABLE, "document_embeddings"}
             #   dimension: ${SQLITE_VSS_DIMENSION, 1536}
-        
+          llm:
+            load_balancer:
+              - model_name: "gpt-4o" # model alias
+                litellm_params:
+                      model: openai/${OPENAI_MODEL_NAME}
+                      api_key: ${OPENAI_API_KEY}
+                      api_base: ${OPENAI_API_ENDPOINT}
+                      temperature: 0.01
+                      # add any other parameters here
+              # - model_name: "claude-3-5-sonnet" # model alias
+              #   litellm_params:
+              #         model: ${ANTHROPIC_MODEL_NAME}
+              #         api_key: ${ANTHROPIC_API_KEY}
+              #         api_base: ${ANTHROPIC_API_ENDPOINT}
+              #         # add any other parameters here
+              # add more models here
+
+          retrieval:
+            top_k: 7
+
         broker_request_response:
           enabled: true
           broker_config: *broker_connection

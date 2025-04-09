@@ -153,34 +153,3 @@ class Ingestor(IngestorBase):
         except Exception as e:
             logger.error(f"Error deleting documents from vector database: {str(e)}")
             raise
-
-    def search(
-        self,
-        query_embedding: List[float],
-        top_k: int = 5,
-        filter: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Search for documents similar to the query embedding.
-
-        Args:
-            query_embedding: The embedding of the query.
-            top_k: The number of results to return.
-            filter: Optional filter to apply to the search.
-
-        Returns:
-            A list of dictionaries containing the search results.
-        """
-        try:
-            # Search the vector database
-            results = self.vector_db.search(
-                query_embedding=query_embedding,
-                top_k=top_k,
-                filter=filter,
-            )
-
-            logger.info(f"Found {len(results)} results for query")
-            return results
-        except Exception as e:
-            logger.error(f"Error searching for query: {str(e)}")
-            raise

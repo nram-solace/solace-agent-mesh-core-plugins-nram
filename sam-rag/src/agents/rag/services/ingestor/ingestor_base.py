@@ -67,23 +67,3 @@ class IngestorBase(ABC):
             ids: The IDs of the documents to delete.
         """
         pass
-
-    @abstractmethod
-    def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        filter: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Search for documents similar to the query.
-
-        Args:
-            query: The query text.
-            top_k: The number of results to return.
-            filter: Optional filter to apply to the search.
-
-        Returns:
-            A list of dictionaries containing the search results.
-        """
-        pass

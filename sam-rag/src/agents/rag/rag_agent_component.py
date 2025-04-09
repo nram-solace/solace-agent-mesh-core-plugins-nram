@@ -10,14 +10,13 @@ from solace_ai_connector.common.log import log
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 
-from solace_agent_mesh.common.action_response import ActionResponse
 from solace_agent_mesh.agents.base_agent_component import (
     agent_info,
     BaseAgentComponent,
 )
 
 # Ingestion action import
-from ..rag.actions.ingestion import IngestionAction
+from .actions.rag import RAGAction
 
 # Adding imports for file tracking and ingestor functionality
 from .services.ingestor.ingestor import Ingestor
@@ -27,12 +26,13 @@ from .services.scanner.file_tracker import FileChangeTracker
 from .services.preprocessor.enhanced_preprocessor import EnhancedPreprocessorService
 from .services.splitter.splitter_service import SplitterService
 from .services.embedder.embedder_service import EmbedderService
+from .services.rag.augmentation_service import AugmentationService
 
 info = copy.deepcopy(agent_info)
 info.update(
     {
         "agent_name": "rag",
-        "class_name": "IngestionAgentComponent",
+        "class_name": "RAGAgentComponent",
         "description": "The agent scans documents of resources, ingests documents in a vector database, and "
         "provides relevant information when a user explicitly requests it.",
         "config_parameters": [
@@ -466,13 +466,13 @@ info.update(
 )
 
 
-class IngestionAgentComponent(BaseAgentComponent):
+class RAGAgentComponent(BaseAgentComponent):
     info = info
     # ingest action
-    actions = [IngestionAction]
+    actions = [RAGAction]
 
     def __init__(self, module_info: Dict[str, Any] = None, **kwargs):
-        """Initialize the ingestion agent component.
+        """Initialize the rag agent component.
 
         Args:
             module_info: Optional module configuration.
@@ -490,10 +490,18 @@ class IngestionAgentComponent(BaseAgentComponent):
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
 
         module_info["agent_name"] = self.agent_name
-
-        # Initialize ingestor
         self.component_config = self.get_config("component_config")
-        self.ingestor = Ingestor(self.component_config)
+
+        # Initialize handlers
+        self.ingestion_handler = None
+        self.file_tracker = None
+        self.preprocessing_handler = None
+        self.embedding_handler = None
+        self.splitting_handler = None
+        self.augmentation_handler = None
+        self.use_memory_storage = False
+        # Create handlers
+        self._create_handlers()
 
         # Run the ingestion process in a separate thread
         self.ingestion_thread = threading.Thread(target=self._ingest)
@@ -504,43 +512,23 @@ class IngestionAgentComponent(BaseAgentComponent):
         log.info(f"Started ingestion process on background thread")
 
     def _ingest(self):
+        """Ingest documents into the vector database."""
+        log.info("Starting document ingestion process")
+        if self.file_tracker:
+            # Real-time scanner: Scan for file changes
+            self._scan_files()
 
-        # If no explicit directories, check scanner configuration
-        scanner_config = self.get_config("scanner", {})
-        if scanner_config:
-            source_config = scanner_config.get("source", {})
+            # Batch scanner: Get files
+            files = self._get_tracked_files()
 
-            # Get directories from scanner configuration
-            if (
-                source_config.get("type") == "filesystem"
-                and "directories" in source_config
-            ):
-                directories = source_config.get("directories", [])
-
-                if directories:
-                    self.file_tracker = FileChangeTracker(self.component_config)
-                    self.use_memory_storage = scanner_config["use_memory_storage"]
-                    log.info(
-                        "File tracker initialized with memory storage"
-                        if self.use_memory_storage
-                        else "File tracker initialized with database"
-                    )
-                    # Real-time scanner: Scan for file changes
-                    self._scan_files()
-
-                    # Batch scanner: Get files
-                    files = self._get_tracked_files()
-
-                    if files:
-                        # Process files through the complete pipeline
-                        result = self._process_files(files, self.component_config)
-                        log.info(f"Processing result: {result}")
-                    else:
-                        log.info("No files found to process.")
-                else:
-                    log.info("No directories provided for ingestion.")
+            if files:
+                # Process files through the complete pipeline
+                result = self._process_files(files, self.component_config)
+                log.info(f"Processing result: {result}")
             else:
-                log.info("No directories provided in scanner configuration.")
+                log.info("No files found to process.")
+        else:
+            log.error("No file tracker is initialized.")
 
     def _process_files(self, file_paths: List[str], params=None) -> Dict[str, Any]:
         """
@@ -554,27 +542,6 @@ class IngestionAgentComponent(BaseAgentComponent):
             A dictionary containing the processing results.
         """
         log.info(f"Processing {len(file_paths)} files through the RAG pipeline")
-
-        # Extract preprocessor configuration
-        preprocessor_config = params.get("preprocessor", {})
-        default_preprocessor = preprocessor_config.get("default_preprocessor", {})
-        file_specific_preprocessors = preprocessor_config.get("preprocessors", {})
-
-        # Log the extracted configuration for debugging
-        log.debug(f"Using default preprocessor config: {default_preprocessor}")
-        log.debug(
-            f"Using file-specific preprocessor configs: {file_specific_preprocessors}"
-        )
-
-        # Initialize pipeline components with configuration from params
-        preprocessor = EnhancedPreprocessorService(
-            {
-                "default_preprocessor": default_preprocessor,
-                "preprocessors": file_specific_preprocessors,
-            }
-        )
-        splitter = SplitterService(params.get("splitter", {}))
-        embedder = EmbedderService(params.get("embedding", {}))
 
         # Step 1: Preprocess files
         preprocessed_docs = []
@@ -592,7 +559,7 @@ class IngestionAgentComponent(BaseAgentComponent):
 
                 # Process the file with the appropriate preprocessor config
                 # The preprocessor service will select the right preprocessor based on file type
-                text = preprocessor.preprocess_file(file_path)
+                text = self.preprocessing_handler.preprocess_file(file_path)
 
                 if text:
                     preprocessed_docs.append(text)
@@ -630,7 +597,7 @@ class IngestionAgentComponent(BaseAgentComponent):
                 doc_type = meta.get("document_type", "text")
 
                 # Split the document
-                doc_chunks = splitter.split_text(doc, doc_type)
+                doc_chunks = self.splitting_handler.split_text(doc, doc_type)
 
                 # Add chunks and metadata
                 chunks.extend(doc_chunks)
@@ -650,7 +617,7 @@ class IngestionAgentComponent(BaseAgentComponent):
 
         # Step 3: Embed chunks
         try:
-            embeddings = embedder.embed_texts(chunks)
+            embeddings = self.embedding_handler.embed_texts(chunks)
             log.info(f"Created {len(embeddings)} embeddings")
         except Exception as e:
             log.error(f"Error embedding chunks: {str(e)}")
@@ -662,8 +629,8 @@ class IngestionAgentComponent(BaseAgentComponent):
 
         # Step 4: Ingest embeddings into vector database
         try:
-            # Use the ingestor to store the embeddings
-            result = self.ingestor.ingest_embeddings(
+            # Use the ingestion handler to store the embeddings
+            result = self.ingestion_handler.ingest_embeddings(
                 texts=chunks, embeddings=embeddings, metadata=chunks_metadata
             )
             log.info(f"Ingestion result: {result['message']}")
@@ -748,6 +715,66 @@ class IngestionAgentComponent(BaseAgentComponent):
             log.warning("Scanner module not available or file tracker not initialized")
             return {"added": [], "removed": [], "changed": []}
 
+    def _create_handlers(self):
+        """Create handlers for the agent."""
+        # Initialize the ingestion handler
+        self.ingestion_handler = Ingestor(self.component_config)
+
+        # Initialize the file tracker
+        scanner_config = self.get_config("scanner", {})
+        if scanner_config:
+            source_config = scanner_config.get("source", {})
+
+            # Get directories from scanner configuration
+            if (
+                source_config.get("type") == "filesystem"
+                and "directories" in source_config
+            ):
+                directories = source_config.get("directories", [])
+
+                if directories:
+                    self.file_tracker = FileChangeTracker(self.component_config)
+                    self.use_memory_storage = scanner_config["use_memory_storage"]
+                    log.info(
+                        "File tracker initialized with memory storage"
+                        if self.use_memory_storage
+                        else "File tracker initialized with database"
+                    )
+                else:
+                    log.info("No directories provided for ingestion.")
+            else:
+                log.info("No directories provided in scanner configuration.")
+
+        # Initialize the preprocessing handler
+        preprocessor_config = self.get_config("preprocessor", {})
+        default_preprocessor = preprocessor_config.get("default_preprocessor", {})
+        file_specific_preprocessors = preprocessor_config.get("preprocessors", {})
+
+        # Log the extracted configuration for debugging
+        log.debug(f"Using default preprocessor config: {default_preprocessor}")
+        log.debug(
+            f"Using file-specific preprocessor configs: {file_specific_preprocessors}"
+        )
+
+        # Initialize pipeline components with configuration from params
+        self.preprocessing_handler = EnhancedPreprocessorService(
+            {
+                "default_preprocessor": default_preprocessor,
+                "preprocessors": file_specific_preprocessors,
+            }
+        )
+
+        # Initialize the splitter handlers
+        splitter_config = self.get_config("splitter", {})
+        self.splitting_handler = SplitterService(splitter_config)
+
+        # Initialize the embedding handler
+        embedder_config = self.get_config("embedding", {})
+        self.embedding_handler = EmbedderService(embedder_config)
+
+        # Initialize the augmentation handler
+        self.augmentation_handler = AugmentationService(self.component_config)
+
     def get_agent_summary(self):
         """Get a summary of the agent's capabilities."""
         return {
@@ -759,3 +786,27 @@ class IngestionAgentComponent(BaseAgentComponent):
             "always_open": self.info.get("always_open", False),
             "actions": self.get_actions_summary(),
         }
+
+    def get_ingestion_handler(self):
+        """Get the ingestion handler."""
+        return self.ingestion_handler
+
+    def get_file_tracker(self):
+        """Get the file tracker."""
+        return self.file_tracker
+
+    def get_preprocessor_handler(self):
+        """Get the preprocessor handler."""
+        return self.preprocessing_handler
+
+    def get_embedding_handler(self):
+        """Get the embedding handler."""
+        return self.embedding_handler
+
+    def get_splitting_handler(self):
+        """Get the splitting handler."""
+        return self.splitting_handler
+
+    def get_augmentation_handler(self):
+        """Get the augmentation handler."""
+        return self.augmentation_handler
