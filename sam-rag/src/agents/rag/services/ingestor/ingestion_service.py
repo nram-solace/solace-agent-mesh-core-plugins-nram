@@ -1,7 +1,7 @@
 """
-Implementation of document ingestor focused only on vector database operations.
+Implementation of document ingestion service focused only on vector database operations.
 
-This module provides a simplified ingestor that only handles the storage of 
+This module provides a simplified ingestion service that only handles the storage of 
 pre-processed, pre-embedded content into a vector database. The preprocessing,
 splitting, and embedding steps are handled by the RAG pipeline.
 """
@@ -10,17 +10,17 @@ from typing import Dict, Any, List, Optional
 from solace_ai_connector.common.log import log as logger
 
 from ..database.vector_db_service import VectorDBService
-from .ingestor_base import IngestorBase
+from .ingestion_base import IngestionBase
 
 
-class Ingestor(IngestorBase):
+class IngestionService(IngestionBase):
     """
-    Document ingestor that focuses only on vector database storage.
+    Ingest documents into a vector database.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
         """
-        Initialize the document ingestor.
+        Initialize the document ingestion service.
 
         Args:
             config: A dictionary containing configuration parameters.
@@ -30,7 +30,7 @@ class Ingestor(IngestorBase):
 
         # Initialize only the vector database component
         self.vector_db = VectorDBService(self.config.get("vector_db", {}))
-        logger.info("Document ingestor initialized with vector database")
+        logger.info("Document ingestion service initialized with vector database")
 
     def ingest_documents(
         self,
@@ -38,13 +38,11 @@ class Ingestor(IngestorBase):
         metadata: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
-        This method is maintained for compatibility with the IngestorBase interface,
+        This method is maintained for compatibility with the IngestionBase interface,
         but it's not implemented in this simplified version.
         The RAG pipeline should handle document processing and use ingest_embeddings instead.
         """
-        logger.warning(
-            "ingest_documents is not implemented in this simplified ingestor"
-        )
+        logger.warning("ingest_documents is not implemented in this version")
         return {
             "success": False,
             "message": "ingest_documents is not implemented. Use the RAG pipeline instead.",
@@ -61,7 +59,7 @@ class Ingestor(IngestorBase):
         Ingest pre-processed texts with their embeddings.
 
         This method is maintained for compatibility with existing code that uses
-        the ingestor service directly. In the new workflow, you should use
+        the ingestion service directly. In the new workflow, you should use
         ingest_embeddings instead.
 
         Args:
@@ -128,7 +126,7 @@ class Ingestor(IngestorBase):
 
             return {
                 "success": True,
-                "message": f"Successfully ingested {len(document_ids)} documents into vector database",
+                "message": f"Successfully ingested {len(document_ids)} points into vector database",
                 "document_ids": document_ids,
             }
         except Exception as e:

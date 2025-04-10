@@ -1,8 +1,8 @@
 """
-Ingestor package for RAG.
+Ingestion package for RAG.
 """
 
-from .ingestor_base import IngestorBase
-from .ingestor import Ingestor
+from .ingestion_base import IngestionBase
+from .ingestion_service import IngestionService
 
-__all__ = ["IngestorBase", "Ingestor"]
+__all__ = ["IngestionBase", "IngestionService"]

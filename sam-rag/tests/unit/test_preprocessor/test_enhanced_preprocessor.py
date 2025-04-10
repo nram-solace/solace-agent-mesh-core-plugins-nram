@@ -1,5 +1,5 @@
 """
-Unit tests for the EnhancedPreprocessorService class.
+Unit tests for the PreprocessorService class.
 """
 
 import unittest
@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock, mock_open
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
-from src.agents.rag.services.preprocessor.enhanced_preprocessor import EnhancedPreprocessorService
+from src.agents.rag.services.preprocessor.preprocessor_service import PreprocessorService
 from src.agents.rag.services.preprocessor.document_preprocessor import (
     TextFilePreprocessor,
     PDFPreprocessor,
@@ -22,8 +22,8 @@ from src.agents.rag.services.preprocessor.document_preprocessor import (
 )
 
 
-class TestEnhancedPreprocessorService(unittest.TestCase):
-    """Test cases for the EnhancedPreprocessorService class."""
+class TestPreprocessorService(unittest.TestCase):
+    """Test cases for the PreprocessorService class."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -34,11 +34,11 @@ class TestEnhancedPreprocessorService(unittest.TestCase):
             },
             "default_preprocessor": {"params": {"normalize_unicode": True}},
         }
-        self.preprocessor_service = EnhancedPreprocessorService(self.config)
+        self.preprocessor_service = PreprocessorService(self.config)
 
     def test_init_default_config(self):
         """Test initialization with default config."""
-        preprocessor = EnhancedPreprocessorService()
+        preprocessor = PreprocessorService()
         self.assertEqual(preprocessor.config, {})
         self.assertEqual(
             len(preprocessor.preprocessors), 7

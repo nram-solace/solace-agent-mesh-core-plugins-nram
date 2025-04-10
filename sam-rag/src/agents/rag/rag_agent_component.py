@@ -18,12 +18,12 @@ from solace_agent_mesh.agents.base_agent_component import (
 # Ingestion action import
 from .actions.rag import RAGAction
 
-# Adding imports for file tracking and ingestor functionality
-from .services.ingestor.ingestor import Ingestor
+# Adding imports for file tracking and ingestion functionality
+from .services.ingestor.ingestion_service import IngestionService
 from .services.scanner.file_tracker import FileChangeTracker
 
 # Add new imports for the RAG pipeline
-from .services.preprocessor.enhanced_preprocessor import EnhancedPreprocessorService
+from .services.preprocessor.preprocessor_service import PreprocessorService
 from .services.splitter.splitter_service import SplitterService
 from .services.embedder.embedder_service import EmbedderService
 from .services.rag.augmentation_service import AugmentationService
@@ -718,7 +718,7 @@ class RAGAgentComponent(BaseAgentComponent):
     def _create_handlers(self):
         """Create handlers for the agent."""
         # Initialize the ingestion handler
-        self.ingestion_handler = Ingestor(self.component_config)
+        self.ingestion_handler = IngestionService(self.component_config)
 
         # Initialize the file tracker
         scanner_config = self.get_config("scanner", {})
@@ -757,7 +757,7 @@ class RAGAgentComponent(BaseAgentComponent):
         )
 
         # Initialize pipeline components with configuration from params
-        self.preprocessing_handler = EnhancedPreprocessorService(
+        self.preprocessing_handler = PreprocessorService(
             {
                 "default_preprocessor": default_preprocessor,
                 "preprocessors": file_specific_preprocessors,

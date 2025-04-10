@@ -1,19 +1,19 @@
 """
-Base class for document ingestors.
+Base class for document ingestion.
 """
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 
 
-class IngestorBase(ABC):
+class IngestionBase(ABC):
     """
-    Abstract base class for document ingestors.
+    Abstract base class for document ingestion.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
         """
-        Initialize the ingestor with the given configuration.
+        Initialize the ingestion service with the given configuration.
 
         Args:
             config: A dictionary containing configuration parameters.

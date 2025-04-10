@@ -1,13 +1,11 @@
 """
-Enhanced preprocessor for handling various document formats and preprocessing steps.
+Preprocessor for handling various document formats and preprocessing steps.
 """
 
 import os
-import re
 from typing import Dict, Any, List, Tuple, Optional
 
 from .preprocessor_base import PreprocessorBase
-from .text_preprocessor import TextPreprocessor
 from .document_preprocessor import (
     TextFilePreprocessor,
     PDFPreprocessor,
@@ -19,15 +17,15 @@ from .document_preprocessor import (
 )
 
 
-class EnhancedPreprocessorService:
+class PreprocessorService:
     """
-    Enhanced service for preprocessing documents of various formats.
+    A service for preprocessing documents of various formats.
     This service extends the base PreprocessorService with additional capabilities.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
         """
-        Initialize the enhanced preprocessor service.
+        Initialize the preprocessing service.
 
         Args:
             config: Configuration dictionary.

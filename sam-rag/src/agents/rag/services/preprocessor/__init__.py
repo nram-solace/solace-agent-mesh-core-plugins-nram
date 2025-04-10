@@ -2,6 +2,6 @@
 Preprocessor package for converting various document formats to clean text.
 """
 
-from .enhanced_preprocessor import EnhancedPreprocessorService
+from .preprocessor_service import PreprocessorService
 
-__all__ = ["EnhancedPreprocessorService"]
+__all__ = ["PreprocessorService"]
