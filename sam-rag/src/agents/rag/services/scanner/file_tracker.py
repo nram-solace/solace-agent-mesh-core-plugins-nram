@@ -53,7 +53,7 @@ class FileChangeTracker:
             )
             dummy_embedding = [0.0] * dimension
             results = self.vector_db.search(
-                query_embedding=dummy_embedding, top_k=100000000
+                query_embedding=dummy_embedding, top_k=10000
             )
 
             # Extract source paths from metadata

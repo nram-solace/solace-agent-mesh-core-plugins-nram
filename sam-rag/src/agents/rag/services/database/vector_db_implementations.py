@@ -34,19 +34,16 @@ class PineconeDB(VectorDBBase):
         Args:
             config: A dictionary containing configuration parameters.
                 - api_key: The Pinecone API key (required).
-                - environment: The Pinecone environment (required).
                 - index_name: The name of the index to use (required).
                 - namespace: The namespace to use (default: "default").
                 - embedding_dimension: The dimension of the embeddings (default: 768).
+                - cloud: The cloud provider to use (default: "aws").
+                - region: The region to use (default: "us-east-1").
         """
         super().__init__(config)
         self.api_key = self.config.get("api_key")
         if not self.api_key:
             raise ValueError("Pinecone API key is required")
-
-        self.environment = self.config.get("environment")
-        if not self.environment:
-            raise ValueError("Pinecone environment is required")
 
         self.index_name = self.config.get("index_name")
         if not self.index_name:
@@ -54,6 +51,9 @@ class PineconeDB(VectorDBBase):
 
         self.namespace = self.config.get("namespace", "default")
         self.embedding_dimension = self.config.get("embedding_dimension", 768)
+        self.cloud = self.config.get("cloud", "aws")
+        self.region = self.config.get("region", "us-east-1")
+
         self.index = None
         self._setup_client()
 
@@ -62,22 +62,23 @@ class PineconeDB(VectorDBBase):
         Set up the Pinecone client.
         """
         try:
-            import pinecone
+            from pinecone import Pinecone, ServerlessSpec
 
-            # Initialize Pinecone
-            pinecone.init(api_key=self.api_key, environment=self.environment)
+            # Initialize Pinecone with the new API
+            pc = Pinecone(api_key=self.api_key)
 
             # Check if the index exists
-            if self.index_name not in pinecone.list_indexes():
+            if self.index_name not in pc.list_indexes().names():
                 # Create the index
-                pinecone.create_index(
+                pc.create_index(
                     name=self.index_name,
                     dimension=self.embedding_dimension,
                     metric="cosine",
+                    spec=ServerlessSpec(cloud=self.cloud, region=self.region),
                 )
 
             # Connect to the index
-            self.index = pinecone.Index(self.index_name)
+            self.index = pc.Index(self.index_name)
         except ImportError:
             raise ImportError(
                 "The pinecone-client package is required for PineconeDB. "
@@ -1924,7 +1925,12 @@ class ChromaDB(VectorDBBase):
 
             # Get or create the collection
             self.collection = self.client.get_or_create_collection(
-                name=self.collection_name, metadata={"hnsw:space": "cosine"}
+                name=self.collection_name,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "embedding_dimension": self.embedding_dimension,  # Custom metadata
+                },
+                embedding_function=None,  # We provide our own embeddings
             )
         except ImportError:
             raise ImportError(
