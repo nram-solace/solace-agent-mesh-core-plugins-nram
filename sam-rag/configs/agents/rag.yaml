@@ -367,9 +367,7 @@ flows:
             #   user: ${PGVECTOR_USER, "postgres"}
             #   password: ${PGVECTOR_PASSWORD}
             #   table_name: ${PGVECTOR_TABLE, "document_embeddings"}
-            #   vector_column: ${PGVECTOR_VECTOR_COLUMN, "embedding"}
-            #   dimension: ${PGVECTOR_DIMENSION, 1536}
-            #   index_type: ${PGVECTOR_INDEX_TYPE, "ivfflat"}
+            #   embedding_dimension: ${PGVECTOR_DIMENSION, 1024}
 
             # # SQLite with sqlite-vss
             # db_type: "sqlite_vss"

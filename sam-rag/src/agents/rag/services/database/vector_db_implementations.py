@@ -1581,9 +1581,12 @@ class PgVectorDB(VectorDBBase):
                 - embedding_dimension: The dimension of the embeddings (default: 768).
         """
         super().__init__(config)
-        self.connection_string = self.config.get("connection_string")
-        if not self.connection_string:
-            raise ValueError("PostgreSQL connection string is required")
+
+        self.host = self.config.get("host", "localhost")
+        self.port = self.config.get("port", 5432)
+        self.database = self.config.get("database", "vectordb")
+        self.user = self.config.get("user", "postgres")
+        self.password = self.config.get("password")
 
         self.table_name = self.config.get("table_name", "documents")
         self.embedding_dimension = self.config.get("embedding_dimension", 768)
@@ -1597,8 +1600,39 @@ class PgVectorDB(VectorDBBase):
         try:
             import psycopg2
 
-            # Connect to the database
-            self.conn = psycopg2.connect(self.connection_string)
+            # First connect to the default postgres database to check if our database exists
+            default_conn = psycopg2.connect(
+                host=self.host,
+                port=self.port,
+                database="postgres",  # Connect to default database first
+                user=self.user,
+                password=self.password,
+            )
+            default_conn.autocommit = True  # Set autocommit mode for database creation
+
+            with default_conn.cursor() as cursor:
+                # Check if the database exists
+                cursor.execute(
+                    "SELECT 1 FROM pg_database WHERE datname = %s", (self.database,)
+                )
+                database_exists = cursor.fetchone() is not None
+
+                # Create the database if it doesn't exist
+                if not database_exists:
+                    cursor.execute(f"CREATE DATABASE {self.database}")
+                    print(f"Created database: {self.database}")
+
+            # Close the connection to the default database
+            default_conn.close()
+
+            # Now connect to the target database
+            self.conn = psycopg2.connect(
+                host=self.host,
+                port=self.port,
+                database=self.database,
+                user=self.user,
+                password=self.password,
+            )
 
             # Create the pgvector extension if it doesn't exist
             with self.conn.cursor() as cursor:
@@ -1631,6 +1665,12 @@ class PgVectorDB(VectorDBBase):
             raise ImportError(
                 "The psycopg2 package is required for PgVectorDB. "
                 "Please install it with `pip install psycopg2-binary`."
+            )
+        except ConnectionError as e:
+            raise ConnectionError(f"Failed to connect to PostgreSQL database: {e}")
+        except Exception as e:
+            raise Exception(
+                f"An error occurred while setting up the PostgreSQL client: {e}"
             )
 
     def add_documents(
@@ -1707,7 +1747,7 @@ class PgVectorDB(VectorDBBase):
         """
         # Prepare the query
         query = f"""
-            SELECT id, text, metadata, 1 - (embedding <=> %s) as similarity
+            SELECT id, text, metadata, 1 - (embedding <=> %s::vector({self.embedding_dimension})) as similarity
             FROM {self.table_name}
         """
 
@@ -1734,10 +1774,14 @@ class PgVectorDB(VectorDBBase):
         # Format the results
         formatted_results = []
         for result in results:
-            doc_id, text, metadata_json, similarity = result
+            doc_id, text, metadata, similarity = result
 
-            # Parse the metadata
-            metadata = json.loads(metadata_json) if metadata_json else {}
+            # Parse the metadata if it's a string, otherwise use as is
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata) if metadata else {}
+            else:
+                # Ensure metadata is a dictionary
+                metadata = metadata if metadata else {}
 
             formatted_results.append(
                 {
