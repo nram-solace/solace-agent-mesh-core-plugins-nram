@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, Dict, Any
 from solace_ai_connector.common.log import log as logger
 
@@ -5,6 +7,7 @@ from .file_system import LocalFileSystemDataSource
 from .cloud_storage import CloudStorageDataSource
 from ..memory.memory_storage import memory_storage
 from ..database.vector_db_service import VectorDBService
+
 
 # Try to import database modules, but don't fail if they're not available
 try:
@@ -21,13 +24,14 @@ class FileChangeTracker:
     Class to track file changes from different data sources.
     """
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, pipeline):
         """
         Initialize the FileChangeTracker with the given configuration.
 
         Args:
             config: A dictionary containing the configuration.
         """
+        self.pipeline = pipeline
         self.scanner_config = config.get("scanner", {})
         self.vector_db_config = config.get("vector_db", {})
         self.data_source = None
@@ -106,9 +110,9 @@ class FileChangeTracker:
         # Create data source based on type
         source_type = source_config.get("type", "filesystem")
         if source_type == "filesystem":
-            self.data_source = LocalFileSystemDataSource(source_config)
+            self.data_source = LocalFileSystemDataSource(source_config, self.pipeline)
         elif source_type == "cloud":
-            self.data_source = CloudStorageDataSource(source_config)
+            self.data_source = CloudStorageDataSource(source_config, self.pipeline)
         else:
             raise ValueError(f"Invalid data source type: {source_type}")
 

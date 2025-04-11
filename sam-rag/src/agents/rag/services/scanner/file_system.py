@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import os
+import time
+import threading
 from solace_ai_connector.common.log import log as logger
 from typing import Dict, List, Any
 from watchdog.observers import Observer
@@ -22,14 +26,16 @@ class LocalFileSystemDataSource(DataSource):
     A data source implementation for monitoring local file system changes.
     """
 
-    def __init__(self, source: Dict):
+    def __init__(self, source: Dict, pipeline) -> None:
         """
         Initialize the LocalFileSystemDataSource with the given source configuration.
 
         Args:
             source: A dictionary containing the source configuration.
+            pipeline: An pipeline object for processing files.
         """
         super().__init__(source)
+        self.pipeline = pipeline
         self.directories = []
         self.formats = []
         self.max_file_size = None
@@ -119,29 +125,29 @@ class LocalFileSystemDataSource(DataSource):
         if self.batch:
             self.batch_scan()
 
-        # event_handler = FileSystemEventHandler()
-        # event_handler.on_created = self.on_created
-        # event_handler.on_deleted = self.on_deleted
-        # event_handler.on_modified = self.on_modified
+        event_handler = FileSystemEventHandler()
+        event_handler.on_created = self.on_created
+        event_handler.on_deleted = self.on_deleted
+        event_handler.on_modified = self.on_modified
 
-        # observer = Observer()
-        # for directory in self.directories:
-        #     observer.schedule(event_handler, directory, recursive=True)
-        # observer.start()
+        observer = Observer()
+        for directory in self.directories:
+            observer.schedule(event_handler, directory, recursive=True)
+        observer.start()
 
-        # def run_periodically():
-        #     while True:
-        #         time.sleep(self.interval)
+        def run_periodically():
+            while True:
+                time.sleep(self.interval)
 
-        # thread = threading.Thread(target=run_periodically)
-        # thread.daemon = True  # Make thread a daemon so it exits when main thread exits
-        # thread.start()
+        thread = threading.Thread(target=run_periodically)
+        thread.daemon = True  # Make thread a daemon so it exits when main thread exits
+        thread.start()
 
-        # try:
-        #     thread.join()
-        # except KeyboardInterrupt:
-        #     observer.stop()
-        # observer.join()
+        try:
+            thread.join()
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
 
     def on_created(self, event):
         """
@@ -177,6 +183,8 @@ class LocalFileSystemDataSource(DataSource):
             self.existing_sources.append(event.src_path)
         else:
             logger.warning("Neither memory storage nor database is available")
+        # Process the file with the pipeline
+        self.pipeline.process_files([event.src_path])
 
     def on_deleted(self, event):
         """

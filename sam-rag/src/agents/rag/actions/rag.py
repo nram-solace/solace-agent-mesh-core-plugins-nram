@@ -1,6 +1,6 @@
 """
-Action for ingesting documents into the RAG system.
-This action scans documents from various data sources and ingests them into a vector database.
+Action for retrieving documents from a RAG system.
+This action retrieves documents from a vector database and augments the results.
 """
 
 from solace_agent_mesh.common.action import Action
@@ -19,26 +19,9 @@ class RAGAction(Action):
             {
                 "name": "rag_action",
                 "prompt_directive": (
-                    "This action ingest documents into a vector database."
+                    "This action retrieves documents from a vector database."
                 ),
                 "params": [
-                    {
-                        "name": "document",
-                        "desc": "The document name with the suffix.",
-                        "type": "object",
-                        "properties": {
-                            "source": {
-                                "type": "object",
-                                "desc": "The original file",
-                            },
-                            "name": {
-                                "type": "string",
-                                "desc": "The name of the document with suffix",
-                            },
-                        },
-                        "default": {},
-                        "required": False,
-                    },
                     {
                         "name": "query",
                         "desc": "The query to search for",
@@ -47,24 +30,17 @@ class RAGAction(Action):
                         "required": True,
                     },
                 ],
-                "required_scopes": ["rag:ingestion_action:write"],
+                "required_scopes": ["rag:rag_action:write"],
             },
             **kwargs,
         )
 
     def invoke(self, params, meta={}) -> ActionResponse:
-        log.debug("Starting document ingestion process")
-        document = params.get("document")
-        if (
-            document
-            and isinstance(document, dict)
-            and "source" in document
-            or "name" in document
-        ):
-            source = document["source"]
-            document_name = document["name"]
+        log.debug("Starting document retrieval process")
 
         query = params.get("query")
+        if not query:
+            return ActionResponse(message="Query parameter is required")
 
         rag = self.get_agent().get_augmentation_handler()
         results = rag.augment(query, filter=None)
