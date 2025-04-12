@@ -290,6 +290,11 @@ Ensure that all SQL queries are compatible with {db_type}.
                 message_parts.append(f"\n\nResults are available in {len(query_results)} attached inline {response_format.upper()} files.")
             else:
                 message_parts.append(f"\n\nResults are available in {len(query_results)} attached {response_format.upper()} files.")
+                
+        # Add response guidelines if they exist
+        agent = self.get_agent()
+        if hasattr(agent, 'response_guidelines') and agent.response_guidelines:
+            message_parts.append(f"\n\nGuidelines:\n{agent.response_guidelines}")
         
         return ActionResponse(
             message="\n".join(message_parts),

@@ -107,16 +107,28 @@ info.update(
                 "type": "string",
             },
             {
+                "name": "query_examples",
+                "required": False,
+                "description": "Natural language to SQL query examples to help the agent understand how to query the database. Format: List of objects with 'natural_language' and 'sql_query' keys. Will be attached to the schema when auto_detect_schema is False.",
+                "type": "list",
+            },
+            {
                 "name": "csv_files",
                 "required": False,
                 "description": "List of CSV files to import as tables on startup",
                 "type": "list",
             },
             {
-                "name": "csv_directories", 
+                "name": "csv_directories",
                 "required": False,
                 "description": "List of directories to scan for CSV files to import as tables on startup",
                 "type": "list",
+            },
+            {
+                "name": "response_guidelines",
+                "required": False,
+                "description": "Guidelines to be attached to action responses. These will be included in the response message.",
+                "type": "string",
             }
         ],
     }
@@ -148,6 +160,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         self.data_description = self.get_config("data_description")
         self.auto_detect_schema = self.get_config("auto_detect_schema", True)
         self.query_timeout = self.get_config("query_timeout", 30)
+        self.response_guidelines = self.get_config("response_guidelines", "")
 
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
         module_info["agent_name"] = self.agent_name
@@ -189,6 +202,22 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             else:
                 # Already a string, use as is
                 self.detailed_schema = str(schema)
+            # Get query examples if provided
+            query_examples = self.get_config("query_examples")
+            if query_examples:
+                # Format query examples with clear separation and structure
+                formatted_examples = "EXAMPLE QUERIES:\n"
+                formatted_examples += "=================\n\n"
+                
+                # Process examples from the list of dictionaries
+                for i, example in enumerate(query_examples, 1):
+                    if isinstance(example, dict) and "natural_language" in example and "sql_query" in example:
+                        formatted_examples += f"Example {i}:\n"
+                        formatted_examples += f"Natural Language: {example['natural_language'].strip()}\n"
+                        formatted_examples += f"SQL Query: {example['sql_query'].strip()}\n\n"
+                
+                # Attach formatted examples to the schema
+                self.detailed_schema = f"{self.detailed_schema}\n\n{formatted_examples}"
             
             # Only use provided schema_summary, don't try to generate one
             self.schema_summary = self.get_config("schema_summary")
