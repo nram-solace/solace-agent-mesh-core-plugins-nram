@@ -25,7 +25,8 @@ dependencies = [
     "openai~=1.66.3",  # For OpenAI API access
     "qdrant-client~=1.13.3",  # For Qdrant vector database access
     "PyPDF2~=3.0.1",  # For PDF processing
-    "watchdog==6.0.0"  # Fixed syntax for watchdog dependency
+    "watchdog==6.0.0",  # Fixed syntax for watchdog dependency
+    "ujson==5.10.0",  # For faster JSON processing
 ]
 
 [project.optional-dependencies]

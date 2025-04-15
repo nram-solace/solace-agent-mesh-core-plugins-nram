@@ -43,7 +43,7 @@ class LocalFileSystemDataSource(DataSource):
         self.interval = 10
         self.use_memory_storage = False
         self.batch = False
-        self.existing_sources = source.get("existing_sources", [])
+        self.existing_sources = []
         self.process_config(source)
 
     def process_config(self, source: Dict = {}) -> None:
@@ -72,6 +72,44 @@ class LocalFileSystemDataSource(DataSource):
 
         # Extract batch processing configuration
         self.batch = source.get("batch", False)
+
+    def upload_files(self, documents) -> str:
+        """
+        Upload a file in the destination directory.
+        Args:
+            documents: The documents to upload.
+        """
+        try:
+            if self.directories:
+                destination_directory = self.directories[0]
+                # Save the file to the destination directory
+                if not os.path.exists(destination_directory):
+                    os.makedirs(destination_directory)
+
+                for document in documents:
+                    content = document.get("content")
+                    file_name = document.get("name")
+                    mime_type = document.get("mime_type")
+
+                    # Check if the file already exists in the destination directory
+                    if os.path.exists(os.path.join(destination_directory, file_name)):
+                        logger.warning(
+                            f"File already exists. Overwriting: {file_name} in {destination_directory}"
+                        )
+
+                    with open(
+                        os.path.join(destination_directory, file_name), "wb"
+                    ) as f:
+                        f.write(content.encode("utf-8"))
+                    logger.info(f"File uploaded successfully: {file_name}")
+
+                return "Files uploaded successfully"
+            else:
+                logger.warning("No destination directory configured.")
+                return "Failed to upload documents. No destination directory configured"
+        except Exception as e:
+            logger.error(f"Error uploading files: {str(e)}")
+            return "Failed to upload documents"
 
     def batch_scan(self) -> None:
         """
@@ -161,8 +199,9 @@ class LocalFileSystemDataSource(DataSource):
 
         # Check if the document already exists in the vector database
         if event.src_path in self.existing_sources:
-            logger.info(f"Document already exists in vector database: {event.src_path}")
-            return
+            logger.info(
+                f"Document already exists in vector database. Re-ingest {event.src_path}"
+            )
 
         if self.use_memory_storage:
             memory_storage.insert_document(
@@ -193,8 +232,6 @@ class LocalFileSystemDataSource(DataSource):
         Args:
             event: The file system event.
         """
-        if not self.is_valid_file(event.src_path):
-            return
 
         if self.use_memory_storage:
             memory_storage.delete_document(path=event.src_path)

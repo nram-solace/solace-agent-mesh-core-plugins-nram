@@ -36,6 +36,16 @@ class DataSource(ABC):
         """
         pass
 
+    @abstractmethod
+    def upload_files(self, documents) -> None:
+        """
+        Upload files to the data source.
+
+        Args:
+            documents: A list of documents to upload.
+        """
+        pass
+
     def get_tracked_files(self) -> List[Dict[str, Any]]:
         """
         Get all tracked files.

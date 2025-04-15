@@ -7,14 +7,10 @@ from typing import Dict, Any, List, Optional
 from .vector_db_base import VectorDBBase
 from .vector_db_implementations import (
     PineconeDB,
-    WeaviateDB,
     QdrantDB,
     RedisDB,
-    ElasticsearchDB,
     PgVectorDB,
     ChromaDB,
-    FAISS,
-    Milvus,
 )
 
 
@@ -47,20 +43,12 @@ class VectorDBService:
         # Create the vector database based on the type
         if self.db_type == "chroma":
             return ChromaDB(self.db_params)
-        elif self.db_type == "faiss":
-            return FAISS(self.db_params)
-        elif self.db_type == "milvus":
-            return Milvus(self.db_params)
         elif self.db_type == "pinecone":
             return PineconeDB(self.db_params)
-        elif self.db_type == "weaviate":
-            return WeaviateDB(self.db_params)
         elif self.db_type == "qdrant":
             return QdrantDB(self.db_params)
         elif self.db_type == "redis":
             return RedisDB(self.db_params)
-        elif self.db_type == "elasticsearch":
-            return ElasticsearchDB(self.db_params)
         elif self.db_type == "pgvector":
             return PgVectorDB(self.db_params)
         else:

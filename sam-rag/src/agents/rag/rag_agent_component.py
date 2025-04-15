@@ -17,6 +17,7 @@ from solace_agent_mesh.agents.base_agent_component import (
 
 # Ingestion action import
 from .actions.rag import RAGAction
+from .actions.ingest import IngestionAction
 
 # Add new imports for the RAG pipeline
 from .services.pipeline.pipeline import Pipeline
@@ -462,7 +463,7 @@ info.update(
 class RAGAgentComponent(BaseAgentComponent):
     info = info
     # ingest action
-    actions = [RAGAction]
+    actions = [RAGAction, IngestionAction]
 
     def __init__(self, module_info: Dict[str, Any] = None, **kwargs):
         """Initialize the rag agent component.
@@ -501,4 +502,8 @@ class RAGAgentComponent(BaseAgentComponent):
 
     def get_augmentation_handler(self):
         """Get the augmentation handler."""
-        return self.pipeline.get_augmentation_handler
+        return self.pipeline.get_augmentation_handler()
+
+    def get_file_tracker(self):
+        """Get the file tracker."""
+        return self.pipeline.get_file_tracker()

@@ -40,6 +40,43 @@ class FileChangeTracker:
 
         # Initialize vector database service to check for existing documents
         self.vector_db = VectorDBService(self.vector_db_config)
+        self._create_handlers()
+
+    def _create_handlers(self) -> None:
+        # If using database, connect to it
+        if not self.use_memory_storage and DATABASE_AVAILABLE:
+            db_config = self.scanner_config.get("database", {})
+            if not db_config:
+                logger.warning(
+                    "Database configuration is missing, using memory storage"
+                )
+                self.use_memory_storage = True
+            else:
+                connect(db_config)
+
+        # Get data source configuration
+        source_config = self.scanner_config.get("source", {})
+        if not source_config:
+            raise ValueError("Source configuration is missing")
+
+        # Set memory storage flag in source config
+        source_config["use_memory_storage"] = self.use_memory_storage
+        source_config["batch"] = self.batch
+
+        # Get existing source documents from vector database
+        existing_sources = self.get_source_documents()
+
+        # Add existing sources to source config
+        source_config["existing_sources"] = existing_sources
+
+        # Create data source based on type
+        source_type = source_config.get("type", "filesystem")
+        if source_type == "filesystem":
+            self.data_source = LocalFileSystemDataSource(source_config, self.pipeline)
+        elif source_type == "cloud":
+            self.data_source = CloudStorageDataSource(source_config, self.pipeline)
+        else:
+            raise ValueError(f"Invalid data source type: {source_type}")
 
     def get_source_documents(self) -> List[str]:
         """
@@ -81,43 +118,19 @@ class FileChangeTracker:
         Returns:
             A dictionary containing the scan results.
         """
-        # If using database, connect to it
-        if not self.use_memory_storage and DATABASE_AVAILABLE:
-            db_config = self.scanner_config.get("database", {})
-            if not db_config:
-                logger.warning(
-                    "Database configuration is missing, using memory storage"
-                )
-                self.use_memory_storage = True
-            else:
-                connect(db_config)
-
-        # Get data source configuration
-        source_config = self.scanner_config.get("source", {})
-        if not source_config:
-            raise ValueError("Source configuration is missing")
-
-        # Set memory storage flag in source config
-        source_config["use_memory_storage"] = self.use_memory_storage
-        source_config["batch"] = self.batch
-
-        # Get existing source documents from vector database
-        existing_sources = self.get_source_documents()
-
-        # Add existing sources to source config
-        source_config["existing_sources"] = existing_sources
-
-        # Create data source based on type
-        source_type = source_config.get("type", "filesystem")
-        if source_type == "filesystem":
-            self.data_source = LocalFileSystemDataSource(source_config, self.pipeline)
-        elif source_type == "cloud":
-            self.data_source = CloudStorageDataSource(source_config, self.pipeline)
-        else:
-            raise ValueError(f"Invalid data source type: {source_type}")
-
-        # Start scanning
         self.data_source.scan()
+
+    def upload_files(self, documents) -> str:
+        """
+        Upload files to the data source.
+
+        Args:
+            documents: A list of documents to upload.
+
+        Returns:
+            A string containing the upload results.
+        """
+        return self.data_source.upload_files(documents)
 
     def get_tracked_files(self) -> List[Dict[str, Any]]:
         """
