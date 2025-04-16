@@ -12,12 +12,12 @@ log:
 
 shared_config:
   - broker_config: &broker_connection
-      dev_mode: ${SOLACE_DEV_MODE, false}
+      dev_mode: ${SOLACE_DEV_MODE}
       broker_url: ${SOLACE_BROKER_URL}
       broker_username: ${SOLACE_BROKER_USERNAME}
       broker_password: ${SOLACE_BROKER_PASSWORD}
       broker_vpn: ${SOLACE_BROKER_VPN}
-      temporary_queue: ${USE_TEMPORARY_QUEUES, false}
+      temporary_queue: ${USE_TEMPORARY_QUEUES}
 
 flows:
   # Flow to handle action requests
@@ -280,7 +280,7 @@ flows:
             # embedder_params:
             #     model: ${HF_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
             #     dimensions: 1536
-            #     device: ${HF_DEVICE, "cpu"}
+            #     device: ${HF_DEVICE}
             #     batch_size: 32
 
             #   # Cohere embeddings
@@ -296,7 +296,7 @@ flows:
             #   embedder_params:
             #     model: ${LOCAL_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
             #     dimensions: 1536
-            #     device: ${LOCAL_DEVICE, "cpu"}
+            #     device: ${LOCAL_DEVICE}
             #     batch_size: 32
           
           # Vector database configuration
@@ -306,57 +306,30 @@ flows:
             db_params:
               url: ${QDRANT_URL}
               api_key: ${QDRANT_API_KEY}
-              collection_name: ${QDRANT_COLLECTION, "documents"}
-              embedding_dimension: ${QDRANT_EMBEDDING_DIMENSION, 1024}
-              # distance: ${QDRANT_DISTANCE, "Cosine"}
+              collection_name: ${QDRANT_COLLECTION}
+              embedding_dimension: ${QDRANT_EMBEDDING_DIMENSION}
 
             # Chroma DB configuration
             # db_type: "chroma"
             # db_params:
-            #   host: ${CHROMA_HOST, "localhost"}
-            #   port: ${CHROMA_PORT, 8000}
-            #   collection_name: ${CHROMA_COLLECTION, "documents"}
+            #   host: ${CHROMA_HOST}
+            #   port: ${CHROMA_PORT}
+            #   collection_name: ${CHROMA_COLLECTION}
             #   persist_directory: ${CHROMA_PERSIST_DIR, "./chroma_db"}
-            #   embedding_function: ${CHROMA_EMBEDDING_FUNCTION, "default"}
-            #   embedding_dimension: ${QDRANT_EMBEDDING_DIMENSION, 1024}  # Added embedding dimension
+            #   embedding_function: ${CHROMA_EMBEDDING_FUNCTION}
+            #   embedding_dimension: ${QDRANT_EMBEDDING_DIMENSION}  # Added embedding dimension
             
             # Pinecone configuration
             # db_type: "pinecone"
             # db_params:
             #   api_key: ${PINECONE_API_KEY}
             #   index_name: ${PINECONE_INDEX}
-            #   namespace: ${PINECONE_NAMESPACE, "default"}
-            #   embedding_dimension: ${PINECONE_DIMENSIONS, 1536}
-            #   metric: ${PINECONE_METRIC, "cosine"}
-            #   cloud: ${PINECONE_CLOUD, "aws"}
-            #   region: ${PINECONE_REGION, "us-east-1"}
+            #   namespace: ${PINECONE_NAMESPACE}
+            #   embedding_dimension: ${PINECONE_DIMENSIONS}
+            #   metric: ${PINECONE_METRIC}
+            #   cloud: ${PINECONE_CLOUD}
+            #   region: ${PINECONE_REGION}
 
-            # # Weaviate configuration
-            # db_type: "weaviate"
-            # db_params:
-            #   url: ${WEAVIATE_URL}
-            #   api_key: ${WEAVIATE_API_KEY}
-            #   class_name: ${WEAVIATE_CLASS, "Document"}
-            #   batch_size: ${WEAVIATE_BATCH_SIZE, 100}
-            #   vector_field: ${WEAVIATE_VECTOR_FIELD, "vector"}
-
-            # # Milvus configuration
-            # db_type: "milvus"
-            # db_params:
-            #   host: ${MILVUS_HOST, "localhost"}
-            #   port: ${MILVUS_PORT, 19530}
-            #   collection_name: ${MILVUS_COLLECTION, "documents"}
-            #   dimension: ${MILVUS_DIMENSION, 1536}
-            #   index_type: ${MILVUS_INDEX_TYPE, "IVF_FLAT"}
-            #   metric_type: ${MILVUS_METRIC_TYPE, "IP"}
-
-            # # FAISS configuration
-            # db_type: "faiss"
-            # db_params:
-            #   index_file: ${FAISS_INDEX_FILE, "./faiss_index"}
-            #   dimension: ${FAISS_DIMENSION, 1536}
-            #   index_type: ${FAISS_INDEX_TYPE, "IndexFlatIP"}
-            #   metric_type: ${FAISS_METRIC_TYPE, "ip"}
 
             # # PostgreSQL with pgvector
             # db_type: "pgvector"
@@ -369,12 +342,6 @@ flows:
             #   table_name: ${PGVECTOR_TABLE, "document_embeddings"}
             #   embedding_dimension: ${PGVECTOR_DIMENSION, 1024}
 
-            # # SQLite with sqlite-vss
-            # db_type: "sqlite_vss"
-            # db_params:
-            #   db_path: ${SQLITE_VSS_PATH, "./sqlite_vss.db"}
-            #   table_name: ${SQLITE_VSS_TABLE, "document_embeddings"}
-            #   dimension: ${SQLITE_VSS_DIMENSION, 1536}
           llm:
             load_balancer:
               - model_name: "gpt-4o" # model alias
