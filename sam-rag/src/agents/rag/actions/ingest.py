@@ -67,7 +67,7 @@ class IngestionAction(Action):
                 ):
                     verified_documents.append(document)
 
-        print(f"Verified documents: {verified_documents}")
+        log.debug("Verified documents")
 
         tracker = self.get_agent().get_file_tracker()
         results = tracker.upload_files(verified_documents)

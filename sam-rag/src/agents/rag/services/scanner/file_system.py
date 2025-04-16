@@ -26,12 +26,13 @@ class LocalFileSystemDataSource(DataSource):
     A data source implementation for monitoring local file system changes.
     """
 
-    def __init__(self, source: Dict, pipeline) -> None:
+    def __init__(self, source: Dict, ingested_documents: List[str], pipeline) -> None:
         """
         Initialize the LocalFileSystemDataSource with the given source configuration.
 
         Args:
             source: A dictionary containing the source configuration.
+            ingested_documents: A list of documents that have already been ingested.
             pipeline: An pipeline object for processing files.
         """
         super().__init__(source)
@@ -43,7 +44,7 @@ class LocalFileSystemDataSource(DataSource):
         self.interval = 10
         self.use_memory_storage = False
         self.batch = False
-        self.existing_sources = []
+        self.ingested_documents = ingested_documents
         self.process_config(source)
 
     def process_config(self, source: Dict = {}) -> None:
@@ -117,14 +118,22 @@ class LocalFileSystemDataSource(DataSource):
         """
         logger.info(f"Starting batch scan of directories: {self.directories}")
 
+        if not self.directories:
+            logger.warning("No directories configured for batch scan.")
+            return
+
         for directory in self.directories:
+            if not os.path.exists(directory):
+                logger.warning(f"Directory does not exist: {directory}")
+                continue
+
             for root, _, files in os.walk(directory):
                 for file in files:
                     file_path = os.path.join(root, file)
 
                     if self.is_valid_file(file_path):
                         # Check if the document already exists in the vector database
-                        if file_path in self.existing_sources:
+                        if file_path in self.ingested_documents:
                             logger.info(
                                 f"Batch: Document already exists in vector database: {file_path}"
                             )
@@ -153,6 +162,7 @@ class LocalFileSystemDataSource(DataSource):
                             logger.warning(
                                 "Neither memory storage nor database is available"
                             )
+                        self.pipeline.process_files([file_path])
 
     def scan(self) -> None:
         """
@@ -195,10 +205,11 @@ class LocalFileSystemDataSource(DataSource):
             event: The file system event.
         """
         if not self.is_valid_file(event.src_path):
+            logger.warning(f"Invalid file: {event.src_path}")
             return
 
         # Check if the document already exists in the vector database
-        if event.src_path in self.existing_sources:
+        if event.src_path in self.ingested_documents:
             logger.info(
                 f"Document already exists in vector database. Re-ingest {event.src_path}"
             )
@@ -209,7 +220,7 @@ class LocalFileSystemDataSource(DataSource):
             )
             logger.info(f"Document inserted in memory: {event.src_path}")
             # Add the new document to the existing sources list
-            self.existing_sources.append(event.src_path)
+            self.ingested_documents.append(event.src_path)
         elif DATABASE_AVAILABLE:
             insert_document(
                 get_db(),
@@ -219,7 +230,7 @@ class LocalFileSystemDataSource(DataSource):
             )
             logger.info(f"Document inserted in database: {event.src_path}")
             # Add the new document to the existing sources list
-            self.existing_sources.append(event.src_path)
+            self.ingested_documents.append(event.src_path)
         else:
             logger.warning("Neither memory storage nor database is available")
         # Process the file with the pipeline
@@ -255,7 +266,7 @@ class LocalFileSystemDataSource(DataSource):
         # Check if the document already exists in the vector database
         # For modified files, we still want to update them even if they exist
         # But we'll log that they exist for tracking purposes
-        if event.src_path in self.existing_sources:
+        if event.src_path in self.ingested_documents:
             logger.info(
                 f"Modified document exists in vector database: {event.src_path}"
             )

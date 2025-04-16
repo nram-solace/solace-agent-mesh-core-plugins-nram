@@ -60,6 +60,7 @@ flows:
                   - ".txt"
                   - ".pdf"
                   - ".docx"
+                  - ".doc"
                   - ".md"
                   - ".html"
                   - ".csv"
@@ -122,7 +123,7 @@ flows:
                   remove_emails: true
                   remove_html_tags: false
               
-              docx:
+              doc:
                 type: document
                 params:
                   lowercase: true

@@ -11,16 +11,19 @@ class CloudStorageDataSource(DataSource):
     A data source implementation for fetching files from cloud storage.
     """
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, ingested_documents: List[str], pipeline):
         """
         Initialize the CloudStorageDataSource with the given configuration.
 
         Args:
             config: A dictionary containing the configuration.
+            ingested_documents: A list of documents that have been ingested.
+            pipeline: The processing pipeline to use for the documents.
         """
         super().__init__(config)
         self.use_memory_storage = config.get("use_memory_storage", False)
-        self.existing_sources = config.get("existing_sources", [])
+        self.ingested_documents = ingested_documents
+        self.pipeline = pipeline
         self.process_config(config)
 
     def process_config(self, source: Dict = {}) -> None:
@@ -42,7 +45,7 @@ class CloudStorageDataSource(DataSource):
             ]
             for file_path in mock_files:
                 # Check if the document already exists in the vector database
-                if file_path in self.existing_sources:
+                if file_path in self.ingested_documents:
                     logger.info(
                         f"Document already exists in vector database: {file_path}"
                     )

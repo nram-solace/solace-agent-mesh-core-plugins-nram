@@ -64,21 +64,22 @@ class FileChangeTracker:
         source_config["batch"] = self.batch
 
         # Get existing source documents from vector database
-        existing_sources = self.get_source_documents()
-
-        # Add existing sources to source config
-        source_config["existing_sources"] = existing_sources
+        ingested_documents = self.get_ingested_documents()
 
         # Create data source based on type
         source_type = source_config.get("type", "filesystem")
         if source_type == "filesystem":
-            self.data_source = LocalFileSystemDataSource(source_config, self.pipeline)
+            self.data_source = LocalFileSystemDataSource(
+                source_config, ingested_documents, self.pipeline
+            )
         elif source_type == "cloud":
-            self.data_source = CloudStorageDataSource(source_config, self.pipeline)
+            self.data_source = CloudStorageDataSource(
+                source_config, ingested_documents, self.pipeline
+            )
         else:
             raise ValueError(f"Invalid data source type: {source_type}")
 
-    def get_source_documents(self) -> List[str]:
+    def get_ingested_documents(self) -> List[str]:
         """
         Get a list of source document paths from the vector database.
 
