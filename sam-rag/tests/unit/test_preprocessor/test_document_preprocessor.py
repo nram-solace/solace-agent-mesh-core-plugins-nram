@@ -10,6 +10,12 @@ from unittest.mock import patch, MagicMock, mock_open
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
+# Mock the solace_ai_connector module
+sys.modules["solace_ai_connector"] = MagicMock()
+sys.modules["solace_ai_connector.common"] = MagicMock()
+sys.modules["solace_ai_connector.common.log"] = MagicMock()
+sys.modules["solace_ai_connector.common.log"].log = MagicMock()
+
 from src.agents.rag.services.preprocessor.document_preprocessor import (
     filter_config,
     TextFilePreprocessor,
@@ -108,7 +114,10 @@ class TestTextFilePreprocessor(unittest.TestCase):
         mock_text_preprocessor = MagicMock(return_value=mock_instance)
 
         # Patch the TextPreprocessor class
-        with patch.object(self.preprocessor, "text_preprocessor", mock_instance):
+        with patch(
+            "src.agents.rag.services.preprocessor.document_preprocessor.TextPreprocessor",
+            mock_text_preprocessor,
+        ):
             # Call the method
             result = self.preprocessor.preprocess("file.txt")
 
@@ -161,26 +170,28 @@ class TestPDFPreprocessor(unittest.TestCase):
         mock_pdf_reader.return_value.pages = [mock_page, mock_page]  # Two pages
 
         # Create a mock for TextPreprocessor
-        mock_text_preprocessor = MagicMock()
-        mock_text_preprocessor.preprocess.return_value = "Preprocessed PDF text"
+        mock_instance = MagicMock()
+        mock_instance.preprocess.return_value = "Preprocessed PDF text"
+
+        # Create a mock for the TextPreprocessor class
+        mock_text_preprocessor = MagicMock(return_value=mock_instance)
 
         # Use patch.dict to mock the import
         with patch.dict("sys.modules", {"PyPDF2": mock_pypdf2}):
             # Set the PdfReader attribute on the mock module
             mock_pypdf2.PdfReader = mock_pdf_reader
 
-            # Patch the text_preprocessor attribute
-            with patch.object(
-                self.preprocessor, "text_preprocessor", mock_text_preprocessor
+            # Patch the TextPreprocessor class
+            with patch(
+                "src.agents.rag.services.preprocessor.document_preprocessor.TextPreprocessor",
+                mock_text_preprocessor,
             ):
                 # Call the method
                 result = self.preprocessor.preprocess("file.pdf")
 
         # Assertions
         mock_file.assert_called_once_with("file.pdf", "rb")
-        mock_text_preprocessor.preprocess.assert_called_once_with(
-            "Page content\nPage content\n"
-        )
+        mock_instance.preprocess.assert_called_once_with("Page content\nPage content\n")
         self.assertEqual(result, "Preprocessed PDF text")
 
     @patch("builtins.print")
@@ -239,26 +250,28 @@ class TestDocxPreprocessor(unittest.TestCase):
         mock_document.return_value.paragraphs = [mock_paragraph1, mock_paragraph2]
 
         # Create a mock for TextPreprocessor
-        mock_text_preprocessor = MagicMock()
-        mock_text_preprocessor.preprocess.return_value = "Preprocessed DOCX text"
+        mock_instance = MagicMock()
+        mock_instance.preprocess.return_value = "Preprocessed DOCX text"
+
+        # Create a mock for the TextPreprocessor class
+        mock_text_preprocessor = MagicMock(return_value=mock_instance)
 
         # Use patch.dict to mock the import
         with patch.dict("sys.modules", {"docx": mock_docx}):
             # Set the Document attribute on the mock module
             mock_docx.Document = mock_document
 
-            # Patch the text_preprocessor attribute
-            with patch.object(
-                self.preprocessor, "text_preprocessor", mock_text_preprocessor
+            # Patch the TextPreprocessor class
+            with patch(
+                "src.agents.rag.services.preprocessor.document_preprocessor.TextPreprocessor",
+                mock_text_preprocessor,
             ):
                 # Call the method
                 result = self.preprocessor.preprocess("file.docx")
 
         # Assertions
         mock_document.assert_called_once_with("file.docx")
-        mock_text_preprocessor.preprocess.assert_called_once_with(
-            "Paragraph 1\nParagraph 2"
-        )
+        mock_instance.preprocess.assert_called_once_with("Paragraph 1\nParagraph 2")
         self.assertEqual(result, "Preprocessed DOCX text")
 
     @patch("builtins.print")
@@ -333,17 +346,21 @@ class TestHTMLPreprocessor(unittest.TestCase):
         mock_bs_instance.get_text.return_value = "Extracted HTML text"
 
         # Create a mock for TextPreprocessor
-        mock_text_preprocessor = MagicMock()
-        mock_text_preprocessor.preprocess.return_value = "Preprocessed HTML text"
+        mock_instance = MagicMock()
+        mock_instance.preprocess.return_value = "Preprocessed HTML text"
+
+        # Create a mock for the TextPreprocessor class
+        mock_text_preprocessor = MagicMock(return_value=mock_instance)
 
         # Use patch.dict to mock the import
         with patch.dict("sys.modules", {"bs4": mock_bs4}):
             # Set the BeautifulSoup attribute on the mock module
             mock_bs4.BeautifulSoup = mock_bs
 
-            # Patch the text_preprocessor attribute
-            with patch.object(
-                self.preprocessor, "text_preprocessor", mock_text_preprocessor
+            # Patch the TextPreprocessor class
+            with patch(
+                "src.agents.rag.services.preprocessor.document_preprocessor.TextPreprocessor",
+                mock_text_preprocessor,
             ):
                 # Call the method
                 result = self.preprocessor.preprocess("file.html")
@@ -351,7 +368,7 @@ class TestHTMLPreprocessor(unittest.TestCase):
         # Assertions
         mock_file.assert_called_once_with("file.html", "r", encoding="utf-8")
         mock_bs.assert_called_once()
-        mock_text_preprocessor.preprocess.assert_called_once_with("Extracted HTML text")
+        mock_instance.preprocess.assert_called_once_with("Extracted HTML text")
         self.assertEqual(result, "Preprocessed HTML text")
 
     @patch("builtins.print")

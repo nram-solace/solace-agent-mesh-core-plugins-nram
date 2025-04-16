@@ -1,5 +1,5 @@
 """
-Unit tests for the Augmentor class.
+Unit tests for the AugmentationService class.
 """
 
 import unittest
@@ -10,15 +10,20 @@ from unittest.mock import patch, MagicMock, Mock
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
-# Mock litellm module
+# Mock modules
 sys.modules["litellm"] = MagicMock()
 import litellm
 
-from src.agents.rag.services.rag.augmentor import Augmentor
+sys.modules["solace_ai_connector"] = MagicMock()
+sys.modules["solace_ai_connector.common"] = MagicMock()
+sys.modules["solace_ai_connector.common.log"] = MagicMock()
+sys.modules["solace_ai_connector.common.log"].log = MagicMock()
+
+from src.agents.rag.services.rag.augmentation_service import AugmentationService
 
 
-class TestAugmentor(unittest.TestCase):
-    """Test cases for the Augmentor class."""
+class TestAugmentationService(unittest.TestCase):
+    """Test cases for the AugmentationService class."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -59,7 +64,7 @@ class TestAugmentor(unittest.TestCase):
 
         # Create patcher for Retriever
         self.retriever_patcher = patch(
-            "src.agents.rag.services.rag.augmentor.Retriever"
+            "src.agents.rag.services.rag.augmentation_service.Retriever"
         )
         self.mock_retriever_class = self.retriever_patcher.start()
         self.mock_retriever_instance = self.mock_retriever_class.return_value
@@ -77,8 +82,8 @@ class TestAugmentor(unittest.TestCase):
         mock_response.choices = [mock_choice]
         self.mock_litellm_completion.return_value = mock_response
 
-        # Create augmentor instance
-        self.augmentor = Augmentor(self.config)
+        # Create augmentation service instance
+        self.augmentor = AugmentationService(self.config)
 
     def tearDown(self):
         """Tear down test fixtures."""
@@ -89,8 +94,6 @@ class TestAugmentor(unittest.TestCase):
         """Test initialization."""
         # Check that services were initialized with correct configs
         self.mock_retriever_class.assert_called_once_with(self.config)
-        self.assertEqual(self.augmentor.merge_threshold, 0.7)
-        self.assertEqual(self.augmentor.max_tokens_per_message, 1000)
         self.assertEqual(self.augmentor.llm_config, self.config["llm"])
         self.assertEqual(
             self.augmentor.load_balancer_config, self.config["llm"]["load_balancer"]
@@ -218,10 +221,10 @@ class TestAugmentor(unittest.TestCase):
             },
         ]
 
-        # Create augmentor without LLM
+        # Create augmentation service without LLM
         config_no_llm = self.config.copy()
         config_no_llm["llm"] = {}  # Empty LLM config
-        augmentor_no_llm = Augmentor(config_no_llm)
+        augmentor_no_llm = AugmentationService(config_no_llm)
         augmentor_no_llm.llm_available = False
 
         # Call the method
@@ -275,64 +278,17 @@ class TestAugmentor(unittest.TestCase):
                 return_value=augmented_chunks,
             ):
                 # Call the method
-                result = self.augmentor.augment("test query", top_k=2)
+                result = self.augmentor.augment("test query")
 
                 # Assertions
                 self.mock_retriever_instance.retrieve.assert_called_once_with(
-                    "test query", top_k=2, filter=None
+                    "test query", filter=None
                 )
                 self.assertEqual(result, augmented_chunks)
 
-    def test_augment_with_metadata(self):
-        """Test augment_with_metadata method."""
-        # Setup mock
-        augmented_chunks = [
-            {
-                "content": "Augmented content 1",
-                "source": "doc1",
-                "metadata": {"source": "doc1", "page": 1},
-                "score": 0.9,
-            },
-            {
-                "content": "Augmented content 2",
-                "source": "doc2",
-                "metadata": {"source": "doc2", "page": 1},
-                "score": 0.8,
-            },
-        ]
+    # Remove test_augment_with_metadata as this method doesn't exist in AugmentationService
 
-        with patch.object(self.augmentor, "augment", return_value=augmented_chunks):
-            # Call the method
-            chunks, metadata = self.augmentor.augment_with_metadata(
-                "test query", top_k=2
-            )
-
-            # Assertions
-            self.assertEqual(chunks, augmented_chunks)
-            self.assertEqual(metadata["query"], "test query")
-            self.assertEqual(metadata["top_k"], 2)
-            self.assertEqual(metadata["num_results"], 2)
-            self.assertEqual(set(metadata["sources"]), {"doc1", "doc2"})
-
-    def test_augment_multiple(self):
-        """Test augment_multiple method."""
-        # Setup mock
-        augmented_chunks1 = [{"content": "Result 1", "source": "doc1"}]
-        augmented_chunks2 = [{"content": "Result 2", "source": "doc2"}]
-
-        with patch.object(
-            self.augmentor,
-            "augment",
-            side_effect=[augmented_chunks1, augmented_chunks2],
-        ):
-            # Call the method
-            result = self.augmentor.augment_multiple(["query1", "query2"], top_k=2)
-
-            # Assertions
-            self.assertEqual(len(result), 2)
-            self.assertEqual(result[0], augmented_chunks1)
-            self.assertEqual(result[1], augmented_chunks2)
-            self.assertEqual(self.augmentor.augment.call_count, 2)
+    # Remove test_augment_multiple as this method doesn't exist in AugmentationService
 
 
 if __name__ == "__main__":
