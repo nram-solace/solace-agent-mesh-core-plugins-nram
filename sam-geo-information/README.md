@@ -44,6 +44,12 @@ You can now run Solace Agent Mesh and try it out! 🎉
 ```bash
 sam run -b
 ```
+
+Here are two example prompts you can try with your agent:
+
+- *What are the coordinates of Ottawa?*
+- *What’s the current weather and forecast in Tokyo?*
+
 ---
 
 ### Alternative: Edit your `solace-agent-mesh.yaml` config manually
@@ -61,7 +67,7 @@ plugins:
       gateways: []
       overwrites: []
     from_url: 
-      git+https://github.com/SolaceDev/solace-agent-mesh-core-plugins@ed/add-geo-info-agent#subdirectory=sam-geo-information
+      git+https://github.com/SolaceLabs/solace-agent-mesh-core-plugins#subdirectory=sam-geo-information
 ```
 
 ---
