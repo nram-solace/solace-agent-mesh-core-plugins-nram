@@ -7,6 +7,7 @@ from solace_ai_connector.common.log import log as logger
 from typing import Dict, List, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from solace_agent_mesh.services.file_service.file_service import FileService
 
 from .datasource_base import DataSource
 from ..memory.memory_storage import memory_storage
@@ -45,6 +46,7 @@ class LocalFileSystemDataSource(DataSource):
         self.use_memory_storage = False
         self.batch = False
         self.ingested_documents = ingested_documents
+        self.file_service = FileService()
         self.process_config(source)
 
     def process_config(self, source: Dict = {}) -> None:
@@ -88,21 +90,22 @@ class LocalFileSystemDataSource(DataSource):
                     os.makedirs(destination_directory)
 
                 for document in documents:
-                    content = document.get("content")
+                    amfs_url = document.get("amfs_url")
                     file_name = document.get("name")
                     mime_type = document.get("mime_type")
 
-                    # Check if the file already exists in the destination directory
-                    if os.path.exists(os.path.join(destination_directory, file_name)):
-                        logger.warning(
-                            f"File already exists. Overwriting: {file_name} in {destination_directory}"
+                    # Check if the amfs_url has amfs:// prefix
+                    if amfs_url.startswith("amfs://"):
+                        metadata = self.file_service.get_metadata(file_url=amfs_url)
+                        # Use the file service to download the file
+                        self.file_service.download_to_file(
+                            file_url=amfs_url,
+                            destination_path=os.path.join(
+                                destination_directory, file_name
+                            ),
+                            session_id=metadata.get("session_id"),
                         )
-
-                    with open(
-                        os.path.join(destination_directory, file_name), "wb"
-                    ) as f:
-                        f.write(content.encode("utf-8"))
-                    logger.info(f"File uploaded successfully: {file_name}")
+                        logger.info(f"File uploaded: {file_name}")
 
                 return "Files uploaded successfully"
             else:

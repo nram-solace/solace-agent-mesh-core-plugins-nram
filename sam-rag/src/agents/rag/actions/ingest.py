@@ -26,7 +26,7 @@ class IngestionAction(Action):
                 "params": [
                     {
                         "name": "documents",
-                        "desc": "The list of attached documents, which contain content, name and mime_type per document",
+                        "desc": "The list of attached documents, which contain amfs_url, name, mime_type and session_id per document",
                         "type": "list",
                         "default": [],
                         "required": True,
@@ -35,9 +35,9 @@ class IngestionAction(Action):
                                 "type": "string",
                                 "desc": "The name of the document",
                             },
-                            "content": {
+                            "amfs_url": {
                                 "type": "string",
-                                "desc": "The content of the document",
+                                "desc": "The amfs url of the document",
                             },
                             "mime_type": {
                                 "type": "string",
@@ -62,7 +62,7 @@ class IngestionAction(Action):
             for document in json_documents:
                 if (
                     "name" in document
-                    and "content" in document
+                    and "amfs_url" in document
                     and "mime_type" in document
                 ):
                     verified_documents.append(document)

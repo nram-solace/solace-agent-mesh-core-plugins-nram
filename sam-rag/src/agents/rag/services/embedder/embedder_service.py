@@ -6,17 +6,8 @@ from typing import Dict, Any, List, Tuple
 import numpy as np
 
 from .embedder_base import EmbedderBase
-from .local_embedder import (
-    SentenceTransformerEmbedder,
-    HuggingFaceEmbedder,
-    OpenAICompatibleEmbedder,
-)
-from .cloud_embedder import (
-    OpenAIEmbedder,
-    AzureOpenAIEmbedder,
-    CohereEmbedder,
-    VertexAIEmbedder,
-)
+
+from .litellm_embedder import LiteLLMEmbedder
 
 
 class EmbedderService:
@@ -30,12 +21,11 @@ class EmbedderService:
 
         Args:
             config: A dictionary containing configuration parameters.
-                - embedder_type: The type of embedder to use (default: "sentence_transformer").
+                - embedder_type: The type of embedder to use (default: "openai").
                 - embedder_params: The parameters to pass to the embedder.
-                - normalize_embeddings: Whether to normalize the embeddings (default: True).
         """
         self.config = config or {}
-        self.embedder_type = self.config.get("embedder_type", "sentence_transformer")
+        self.embedder_type = self.config.get("embedder_type", "openai")
         self.embedder_params = self.config.get("embedder_params", {})
         self.normalize = self.config.get("normalize_embeddings", True)
         self.embedder = self._create_embedder()
@@ -47,24 +37,34 @@ class EmbedderService:
         Returns:
             The embedder instance.
         """
-        # Create the embedder based on the type
-        if self.embedder_type == "sentence_transformer":
-            return SentenceTransformerEmbedder(self.embedder_params)
-        elif self.embedder_type == "huggingface":
-            return HuggingFaceEmbedder(self.embedder_params)
-        elif self.embedder_type == "openai_compatible":
-            return OpenAICompatibleEmbedder(self.embedder_params)
-        elif self.embedder_type == "openai":
-            return OpenAIEmbedder(self.embedder_params)
-        elif self.embedder_type == "azure_openai":
-            return AzureOpenAIEmbedder(self.embedder_params)
-        elif self.embedder_type == "cohere":
-            return CohereEmbedder(self.embedder_params)
-        elif self.embedder_type == "vertex_ai":
-            return VertexAIEmbedder(self.embedder_params)
+        # Check if we should use litellm for cloud embedders
+        if self.embedder_type in ["openai", "azure_openai", "cohere", "vertex_ai"]:
+            # Map embedder_type to litellm model format
+            model_prefix = {
+                "openai": "openai/",
+                "azure_openai": "azure/",
+                "cohere": "cohere/",
+                "vertex_ai": "vertex_ai/",
+            }
+
+            # Create a copy of the embedder params
+            params = self.embedder_params.copy()
+
+            # Add the model prefix to the model name if not already present
+            model_name = params.get("model", "")
+            if model_name and not any(
+                model_name.startswith(prefix) for prefix in model_prefix.values()
+            ):
+                params["model"] = model_prefix[self.embedder_type] + model_name
+
+            return LiteLLMEmbedder(params)
+
+        # Use local embedders
+        elif self.embedder_type == "litellm":
+            # Direct use of LiteLLM embedder
+            return LiteLLMEmbedder(self.embedder_params)
         else:
-            # Default to sentence_transformer
-            return SentenceTransformerEmbedder(self.embedder_params)
+            raise ValueError(f"Unsupported embedder type: {self.embedder_type}")
 
     def embed_text(self, text: str) -> List[float]:
         """

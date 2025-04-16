@@ -266,39 +266,16 @@ flows:
                   include_header: false
               # Add Xml, Odt, Xlsx, and other formats as needed
           # Embedding configuration
-          embedding:
+          embedding: # LiteLLM embedding
             embedder_type: "openai"
             embedder_params:
               # OpenAI embeddings
               model: ${OPENAI_EMBEDDING_MODEL}
               api_key: ${OPENAI_API_KEY}
-              base_url: ${OPENAI_API_ENDPOINT}
-              batch_size: 1
+              api_base: ${OPENAI_API_ENDPOINT}
+              batch_size: 32
+              additional_kwargs: {}
             normalize_embeddings: True
-
-            # # Hugging Face embeddings
-            # embedder_type: "huggingface"
-            # embedder_params:
-            #     model: ${HF_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
-            #     dimensions: 1536
-            #     device: ${HF_DEVICE}
-            #     batch_size: 32
-
-            #   # Cohere embeddings
-            #   embedder_type: "cohere"
-            #   embedder_params:
-            #     model: ${COHERE_EMBEDDING_MODEL, "embed-english-v3.0"}
-            #     dimensions: 1024
-            #     api_key: ${COHERE_API_KEY}
-            #     batch_size: 96
-
-            #   # Local embeddings
-            #   embedder_type: "local"
-            #   embedder_params:
-            #     model: ${LOCAL_EMBEDDING_MODEL, "sentence-transformers/all-MiniLM-L6-v2"}
-            #     dimensions: 1536
-            #     device: ${LOCAL_DEVICE}
-            #     batch_size: 32
           
           # Vector database configuration
           vector_db:
@@ -352,12 +329,12 @@ flows:
                       api_base: ${OPENAI_API_ENDPOINT}
                       temperature: 0.01
                       # add any other parameters here
-              # - model_name: "claude-3-5-sonnet" # model alias
-              #   litellm_params:
-              #         model: ${ANTHROPIC_MODEL_NAME}
-              #         api_key: ${ANTHROPIC_API_KEY}
-              #         api_base: ${ANTHROPIC_API_ENDPOINT}
-              #         # add any other parameters here
+              - model_name: "claude-3-5-sonnet" # model alias
+                litellm_params:
+                      model: anthropic/${ANTHROPIC_MODEL_NAME}
+                      api_key: ${ANTHROPIC_API_KEY}
+                      api_base: ${ANTHROPIC_API_ENDPOINT}
+                      # add any other parameters here
               # add more models here
 
           retrieval:
