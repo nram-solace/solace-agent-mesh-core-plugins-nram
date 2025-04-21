@@ -50,6 +50,9 @@ Here are two example prompts you can try with your agent:
 - *What are the coordinates of Ottawa?*
 - *What’s the current weather and forecast in Tokyo?*
 
+> **Note**: If the agent doesn’t seem to return results as expected, you may need to supply an API key for the Geocode API.
+ See the [APIs Used](#apis-used) and [Want to go further?](#want-to-go-further) sections below for details on where to configure your API keys.
+
 ---
 
 ### Alternative: Edit your `solace-agent-mesh.yaml` config manually
