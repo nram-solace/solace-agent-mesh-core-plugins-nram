@@ -23,7 +23,7 @@ shared_config:
 flows:
 
   # Flow to handle action requests
-  - name: bedrock_agent_action_request_processor
+  - name: {{SNAKE_CASE_NAME}}_action_request_processor
     components:
       # Input from a Solace broker
       - component_name: broker_input
@@ -32,12 +32,12 @@ flows:
           <<: *broker_connection
           payload_encoding: utf-8
           payload_format: json
-          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_bedrock_agent_action_request
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_{{SNAKE_CASE_NAME}}_action_request
           broker_subscriptions:
             # Subscribe to all bedrock_agent actions - note that if we
             # wanted to handle some bedrock_agent actions elsewhere, we would
             # need to be more specific here
-            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/bedrock_agent/>
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/{{SNAKE_CASE_NAME}}/>
               qos: 1
 
       # Custom component to process the action request
