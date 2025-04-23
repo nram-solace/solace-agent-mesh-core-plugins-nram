@@ -58,7 +58,7 @@ flows:
             # EXAMPLE of a bedrock agent, Add as many needed
             - name: invoke_agent # The name of the action
               description: "Invoke the bedrock agent" # Description of the Amazon bedrock agent
-              param_description: "Prompt to send to the action." # [Optional] Description of the parameter to be pass to the action, 
+              param_description: "Input to send to the action." # [Optional] Description of the parameter to be pass to the action, 
               bedrock_agent_id: "FAKE_AGENT_ID" # The ID of the Amazon bedrock agent
               bedrock_agent_alias_id: "FAKE_AGENT_ALIAS_ID" # The alias ID of the Amazon bedrock agent
               # required_scope: "<agent_name>:my_request_action:write" # Optional scope override
@@ -68,7 +68,7 @@ flows:
             # EXAMPLE of a bedrock flow, Add as many needed
             - name: invoke_flow # The name of the action
               description: "Invoke the bedrock flow" # Description of the Amazon bedrock flow
-              param_description: "Prompt to send to the flow." # [Optional] Description of the parameter to be pass to the action, 
+              param_description: "Input to send to the flow." # [Optional] Description of the parameter to be pass to the action, 
               bedrock_flow_id: "FAKE_FLOW_ID" # The ID of the Amazon bedrock flow
               bedrock_flow_alias_id: "FAKE_FLOW_ALIAS_ID" # The alias ID of the Amazon bedrock flow
               # required_scope: "<agent_name>:my_request_action:write" # Optional scope override

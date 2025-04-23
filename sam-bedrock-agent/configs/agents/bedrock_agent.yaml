@@ -47,13 +47,12 @@ flows:
         component_module: {{MODULE_DIRECTORY}}.agents.bedrock_agent.bedrock_agent_agent_component
         component_config:
           # SAM agent configuration
+          agent_name: {{SNAKE_CASE_NAME}}
+          agent_description: "Amazon Bedrock agent" # Description that would be used in the orchestrator to select this agent
+          always_open: false # Whether all actions should be visible to the orchestrator always or only when required
           llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
           embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
 
-          agent_name: bedrock_agent # Pass your agent name to be used in SAM
-          agent_description: "Amazon Bedrock agent" # Description that would be used in the orchestrator to select this agent
-          always_open: false # Whether all actions should be visible to the orchestrator always or only when required
-          
           # Amazon Bedrock agent configuration
           amazon_bedrock_runtime_config:
             # AWS Endpoint URL - Optional
@@ -71,8 +70,7 @@ flows:
             # EXAMPLE of a bedrock agent, Add as many needed
             - name: invoke_agent # The name of the action
               description: "Invoke the bedrock agent" # Description of the Amazon bedrock agent
-              param_description: "Prompt to send to the action." # [Optional] Description of the parameter to be pass to the action, 
-
+              param_description: "Input to send to the action." # [Optional] Description of the parameter to be pass to the action, 
               bedrock_agent_id: "FAKE_AGENT_ID" # The ID of the Amazon bedrock agent
               bedrock_agent_alias_id: "FAKE_AGENT_ALIAS_ID" # The alias ID of the Amazon bedrock agent
 
@@ -80,8 +78,7 @@ flows:
             # EXAMPLE of a bedrock flow, Add as many needed
             - name: invoke_flow # The name of the action
               description: "Invoke the bedrock flow" # Description of the Amazon bedrock flow
-              param_description: "Prompt to send to the flow." # [Optional] Description of the parameter to be pass to the action, 
-
+              param_description: "Input to send to the flow." # [Optional] Description of the parameter to be pass to the action, 
               bedrock_flow_id: "FAKE_FLOW_ID" # The ID of the Amazon bedrock flow
               bedrock_flow_alias_id: "FAKE_FLOW_ALIAS_ID" # The alias ID of the Amazon bedrock flow
 

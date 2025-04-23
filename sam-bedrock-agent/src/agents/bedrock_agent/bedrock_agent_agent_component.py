@@ -68,7 +68,7 @@ class BedrockAgentAgentComponent(BaseAgentComponent):
                     "bedrock_agent_id": action_config["bedrock_agent_id"],
                     "bedrock_agent_alias_id": action_config["bedrock_agent_alias_id"],
                     "param_description": action_config.get("param_description"),
-                }, 
+                },
                 self.bedrock_agent_runtime,
                 agent=self,
                 config_fn=self.get_config
@@ -85,7 +85,7 @@ class BedrockAgentAgentComponent(BaseAgentComponent):
                     "bedrock_flow_id": action_config["bedrock_flow_id"],
                     "bedrock_flow_alias_id": action_config["bedrock_flow_alias_id"],
                     "param_description": action_config.get("param_description"),
-                }, 
+                },
                 self.bedrock_agent_runtime,
                 agent=self,
                 config_fn=self.get_config

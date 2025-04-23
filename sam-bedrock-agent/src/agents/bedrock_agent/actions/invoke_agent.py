@@ -25,8 +25,8 @@ class InvokeAgent(Action):
             "prompt_directive": action_config["description"],
             "params": [
                 {
-                    "name": "prompt",
-                    "desc": action_config.get("param_description", "Prompt to send to the action."),
+                    "name": "input",
+                    "desc": action_config.get("param_description", "Input to send to the action."),
                     "type": "string",
                     "required": True
                 }
@@ -45,7 +45,7 @@ class InvokeAgent(Action):
             raise ValueError("Missing required configuration for Bedrock agent ID or alias ID.")
         
     def invoke(self, params, meta={}) -> ActionResponse:
-        prompt = params.get("prompt")
+        user_input = params.get("input")
         session_id = meta.get("session_id")
 
         try:
@@ -53,7 +53,7 @@ class InvokeAgent(Action):
                 self.bedrock_agent_id,
                 self.bedrock_agent_alias_id,
                 session_id,
-                prompt
+                user_input
             )
             return ActionResponse(message=result)
         except ClientError as e:

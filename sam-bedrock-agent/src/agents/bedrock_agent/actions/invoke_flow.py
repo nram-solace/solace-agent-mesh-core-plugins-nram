@@ -25,8 +25,8 @@ class InvokeFlow(Action):
             "prompt_directive": action_config["description"],
             "params": [
                 {
-                    "name": "prompt",
-                    "desc": action_config.get("param_description", "Prompt to send to the action."),
+                    "name": "input",
+                    "desc": action_config.get("param_description", "Input to send to the action."),
                     "type": "string",
                     "required": True
                 }
@@ -45,14 +45,13 @@ class InvokeFlow(Action):
             raise ValueError("Missing required configuration for Bedrock flow ID or alias ID.")
         
     def invoke(self, params, meta={}) -> ActionResponse:
-        prompt = params.get("prompt")
-        execution_id = params.get("execution_id", None)
+        user_input = params.get("input")
 
         try:
-            inputs = [
+            inputs_data = [
                 {
                     "content": {
-                        "document": prompt
+                        "document": user_input
                     },
                     "nodeName": "FlowInputNode",
                     "nodeOutputName": "document"
@@ -62,8 +61,7 @@ class InvokeFlow(Action):
             result = self.bedrock_agent_runtime.invoke_flow(
                 self.bedrock_flow_id,
                 self.bedrock_flow_alias_id,
-                inputs,
-                execution_id=execution_id
+                inputs_data,
             )
             return ActionResponse(message=result)
         except ClientError as e:
