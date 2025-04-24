@@ -13,7 +13,7 @@ solace-agent-mesh plugin add sam-bedrock-agent --pip -u git+https://github.com/S
 
 ## Using the Bedrock Agent
 
-The Amazon Bedrock Agent allows you to define custom actions within SAM that correspond to request/reply interactions over the Solace Event Mesh.
+The Amazon Bedrock Agent allows you to import one or multiple Amazon Bedrock agents or flows as actions to be used in your SAM project. This is useful for integrating with Amazon Bedrock's capabilities directly into your Solace Agent Mesh (SAM) project.
 
 ### Instantiate the Agent
 
@@ -27,7 +27,7 @@ solace-agent-mesh add agent <new_agent_name> --copy-from sam_bedrock_agent:bedro
 
 This creates `<new_agent_name>.yaml` in `configs/agents/`. You will configure the agent by editing this new file.
 
-### Configuration (`configs/agents/solace_event_mesh.yaml`)
+### Configuration (`configs/agents/bedrock_agent.yaml`)
 
 The core of the agent's configuration are the `amazon_bedrock_runtime_config` and `bedrock_agents` and `bedrock_flows` list within the `component_config` section. Each item in the list defines an action that the agent will expose.
 
