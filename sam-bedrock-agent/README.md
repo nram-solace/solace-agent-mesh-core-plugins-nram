@@ -8,12 +8,12 @@ This plugin allows you to import one or multiple Amazon bedrock agents or flows 
 
 If you haven't already, add the plugin to your SAM instance:
 ```sh
-solace-agent-mesh plugin add solace-event-mesh --pip -u git+https://github.com/SolaceLabs/solace-agent-mesh-core-plugins#subdirectory=sam-bedrock-agent
+solace-agent-mesh plugin add sam-bedrock-agent --pip -u git+https://github.com/SolaceLabs/solace-agent-mesh-core-plugins#subdirectory=sam-bedrock-agent
 ```
 
 ## Using the Bedrock Agent
 
-The Event Mesh Agent allows you to define custom actions within SAM that correspond to request/reply interactions over the Solace Event Mesh.
+The Amazon Bedrock Agent allows you to define custom actions within SAM that correspond to request/reply interactions over the Solace Event Mesh.
 
 ### Instantiate the Agent
 
