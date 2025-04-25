@@ -68,6 +68,7 @@ class BedrockAgentAgentComponent(BaseAgentComponent):
                     "bedrock_agent_id": action_config["bedrock_agent_id"],
                     "bedrock_agent_alias_id": action_config["bedrock_agent_alias_id"],
                     "param_description": action_config.get("param_description"),
+                    "allow_files": action_config.get("allow_files"),
                 },
                 self.bedrock_agent_runtime,
                 agent=self,

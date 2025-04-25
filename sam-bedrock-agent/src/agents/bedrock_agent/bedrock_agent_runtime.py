@@ -11,7 +11,7 @@ class BedrockAgentRuntime:
         session = boto3.Session(**boto3_config)
         self.agents_runtime_client = session.client("bedrock-agent-runtime", endpoint_url=endpoint_url)
 
-    def invoke_agent(self, agent_id, agent_alias_id, session_id, prompt):
+    def invoke_agent(self, agent_id, agent_alias_id, session_id, prompt, session_state=None):
         """
         Sends a prompt for the agent to process and respond to.
 
@@ -20,6 +20,7 @@ class BedrockAgentRuntime:
         :param session_id: The unique identifier of the session. Use the same value across requests
                            to continue the same conversation.
         :param prompt: The prompt that you want model to complete.
+        :param session_state: The state of the session.
         :return: Inference response from the model.
         """
 
@@ -29,6 +30,7 @@ class BedrockAgentRuntime:
                 agentAliasId=agent_alias_id,
                 sessionId=session_id,
                 inputText=prompt,
+                sessionState=session_state,
             )
 
             completion = ""
@@ -64,8 +66,8 @@ class BedrockAgentRuntime:
             result = ""
 
             # Get the streaming response
-            for event in response['responseStream']:
-                result = result + str(event) + '\n'
+            for event in response["responseStream"]:
+                result = result + str(event) + "\n"
 
         except ClientError as e:
             log.error("Couldn't invoke flow %s.", {e})
