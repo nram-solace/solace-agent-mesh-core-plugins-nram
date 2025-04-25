@@ -120,7 +120,13 @@ class InvokeAgent(Action):
                     )
 
                 try:
-                    _, buffer, meta = file_service.resolve_url(url, session_id, return_extra=True)
+                    buffer, _, meta = file_service.resolve_url(url, session_id, return_extra=True)
+                    media_type = meta.get("mime_type")
+
+                    if isinstance(buffer, str):
+                        buffer = buffer.encode('utf-8')
+                        media_type = "text/plain"
+                        
                 except Exception as e:
                     log.error("Error resolving file URL: %s", e)
                     return ActionResponse(
@@ -141,7 +147,7 @@ class InvokeAgent(Action):
                     'source': {
                         'byteContent': {
                             'data': byte_content,
-                            'mediaType': meta.get("mime_type"),
+                            'mediaType': media_type,
                         },
                         'sourceType': 'BYTE_CONTENT'
                     },
