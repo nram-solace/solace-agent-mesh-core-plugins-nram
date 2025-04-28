@@ -5,6 +5,7 @@ agents, converting their capabilities into actions.
 """
 
 import copy
+import os
 from typing import Dict, Any, Optional
 
 from solace_agent_mesh.agents.base_agent_component import (
@@ -194,7 +195,7 @@ class McpServerAgentComponent(BaseAgentComponent):
                     server_params = StdioServerParameters(
                         command=parts[0],
                         args=parts[1:],
-                        env=None,  # Use default safe environment
+                        env=os.environ,  # Use current process environment
                     )
 
                     # Create and start async server thread
