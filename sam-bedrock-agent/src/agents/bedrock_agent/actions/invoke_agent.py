@@ -50,7 +50,7 @@ class InvokeAgent(Action):
             params.append(
                 {
                     "name": "files",
-                    "desc": f"[Optional] Files to append to the prompt. Only {FS_PROTOCOL} URLs. Max 5 files, 10MB total. Supported types: {SUPPORTED_FILE_TYPES}",
+                    "desc": f"[Optional] Files to append to the prompt. Only {FS_PROTOCOL} URLs. Max 5 files, 10MB total. Supported types: {SUPPORTED_FILE_TYPES}. Example of passing in files: ['{FS_PROTOCOL}://file1.pdf', '{FS_PROTOCOL}://file2.doc']",
                     "type": "array of strings",
                     "required": False
                 }
