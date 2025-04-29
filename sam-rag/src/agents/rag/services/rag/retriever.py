@@ -76,7 +76,7 @@ class Retriever:
 
             logger.info(f"Found {len(results)} results for query")
             return results
-        except Exception as e:
+        except Exception:
             logger.error("Error retrieving documents.")
             raise ValueError(
                 "Error retrieving documents. Please check the query and try again."

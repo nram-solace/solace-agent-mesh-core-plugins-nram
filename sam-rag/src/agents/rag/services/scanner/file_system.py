@@ -105,14 +105,14 @@ class LocalFileSystemDataSource(DataSource):
                             ),
                             session_id=metadata.get("session_id"),
                         )
-                        logger.info(f"File uploaded: {file_name}")
+                        logger.info("File uploaded.")
 
                 return "Files uploaded successfully"
             else:
                 logger.warning("No destination directory configured.")
                 return "Failed to upload documents. No destination directory configured"
-        except Exception as e:
-            logger.error(f"Error uploading files: {str(e)}")
+        except Exception:
+            logger.error("Error uploading files.")
             return "Failed to upload documents"
 
     def batch_scan(self) -> None:
@@ -138,7 +138,7 @@ class LocalFileSystemDataSource(DataSource):
                         # Check if the document already exists in the vector database
                         if file_path in self.ingested_documents:
                             logger.info(
-                                f"Batch: Document already exists in vector database: {file_path}"
+                                "Batch: Document already exists in vector database."
                             )
                             continue
 
@@ -148,9 +148,7 @@ class LocalFileSystemDataSource(DataSource):
                                 file=os.path.basename(file_path),
                                 status="new",
                             )
-                            logger.info(
-                                f"Batch: Document inserted in memory: {file_path}"
-                            )
+                            logger.info("Batch: Document inserted in memory.")
                         elif DATABASE_AVAILABLE:
                             insert_document(
                                 get_db(),

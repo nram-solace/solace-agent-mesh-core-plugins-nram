@@ -113,13 +113,11 @@ class Pipeline:
                             "index": i,
                         }
                     )
-                    log.info(
-                        f"Successfully preprocessed file: {file_path} ({doc_type})"
-                    )
+                    log.info("Successfully preprocessed a file.")
                 else:
-                    log.warning(f"Failed to preprocess file: {file_path}")
+                    log.warning("Failed to preprocess a file.")
             except Exception as e:
-                log.error(f"Error preprocessing file {file_path}: {str(e)}")
+                log.error("Error preprocessing a file.")
 
         if not preprocessed_docs:
             log.warning("No documents were successfully preprocessed")
@@ -145,9 +143,9 @@ class Pipeline:
                 chunks.extend(doc_chunks)
                 chunks_metadata.extend([meta.copy() for _ in range(len(doc_chunks))])
 
-                log.info(f"Split document {i} into {len(doc_chunks)} chunks")
-            except Exception as e:
-                log.error(f"Error splitting document {i}: {str(e)}")
+                log.info(f"Split a document into {len(doc_chunks)} chunks")
+            except Exception:
+                log.error("Error splitting a document")
 
         if not chunks:
             log.warning("No chunks were created from the documents")

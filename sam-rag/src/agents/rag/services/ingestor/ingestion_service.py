@@ -129,8 +129,8 @@ class IngestionService(IngestionBase):
                 "message": f"Successfully ingested {len(document_ids)} points into vector database",
                 "document_ids": document_ids,
             }
-        except Exception as e:
-            error_msg = f"Error storing embeddings in vector database: {str(e)}"
+        except Exception:
+            error_msg = "Error storing embeddings in vector database."
             logger.error(error_msg)
             return {
                 "success": False,

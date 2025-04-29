@@ -47,7 +47,7 @@ class MemoryStorage:
             **kwargs,
         }
         self.changes.append({"path": path, "status": "new", "timestamp": timestamp})
-        logger.info(f"Document inserted in memory: {path}")
+        logger.info("Document inserted in memory.")
 
     def update_document(self, path: str, status: str, **kwargs) -> None:
         """
@@ -66,9 +66,9 @@ class MemoryStorage:
             self.changes.append(
                 {"path": path, "status": status, "timestamp": timestamp}
             )
-            logger.info(f"Document updated in memory: {path}")
+            logger.info("Document updated in memory.")
         else:
-            logger.warning(f"Document not found in memory: {path}")
+            logger.warning("Document not found in memory.")
 
     def delete_document(self, path: str) -> None:
         """
@@ -83,9 +83,9 @@ class MemoryStorage:
             self.changes.append(
                 {"path": path, "status": "deleted", "timestamp": timestamp}
             )
-            logger.info(f"Document deleted from memory: {path}")
+            logger.info("Document deleted from memory.")
         else:
-            logger.warning(f"Document not found in memory: {path}")
+            logger.warning("Document not found in memory.")
 
     def get_document(self, path: str) -> Optional[Dict[str, Any]]:
         """

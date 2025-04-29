@@ -46,9 +46,7 @@ class CloudStorageDataSource(DataSource):
             for file_path in mock_files:
                 # Check if the document already exists in the vector database
                 if file_path in self.ingested_documents:
-                    logger.info(
-                        f"Document already exists in vector database: {file_path}"
-                    )
+                    logger.info("Document already exists in vector database.")
                     continue
 
                 memory_storage.insert_document(
