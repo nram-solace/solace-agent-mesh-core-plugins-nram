@@ -6,6 +6,7 @@ import os
 from typing import Dict, Any
 from .preprocessor_base import PreprocessorBase
 from .text_preprocessor import TextPreprocessor
+from solace_ai_connector.common.log import log as logger
 
 
 def filter_config(config: Dict[str, Any], key: str) -> Dict[str, Any]:
@@ -79,8 +80,8 @@ class TextFilePreprocessor(PreprocessorBase):
             text_config = filter_config(self.config, "text")
             self.text_preprocessor = TextPreprocessor(text_config)
             return self.text_preprocessor.preprocess(text)
-        except Exception as e:
-            print(f"Error preprocessing text file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing text file.")
             return ""
 
 
@@ -138,12 +139,12 @@ class PDFPreprocessor(PreprocessorBase):
 
             return self.text_preprocessor.preprocess(text)
         except ImportError:
-            print(
+            logger.error(
                 "PyPDF2 is not installed. Please install it using: pip install PyPDF2"
             )
             return ""
-        except Exception as e:
-            print(f"Error preprocessing PDF file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing PDF file.")
             return ""
 
 
@@ -195,12 +196,12 @@ class DocxPreprocessor(PreprocessorBase):
 
             return self.text_preprocessor.preprocess(text)
         except ImportError:
-            print(
+            logger.error(
                 "python-docx is not installed. Please install it using: pip install python-docx"
             )
             return ""
-        except Exception as e:
-            print(f"Error preprocessing DOCX file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing DOCX file.")
             return ""
 
 
@@ -254,12 +255,12 @@ class HTMLPreprocessor(PreprocessorBase):
 
             return self.text_preprocessor.preprocess(text)
         except ImportError:
-            print(
+            logger.error(
                 "BeautifulSoup is not installed. Please install it using: pip install beautifulsoup4"
             )
             return ""
-        except Exception as e:
-            print(f"Error preprocessing HTML file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing HTML file.")
             return ""
 
 
@@ -318,12 +319,12 @@ class ExcelPreprocessor(PreprocessorBase):
 
             return self.text_preprocessor.preprocess(text)
         except ImportError:
-            print(
+            logger.error(
                 "pandas is not installed. Please install it using: pip install pandas"
             )
             return ""
-        except Exception as e:
-            print(f"Error preprocessing Excel file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing Excel file.")
             return ""
 
 
@@ -377,10 +378,12 @@ class ODTPreprocessor(PreprocessorBase):
 
             return self.text_preprocessor.preprocess(content)
         except ImportError:
-            print("odfpy is not installed. Please install it using: pip install odfpy")
+            logger.error(
+                "odfpy is not installed. Please install it using: pip install odfpy"
+            )
             return ""
-        except Exception as e:
-            print(f"Error preprocessing ODT file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing ODT file.")
             return ""
 
 
@@ -426,6 +429,6 @@ class CSVFilePreprocessor(PreprocessorBase):
             with open(file_path, "r", encoding="utf-8") as file:
                 content = file.read()
             return content
-        except Exception as e:
-            print(f"Error preprocessing text file {file_path}: {str(e)}")
+        except Exception:
+            logger.error("Error preprocessing text file.")
             return ""

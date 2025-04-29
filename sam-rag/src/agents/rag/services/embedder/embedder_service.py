@@ -64,7 +64,9 @@ class EmbedderService:
             # Direct use of LiteLLM embedder
             return LiteLLMEmbedder(self.embedder_params)
         else:
-            raise ValueError(f"Unsupported embedder type: {self.embedder_type}")
+            raise ValueError(
+                f"Unsupported embedder type: {self.embedder_type}"
+            ) from None
 
     def embed_text(self, text: str) -> List[float]:
         """

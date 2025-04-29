@@ -41,11 +41,11 @@ def init_db(config: Dict = {}):
 
     db_url = config_db(config)
     if not db_url:
-        raise ValueError("Database configuration not found.")
+        raise ValueError("Database configuration not found.") from None
 
     try:
         log.info("Initializing the database...")
         engine = create_engine(db_url)
         Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        raise RuntimeError(f"Failed to initialize the database: {e}")
+    except Exception:
+        raise RuntimeError("Failed to initialize the database") from None

@@ -13,6 +13,7 @@ import time
 from collections import defaultdict
 import litellm
 from solace_ai_connector.common.log import log as logger
+from solace_agent_mesh.services.file_service.file_service import FileService
 
 from .retriever import Retriever
 
@@ -33,6 +34,8 @@ class AugmentationService:
                 - llm: Configuration for the LLM service.
         """
         self.config = config or {}
+        # Initialize file service
+        self.file_service = FileService()
 
         # Initialize retriever
         self.retriever = Retriever(self.config)
@@ -59,6 +62,7 @@ class AugmentationService:
     def augment(
         self,
         query: str,
+        session_id: str,
         filter: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -66,6 +70,7 @@ class AugmentationService:
 
         Args:
             query: The query text.
+            session_id: The session ID for tracking.
             filter: Optional filter to apply to the search.
 
         Returns:
@@ -75,8 +80,6 @@ class AugmentationService:
             - score: The relevance score
         """
         try:
-            logger.info(f"Augmenting documents for query: {query}")
-
             # Retrieve relevant chunks
             retrieved_chunks = self.retriever.retrieve(query, filter=filter)
 
@@ -86,11 +89,17 @@ class AugmentationService:
             # Augment merged chunks with LLM
             augmented_chunks = self._augment_chunks_with_llm(query, merged_chunks)
 
+            # Upload files to file service
+            files = self._upload_files_to_fileservice(augmented_chunks, session_id)
+
+            # Extract content
+            content = self._extract_content(augmented_chunks)
+
             logger.info(f"Augmented {len(augmented_chunks)} chunks for query")
-            return augmented_chunks
-        except Exception as e:
-            logger.error(f"Error augmenting documents: {str(e)}")
-            raise
+            return content, files
+        except Exception:
+            logger.error("Error augmenting documents.")
+            raise ValueError("Error augmenting documents") from None
 
     def _merge_chunks_by_source(
         self, chunks: List[Dict[str, Any]]
@@ -117,9 +126,9 @@ class AugmentationService:
         # Merge chunks for each source
         merged_chunks = []
         for source, source_chunks in chunks_by_source.items():
-            # Sort chunks by score (highest first)
+            # Sort chunks by distance (lowest first)
             sorted_chunks = sorted(
-                source_chunks, key=lambda x: x.get("score", 0), reverse=True
+                source_chunks, key=lambda x: x.get("distance", 0), reverse=False
             )
 
             # Combine text from chunks
@@ -133,16 +142,9 @@ class AugmentationService:
                 "text": combined_text,
                 "metadata": best_metadata,
                 "source": source,
-                "score": sorted_chunks[0].get("score", 0),  # Use highest score
-                "original_chunks": source_chunks,  # Keep original chunks for reference
             }
 
             merged_chunks.append(merged_chunk)
-
-        # Sort merged chunks by score
-        merged_chunks = sorted(
-            merged_chunks, key=lambda x: x.get("score", 0), reverse=True
-        )
 
         return merged_chunks
 
@@ -189,12 +191,56 @@ class AugmentationService:
                 "content": improved_content,
                 "source": source,
                 "metadata": metadata,
-                "score": chunk.get("score", 0),
             }
 
             augmented_chunks.append(augmented_chunk)
 
         return augmented_chunks
+
+    def _upload_files_to_fileservice(
+        self, chunks: List[Dict[str, Any]], session_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Upload files to the file service and return the list of files.
+
+        Args:
+            chunks: List of chunks to upload.
+            session_id: Session ID for file service access control.
+
+        Returns:
+            List of files corresponding to chunks.
+        """
+        files = []
+
+        for chunk in chunks:
+            # Extract source from chunk (source is a file path)
+            source_path = chunk.get("source", "")
+            if not source_path:
+                # # Skip chunks without source
+                # updated_chunks.append(chunk)
+                continue
+
+            try:
+                # Upload file to file service using upload_from_file
+                file_meta = self.file_service.upload_from_file(
+                    source_path, session_id, data_source="Augmentation Service"
+                )
+
+                # Add URL to chunk's files data field in the required format
+                if "file" not in chunk:
+                    chunk["file"] = []
+
+                chunk["file"] = file_meta
+
+                # files.append(chunk)
+                files.append(file_meta)
+
+            except Exception as e:
+                logger.error(f"Error uploading file to file service: {str(e)}")
+                # If upload fails, still include the chunk without file URL
+                files.append(chunk)
+
+        return files
 
     def _invoke_litellm(self, prompt: str) -> str:
         """
@@ -214,7 +260,7 @@ class AugmentationService:
 
             # Use the first model in the load balancer config
             if not self.load_balancer_config:
-                raise ValueError("No LLM models configured in load balancer")
+                raise ValueError("No LLM models configured in load balancer") from None
 
             model_config = self.load_balancer_config[0]
             litellm_params = model_config.get("litellm_params", {})
@@ -240,9 +286,9 @@ class AugmentationService:
                 logger.warning("Empty response from LiteLLM")
                 return ""
 
-        except Exception as e:
-            logger.error(f"Error invoking LiteLLM: {str(e)}")
-            raise
+        except Exception:
+            logger.error("Error invoking LiteLLM.")
+            raise ValueError("Error invoking LiteLLM") from None
 
     def _create_augmentation_prompt(self, query: str, text: str) -> str:
         """
@@ -260,3 +306,23 @@ class AugmentationService:
             f"{text}\n\n"
             "Make sure to maintain the original meaning while enhancing clarity and coherence."
         )
+
+    def _extract_content(self, chunks: List[Dict[str, Any]]) -> str:
+        """
+        Extract contents from a list of chunks.
+
+        Args:
+            chunks: List of chunks, where each chunk is a dictionary containing 'content' and 'files' fields.
+
+        Returns:
+            A dictionary with one key:
+            - 'content': A list of all content values from the chunks
+        """
+        content = ""
+
+        for chunk in chunks:
+            # Extract content
+            if "content" in chunk:
+                content += chunk["content"]
+
+        return content

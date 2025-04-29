@@ -4,6 +4,7 @@ Preprocessor for handling various document formats and preprocessing steps.
 
 import os
 from typing import Dict, Any, List, Tuple, Optional
+from solace_ai_connector.common.log import log as logger
 
 from .preprocessor_base import PreprocessorBase
 from .document_preprocessor import (
@@ -98,18 +99,18 @@ class PreprocessorService:
             Preprocessed text content, or None if the file cannot be processed.
         """
         if not os.path.exists(file_path):
-            print(f"File not found: {file_path}")
+            logger.warning("File not found.")
             return None
 
         preprocessor = self._get_preprocessor(file_path)
         if preprocessor:
             try:
                 return preprocessor.preprocess(file_path)
-            except Exception as e:
-                print(f"Error preprocessing file {file_path}: {str(e)}")
+            except Exception:
+                logger.error("Error preprocessing file.")
                 return None
         else:
-            print(f"No suitable preprocessor found for file: {file_path}")
+            logger.warning("No suitable preprocessor found for file.")
             return None
 
     def preprocess_files(

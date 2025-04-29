@@ -26,7 +26,7 @@ class IngestionAction(Action):
                 "params": [
                     {
                         "name": "documents",
-                        "desc": "The list of attached documents, which contain amfs_url, name, mime_type and session_id per document",
+                        "desc": "The list of attached documents, which contain amfs_url, name and mime_type per document",
                         "type": "list",
                         "default": [],
                         "required": True,

@@ -148,6 +148,6 @@ class IngestionService(IngestionBase):
         try:
             self.vector_db.delete(ids)
             logger.info(f"Deleted {len(ids)} documents from vector database")
-        except Exception as e:
-            logger.error(f"Error deleting documents from vector database: {str(e)}")
-            raise
+        except Exception:
+            logger.error("Error deleting documents from vector database.")
+            raise ValueError("Error deleting documents from vector database") from None

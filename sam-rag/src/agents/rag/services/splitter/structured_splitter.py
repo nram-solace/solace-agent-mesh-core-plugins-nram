@@ -246,7 +246,7 @@ class HTMLSplitter(SplitterBase):
             raise ImportError(
                 "The beautifulsoup4 package is required for HTMLSplitter. "
                 "Please install it with `pip install beautifulsoup4`."
-            )
+            ) from None
 
     def split_text(self, text: str) -> List[str]:
         """

@@ -64,8 +64,6 @@ class Retriever:
             - score: The similarity score
         """
         try:
-            logger.info(f"Retrieving documents for query: {query}")
-
             # Get query embedding
             query_embedding = self.get_query_embedding(query)
 
@@ -79,8 +77,10 @@ class Retriever:
             logger.info(f"Found {len(results)} results for query")
             return results
         except Exception as e:
-            logger.error(f"Error retrieving documents: {str(e)}")
-            raise
+            logger.error("Error retrieving documents.")
+            raise ValueError(
+                "Error retrieving documents. Please check the query and try again."
+            ) from None
 
     def get_query_embedding(self, query: str) -> List[float]:
         """
@@ -96,9 +96,11 @@ class Retriever:
             # Get query embedding
             embeddings = self.embedding_service.embed_texts([query])
             if not embeddings or len(embeddings) == 0:
-                raise ValueError("Failed to generate embedding for query")
+                raise ValueError("Failed to generate embedding for query") from None
 
             return embeddings[0]
-        except Exception as e:
-            logger.error(f"Error generating query embedding: {str(e)}")
-            raise
+        except Exception:
+            logger.error("Error generating query embedding.")
+            raise ValueError(
+                "Error generating query embedding. Please check the query and try again."
+            ) from None

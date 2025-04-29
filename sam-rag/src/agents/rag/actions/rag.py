@@ -19,7 +19,7 @@ class RAGAction(Action):
             {
                 "name": "rag_action",
                 "prompt_directive": (
-                    "This action retrieves documents from a vector database."
+                    "This action retrieves documents from a vector database and returns a list of contents and corresponding source urls."
                 ),
                 "params": [
                     {
@@ -39,13 +39,14 @@ class RAGAction(Action):
         log.debug("Starting document retrieval process")
 
         query = params.get("query")
+        session_id = meta.get("session_id")
         if not query:
             return ActionResponse(message="Query parameter is required")
 
         rag = self.get_agent().get_augmentation_handler()
-        results = rag.augment(query, filter=None)
-        if not results:
+        content, files = rag.augment(query, session_id, filter=None)
+        if not content:
+            log.info("No results found for the query")
             return ActionResponse(message="No results found for the query")
-        log.debug(f"Augmentation results: {results}")
 
-        return ActionResponse(message=results)
+        return ActionResponse(message=content, files=files)

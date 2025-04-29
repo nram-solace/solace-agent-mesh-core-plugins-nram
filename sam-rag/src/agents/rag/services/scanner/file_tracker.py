@@ -57,7 +57,7 @@ class FileChangeTracker:
         # Get data source configuration
         source_config = self.scanner_config.get("source", {})
         if not source_config:
-            raise ValueError("Source configuration is missing")
+            raise ValueError("Source configuration is missing") from None
 
         # Set memory storage flag in source config
         source_config["use_memory_storage"] = self.use_memory_storage
@@ -77,7 +77,7 @@ class FileChangeTracker:
                 source_config, ingested_documents, self.pipeline
             )
         else:
-            raise ValueError(f"Invalid data source type: {source_type}")
+            raise ValueError(f"Invalid data source type: {source_type}") from None
 
     def get_ingested_documents(self) -> List[str]:
         """

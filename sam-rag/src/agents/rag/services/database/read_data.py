@@ -29,7 +29,7 @@ def main():
     try:
         data = read_document_data(db)
         for path, file, status, timestamp in data:
-            print(
+            log.info(
                 f"Path: {path}, File: {file}, Status: {status.value}, Timestamp: {timestamp}"
             )
     finally:

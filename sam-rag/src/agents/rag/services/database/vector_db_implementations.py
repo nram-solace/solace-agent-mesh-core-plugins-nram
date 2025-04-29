@@ -44,11 +44,11 @@ class PineconeDB(VectorDBBase):
         super().__init__(config)
         self.api_key = self.config.get("api_key")
         if not self.api_key:
-            raise ValueError("Pinecone API key is required")
+            raise ValueError("Pinecone API key is required") from None
 
         self.index_name = self.config.get("index_name")
         if not self.index_name:
-            raise ValueError("Pinecone index name is required")
+            raise ValueError("Pinecone index name is required") from None
 
         self.namespace = self.config.get("namespace", "default")
         self.embedding_dimension = self.config.get("embedding_dimension", 768)
@@ -84,7 +84,7 @@ class PineconeDB(VectorDBBase):
             raise ImportError(
                 "The pinecone-client package is required for PineconeDB. "
                 "Please install it with `pip install pinecone-client`."
-            )
+            ) from None
 
     def add_documents(
         self,
@@ -341,7 +341,7 @@ class QdrantDB(VectorDBBase):
             raise ImportError(
                 "The qdrant-client package is required for QdrantDB. "
                 "Please install it with `pip install qdrant-client`."
-            )
+            ) from None
 
     def add_documents(
         self,
@@ -671,7 +671,7 @@ class RedisDB(VectorDBBase):
             raise ImportError(
                 "The redis package is required for RedisDB. "
                 "Please install it with `pip install redis`."
-            )
+            ) from None
 
     def add_documents(
         self,
@@ -991,7 +991,7 @@ class PgVectorDB(VectorDBBase):
                 # Create the database if it doesn't exist
                 if not database_exists:
                     cursor.execute(f"CREATE DATABASE {self.database}")
-                    print(f"Created database: {self.database}")
+                    logger.info("Created database.")
 
             # Close the connection to the default database
             default_conn.close()
@@ -1037,12 +1037,12 @@ class PgVectorDB(VectorDBBase):
                 "The psycopg2 package is required for PgVectorDB. "
                 "Please install it with `pip install psycopg2-binary`."
             )
-        except ConnectionError as e:
-            raise ConnectionError(f"Failed to connect to PostgreSQL database: {e}")
-        except Exception as e:
-            raise Exception(
-                f"An error occurred while setting up the PostgreSQL client: {e}"
-            )
+        except ConnectionError:
+            raise ConnectionError("Failed to connect to PostgreSQL database") from None
+        except Exception:
+            raise ValueError(
+                "An error occurred while setting up the PostgreSQL client"
+            ) from None
 
     def add_documents(
         self,
@@ -1351,7 +1351,7 @@ class ChromaDB(VectorDBBase):
             raise ImportError(
                 "The chromadb package is required for ChromaDB. "
                 "Please install it with `pip install chromadb`."
-            )
+            ) from None
 
     def add_documents(
         self,

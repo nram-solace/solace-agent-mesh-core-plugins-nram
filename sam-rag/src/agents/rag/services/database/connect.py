@@ -50,16 +50,16 @@ def connect(config: Dict = {}) -> Session:
     global SessionLocal
     db_url = config_db(config)
     if not db_url:
-        raise ValueError("Database configuration not found.")
+        raise ValueError("Database configuration not found.") from None
     try:
         engine = create_engine(db_url)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
         # Test the connection
         if not inspect(engine).get_table_names():
-            raise RuntimeError("Failed to establish a database connection.")
+            raise RuntimeError("Failed to establish a database connection.") from None
 
         log.info("Database connected")
         return SessionLocal
-    except Exception as e:
-        raise RuntimeError(f"Failed to initialize the database: {e}")
+    except Exception:
+        raise RuntimeError("Failed to initialize the database.") from None

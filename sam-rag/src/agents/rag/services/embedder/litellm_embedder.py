@@ -29,7 +29,7 @@ class LiteLLMEmbedder(EmbedderBase):
         super().__init__(config)
         self.model = self.config.get("model")
         if not self.model:
-            raise ValueError("Model name is required for LiteLLMEmbedder")
+            raise ValueError("Model name is required for LiteLLMEmbedder") from None
 
         self.api_key = self.config.get("api_key")
         self.api_base = self.config.get("api_base")
@@ -47,7 +47,7 @@ class LiteLLMEmbedder(EmbedderBase):
             raise ImportError(
                 "The litellm package is required for LiteLLMEmbedder. "
                 "Please install it with `pip install litellm`."
-            )
+            ) from None
 
     def embed_text(self, text: str) -> List[float]:
         """
