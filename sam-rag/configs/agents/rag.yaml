@@ -1,8 +1,6 @@
 # This is the configuration file for the rag agent
 #
-# It fulfills a few functions:
-# 1. A flow to do periodic registration of this agent with the orchestrator
-# 2. A flow to process action requests and produce action responses
+# This flow ingests documents from a filesystem and retrieves similar content and documents
 
 ---
 log:
@@ -32,9 +30,7 @@ flows:
           payload_format: json
           broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_rag_action_request
           broker_subscriptions:
-            # Subscribe to all rag actions - note that if we
-            # wanted to handle some rag actions elsewhere, we would
-            # need to be more specific here
+            # Subscribe to all rag actions
             - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/rag/>
               qos: 1
 
@@ -69,13 +65,14 @@ flows:
                   - ".xlsx"
                   - ".xls"
                 max_file_size: 10240  # in KB (10MB)
-            database:
+            database: # optional for persistent metadata storage
+            #TODO: Deprecated and will be removed in the next version, enable use_memory_storage instead
               type: postgresql
-              dbname: rag_metadata
-              host: localhost
-              port: 5432
-              user: admin
-              password: admin
+              dbname: ${DB_NAME}
+              host: ${DB_HOST}
+              port: ${DB_PORT}
+              user: ${DB_USER}
+              password: ${DB_PASSWORD}
             schedule:
               interval: 60 # seconds
           
@@ -235,11 +232,14 @@ flows:
                   keep_separator: true
                   strip_whitespace: true
               txt:
-                type: token
+                type: character
                 params:
-                  chunk_size: 1024
-                  chunk_overlap: 200
-                  encoding_name: "cl100k_base"
+                  chunk_size: 200 # minimum chunk size
+                  chunk_overlap: 40
+                  separator: "\n"
+                  is_separator_regex: false
+                  keep_separator: true
+                  strip_whitespace: true
               # Structured data configurations
               json:
                 type: recursive_json

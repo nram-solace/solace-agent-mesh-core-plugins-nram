@@ -2,189 +2,100 @@
 
 A document-ingesting agent that monitors specified directories, keeping stored documents up to date in a vector database for Retrieval-Augmented Generation (RAG) queries.
 
-## Add a RAG Agent to SAM
+## Overview
 
-Add the plugin to your SAM instance
+The Solace Agent Mesh RAG system provides a complete RAG pipeline that includes:
+
+1. **Document Scanning**: Monitors directories for new, modified, or deleted documents
+2. **Document Preprocessing**: Cleans and normalizes text from various document formats
+3. **Text Splitting**: Breaks documents into smaller chunks for embedding
+4. **Embedding Generation**: Converts text chunks into vector embeddings
+5. **Vector Storage**: Stores embeddings in a vector database for efficient retrieval
+6. **Retrieval**: Finds relevant document chunks based on query similarity
+7. **Augmentation**: Enhances retrieved content using LLMs
+
+## Documentation
+
+Comprehensive documentation is available in the `docs` directory:
+
+- [Architecture Overview](docs/architecture.md): High-level system architecture and component interactions
+- [Configuration Guide](docs/configuration.md): Detailed explanation of configuration options
+- [Tutorial](docs/tutorial.md): Step-by-step guide for setting up and using the system
+
+### Component Documentation
+
+- [Scanner](docs/components/scanner.md): Monitors document sources for changes
+- [Preprocessor](docs/components/preprocessor.md): Extracts and cleans text from documents
+- [Splitter](docs/components/splitter.md): Breaks documents into chunks for embedding
+- [Embedder](docs/components/embedder.md): Converts text chunks to vector embeddings
+- [Vector Database](docs/components/vector_db.md): Stores and retrieves vector embeddings
+- [Retriever](docs/components/retriever.md): Searches for relevant documents
+- [Augmentation](docs/components/augmentation.md): Enhances retrieved content using LLMs
+
+## Installation
+
+### Add the RAG Plugin to Solace Agent Mesh
 
 ```sh
 solace-agent-mesh plugin add sam_rag --pip -u git+https://github.com/SolaceLabs/solace-agent-mesh-core-plugins#subdirectory=sam-rag
 ```
 
-To instantiate the agent, you can use the following code: (you can repeat this step to connect to multiple collections/databases)
+### Instantiate the RAG Agent
 
 ```sh
 solace-agent-mesh add agent rag --copy-from sam_rag
 ```
 
-Rebuild the Solace Agent Mesh to add the agent configurations.
+### Rebuild Solace Agent Mesh
+
 ```sh
 solace-agent-mesh build
 ```
 
-## Configuration Parameters
+## Configuration
 
-The RAG agent is configured through the `configs/agents/rag.yaml` file. Below is a detailed explanation of the configuration parameters:
+The RAG agent is configured through the `configs/agents/rag.yaml` file. See the [Configuration Guide](docs/configuration.md) for detailed information.
 
-### Scanner Configuration
+### Key Configuration Sections
 
-The scanner monitors directories for documents to ingest into the vector database.
+- **Scanner Configuration**: Document source and monitoring settings
+- **Preprocessor Configuration**: Text extraction and cleaning settings
+- **Splitter Configuration**: Document chunking settings
+- **Embedding Configuration**: Vector embedding settings
+- **Vector Database Configuration**: Storage and retrieval settings
+- **LLM Configuration**: Language model settings for augmentation
+- **Retrieval Configuration**: Search parameters
 
-```yaml
-scanner:
-  batch: true                # Process documents in batch mode
-  use_memory_storage: true   # Use in-memory storage for tracking files
-  source:
-    type: filesystem         # Source type (filesystem)
-    directories:
-      - "DIRECTORY PATH"     # Path to directory containing documents
-    filters:
-      file_formats:          # Supported file formats
-        - ".txt"
-        - ".pdf"
-        - ".docx"
-        - ".md"
-        - ".html"
-        - ".csv"
-        - ".json"
-        - ".odt"
-        - ".xlsx"
-        - ".xls"
-      max_file_size: 10240   # Maximum file size in KB (10MB)
-  database:                  # Database for storing metadata
-    type: postgresql
-    dbname: rag_metadata
-    host: localhost
-    port: 5432
-    user: admin
-    password: admin
-  schedule:
-    interval: 60             # Scanning interval in seconds
+## Usage
+
+### Running the RAG System
+
+```sh
+solace-agent-mesh run
 ```
 
-### Preprocessor Configuration
+### Querying the RAG System
+(Option1): Open the SAM UI on the browser. By default, it is accessible on ```http://localhost:5001```
+(Option2): Send a message to the appropriate topic:
 
-The preprocessor cleans and normalizes text from different document types.
-
-```yaml
-preprocessor:
-  default_preprocessor:      # Default settings for all document types
-    type: enhanced
-    params:
-      lowercase: true              # Convert text to lowercase
-      normalize_whitespace: true   # Normalize whitespace characters
-      remove_stopwords: false      # Remove common stopwords
-      remove_punctuation: false    # Remove punctuation
-      remove_numbers: false        # Remove numeric characters
-      remove_non_ascii: false      # Remove non-ASCII characters
-      remove_urls: true            # Remove URLs
-      remove_emails: false         # Remove email addresses
-      remove_html_tags: false      # Remove HTML tags
-  
-  preprocessors:             # Type-specific preprocessor settings
-    # Text file configurations
-    text:
-      type: text
-      params:
-        # Text-specific preprocessing parameters
-    
-    # Document file configurations
-    pdf:
-      type: document
-      params:
-        # PDF-specific preprocessing parameters
-    
-    # Additional file type configurations for:
-    # docx, odt, json, html, markdown, csv, xls
+```
+${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/[session_id]/rag/rag_action
 ```
 
-### Text Splitter Configuration
+With a payload like:
 
-The text splitter breaks documents into smaller chunks for embedding.
-
-```yaml
-splitter:
-  default_splitter:          # Default settings for all document types
-    type: character
-    params:
-      chunk_size: 4096       # Size of each chunk
-      chunk_overlap: 800     # Overlap between chunks
-      separator: " "         # Text separator
-  
-  splitters:                 # Type-specific splitter settings
-    # Text file configurations
-    text:
-      type: character
-      params:
-        chunk_size: 4096
-        chunk_overlap: 800
-        separator: " "
-        is_separator_regex: false
-        keep_separator: true
-        strip_whitespace: true
-    
-    # Additional file type configurations for:
-    # txt, json, html, markdown, csv
+```json
+{
+  "query": "Search documents about RAG agents?"
+}
 ```
 
-### Embedding Configuration
+#### Ingesting documents
+(Option1): Store documents in a specific directory and configure the directory path in the ```rag.yaml``` file.
+After running SAM, the plugin ingests documents in background automatically.
 
-Settings for generating vector embeddings from text chunks.
+(Option2): Open the SAM UI on the browser (by default ```http://localhost:5001```), attach files to a query such as "ingest the attached document to RAG".
+This query persistently stores the attachments in file system and index them in vector database.
 
-```yaml
-embedding:
-  embedder_type: "openai"    # Type of embedding model
-  embedder_params:
-    model: ${OPENAI_EMBEDDING_MODEL}
-    api_key: ${OPENAI_API_KEY}
-    base_url: ${OPENAI_API_ENDPOINT}
-    batch_size: 1
-  normalize_embeddings: True # Whether to normalize embedding vectors
-```
-
-### Vector Database Configuration
-
-Settings for the vector database used to store and retrieve embeddings.
-
-```yaml
-vector_db:
-  # Qdrant configuration
-  db_type: "qdrant"
-  db_params:
-    url: ${QDRANT_URL}
-    api_key: ${QDRANT_API_KEY}
-    collection_name: ${QDRANT_COLLECTION, "documents"}
-    embedding_dimension: ${QDRANT_EMBEDDING_DIMENSION, 1024}
-  
-  # Alternative vector database options include:
-  # - Chroma DB
-  # - Pinecone
-  # - Weaviate
-  # - Milvus
-  # - FAISS
-  # - PostgreSQL with pgvector
-  # - SQLite with sqlite-vss
-```
-
-### LLM Configuration
-
-Settings for the language models used for augmentation.
-
-```yaml
-llm:
-  load_balancer:
-    - model_name: "gpt-4o"   # Model alias
-      litellm_params:
-        model: openai/${OPENAI_MODEL_NAME}
-        api_key: ${OPENAI_API_KEY}
-        api_base: ${OPENAI_API_ENDPOINT}
-        temperature: 0.01
-```
-
-### Retrieval Configuration
-
-Settings for document retrieval.
-
-```yaml
-retrieval:
-  top_k: 7                   # Number of chunks to retrieve
-```
+#### Retrieving documents
+Use SAM UI on the browser (by default ```http://localhost:5001```) or any other interfaces and send a query such as "search documents about <your query> and return a summary and referenced documents". It retrieves top similar documents and returns a summary of documents align with their original documents.
