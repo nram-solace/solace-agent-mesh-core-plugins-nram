@@ -104,9 +104,16 @@ info.update(
             {
                 "name": "environment_variables",
                 "required": False,
-                "description": "Dictionary of environment variables to pass to the MCP server process",
+                "description": "Dictionary of environment variables to pass to the MCP server process. Overrides variables from environment_file.",
                 "type": "object",
                 "default": {},
+            },
+            {
+                "name": "environment_file",
+                "required": False,
+                "description": "Path to a file (e.g., .env format) containing environment variables for the MCP server process.",
+                "type": "string",
+                "default": None,
             },
         ],
     }
@@ -195,18 +202,39 @@ class McpServerAgentComponent(BaseAgentComponent):
                         "SSE mode not yet supported with async thread"
                     )
                 else:  # stdio mode
+                    import os
+                    import dotenv
                     from mcp import StdioServerParameters
                     from .async_server import AsyncServerThread
 
                     parts = server_command.split()
                     
-                    # Get configured environment variables or empty dict if not specified
-                    server_env = self.get_config("environment_variables", {})
+                    # Load environment variables
+                    final_env = {}
+                    env_file_path = self.get_config("environment_file")
+                    direct_env_vars = self.get_config("environment_variables", {})
+
+                    # Load from file first, if specified and exists
+                    if env_file_path:
+                        # Ensure the path is absolute or relative to a known location if needed
+                        # For simplicity, assuming relative to SAM execution or absolute path
+                        if os.path.exists(env_file_path):
+                            try:
+                                file_env = dotenv.dotenv_values(env_file_path)
+                                final_env.update(file_env)
+                                log.info(f"Loaded environment variables from {env_file_path}")
+                            except Exception as e:
+                                log.warning(f"Failed to load environment variables from {env_file_path}: {e}")
+                        else:
+                            log.warning(f"Environment file specified but not found: {env_file_path}")
+                    
+                    # Merge/override with directly configured variables
+                    final_env.update(direct_env_vars)
                     
                     server_params = StdioServerParameters(
                         command=parts[0],
                         args=parts[1:],
-                        env=server_env,  # Use configured environment variables
+                        env=final_env,  # Use merged environment variables
                     )
 
                     # Create and start async server thread

@@ -33,8 +33,14 @@ shared_config:
       server_description: &mcp_server_description ${{{SNAKE_UPPER_CASE_NAME}}_SERVER_DESCRIPTION, "Provides access to the {{SNAKE_CASE_NAME}} MCP server"}
       server_command: &mcp_server_command ${{{SNAKE_UPPER_CASE_NAME}}_SERVER_COMMAND}
       server_subscription_topic: &mcp_sub_topic ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/{{SNAKE_CASE_NAME}}/>
-      # Optional: Specify environment variables to pass to the MCP server process.
+      
+      # Optional: Path to a file (e.g., .env format) containing environment variables.
+      # Variables defined in 'environment_variables' below will override those from this file.
+      # environment_file: .env
+      
+      # Optional: Specify environment variables directly to pass to the MCP server process.
       # Values can reference existing environment variables using ${VAR_NAME}.
+      # These will override variables loaded from 'environment_file'.
       # environment_variables:
       #   MY_API_KEY: ${SECRET_API_KEY}
       #   ANOTHER_VAR: "some_static_value"
