@@ -61,6 +61,7 @@ flows:
               param_description: "Input to send to the action." # [Optional] Description of the parameter to be pass to the action, 
               bedrock_agent_id: "FAKE_AGENT_ID" # The ID of the Amazon bedrock agent
               bedrock_agent_alias_id: "FAKE_AGENT_ALIAS_ID" # The alias ID of the Amazon bedrock agent
+              allow_files: false # Whether to allow uploading file to the agent. Limit: 5 files (10MB total size) - Supported formats: .pdf, .txt, .doc, .csv, .xls, .xlsx
               # required_scope: "<agent_name>:my_request_action:write" # Optional scope override
             # --- Add more agents ---
 
