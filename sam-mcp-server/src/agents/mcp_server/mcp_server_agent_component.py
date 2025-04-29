@@ -101,6 +101,13 @@ info.update(
                 "type": "boolean",
                 "default": False,
             },
+            {
+                "name": "environment_variables",
+                "required": False,
+                "description": "Dictionary of environment variables to pass to the MCP server process",
+                "type": "object",
+                "default": {},
+            },
         ],
     }
 )
@@ -192,10 +199,14 @@ class McpServerAgentComponent(BaseAgentComponent):
                     from .async_server import AsyncServerThread
 
                     parts = server_command.split()
+                    
+                    # Get configured environment variables or empty dict if not specified
+                    server_env = self.get_config("environment_variables", {})
+                    
                     server_params = StdioServerParameters(
                         command=parts[0],
                         args=parts[1:],
-                        env=os.environ,  # Use current process environment
+                        env=server_env,  # Use configured environment variables
                     )
 
                     # Create and start async server thread

@@ -48,6 +48,26 @@ export SERVER_EVERYTHING_DEV_SERVER_COMMAND="npx -y @modelcontextprotocol/server
 # Optional: export SERVER_EVERYTHING_DEV_SERVER_DESCRIPTION="General purpose MCP server for development."
 ```
 
+### Passing Environment Variables to MCP Servers
+
+By default, no environment variables are passed to the MCP server process. You can explicitly specify which environment variables should be passed using the `environment_variables` configuration option in your agent's YAML file:
+
+```yaml
+shared_config:
+  - mcp_server_info: &mcp_server_info
+      # Other server configuration...
+      
+      # Optional: Specify environment variables to pass to the MCP server process
+      environment_variables:
+        MY_API_KEY: ${SECRET_API_KEY}
+        ANOTHER_VAR: "some_static_value"
+```
+
+Benefits of this approach:
+- **Security**: Only explicitly defined environment variables are passed to the MCP server process
+- **Clarity**: Configuration is more explicit about which variables are needed
+- **Flexibility**: You can reference existing environment variables using the `${VAR_NAME}` syntax
+
 ## How it Works
 
 The `mcp_server` agent starts the process specified by the `*_SERVER_COMMAND` environment variable. It communicates with this process using standard input/output (stdio) according to the MCP specification.
