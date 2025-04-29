@@ -16,20 +16,7 @@ The Solace Agent Mesh RAG is a document-ingesting agent that monitors specified 
 
 ## Architecture Diagram
 
-```mermaid
-graph TD
-    A[Document Sources] -->|Monitor| B[Scanner]
-    B -->|Track Changes| C[File Tracker]
-    C -->|Process Files| D[Pipeline]
-    D -->|Preprocess| E[Preprocessor]
-    E -->|Split| F[Splitter]
-    F -->|Embed| G[Embedder]
-    G -->|Store| H[Vector Database]
-    I[User Query] -->|Embed| J[Retriever]
-    J -->|Search| H
-    H -->|Return Results| K[Augmentation]
-    K -->|Enhance with LLM| L[Response]
-```
+<img src="image.png" alt="Architecture Diagram" width="600" height="auto">
 
 ## Component Interactions
 
