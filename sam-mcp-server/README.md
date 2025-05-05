@@ -48,6 +48,37 @@ export SERVER_EVERYTHING_DEV_SERVER_COMMAND="npx -y @modelcontextprotocol/server
 # Optional: export SERVER_EVERYTHING_DEV_SERVER_DESCRIPTION="General purpose MCP server for development."
 ```
 
+### Passing Environment Variables to MCP Servers
+
+By default, no environment variables are passed to the MCP server process. You can explicitly specify which environment variables should be passed using two configuration options in your agent's YAML file: `environment_file` and `environment_variables`.
+
+1.  **`environment_file` (Optional)**: Path to a file containing environment variables in the standard `.env` format (key-value pairs, one per line).
+2.  **`environment_variables` (Optional)**: A dictionary where you can define environment variables directly.
+
+**Precedence**: Variables defined directly in `environment_variables` will **override** any variables with the same name loaded from the `environment_file`.
+
+**Example:**
+
+```yaml
+shared_config:
+  - mcp_server_info: &mcp_server_info
+      # Other server configuration...
+      
+      # Optional: Load variables from a .env file
+      environment_file: .env.mcp.production
+      
+      # Optional: Define variables directly (these override .env.production)
+      environment_variables:
+        MY_API_KEY: ${SECRET_API_KEY} # Reference another env var
+        ANOTHER_VAR: "some_static_value"
+        DEBUG_MODE: "false" # Overrides DEBUG_MODE if it was in .env.production
+```
+
+**Benefits:**
+- **Security**: Only explicitly defined or loaded environment variables are passed.
+- **Clarity**: Configuration clearly shows variable sources.
+- **Flexibility**: Use `.env` files for common variables and override specific ones directly. You can also reference existing host environment variables using the `${VAR_NAME}` syntax within the `environment_variables` dictionary.
+
 ## How it Works
 
 The `mcp_server` agent starts the process specified by the `*_SERVER_COMMAND` environment variable. It communicates with this process using standard input/output (stdio) according to the MCP specification.
