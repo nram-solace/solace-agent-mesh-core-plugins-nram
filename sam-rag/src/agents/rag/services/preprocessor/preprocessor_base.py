@@ -3,7 +3,12 @@ Base class for document preprocessors.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, TypedDict
+
+
+class PreprocessedOutput(TypedDict):
+    text_content: str
+    metadata: Dict[str, Any]
 
 
 class PreprocessorBase(ABC):
@@ -21,7 +26,7 @@ class PreprocessorBase(ABC):
         self.config = config or {}
 
     @abstractmethod
-    def preprocess(self, file_path: str) -> str:
+    def preprocess(self, file_path: str) -> PreprocessedOutput:
         """
         Preprocess a document from the given file path.
 
@@ -29,7 +34,17 @@ class PreprocessorBase(ABC):
             file_path: Path to the document file.
 
         Returns:
-            Preprocessed text content.
+            A dictionary containing the preprocessed text content
+            and extracted metadata.
+            Example:
+            {
+                "text_content": "...",
+                "metadata": {
+                    "file_path": "/path/to/file.pdf",
+                    "file_type": "pdf",
+                    ...
+                }
+            }
         """
         pass
 

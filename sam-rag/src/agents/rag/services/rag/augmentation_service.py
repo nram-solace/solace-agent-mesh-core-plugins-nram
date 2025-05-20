@@ -118,7 +118,7 @@ class AugmentationService:
         for chunk in chunks:
             # Extract source from metadata
             metadata = chunk.get("metadata", {})
-            source = metadata.get("source", "unknown")
+            source = metadata.get("file_path", "unknown")
 
             # Group by source
             chunks_by_source[source].append(chunk)

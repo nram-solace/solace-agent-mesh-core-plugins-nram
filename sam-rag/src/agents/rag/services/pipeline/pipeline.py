@@ -101,16 +101,18 @@ class Pipeline:
 
                 # Process the file with the appropriate preprocessor config
                 # The preprocessor service will select the right preprocessor based on file type
-                text = self.preprocessing_handler.preprocess_file(file_path)
+                preprocess_output = self.preprocessing_handler.preprocess_file(
+                    file_path
+                )
+                text = preprocess_output.get("text_content", None)
+                metadata = preprocess_output.get("metadata", None)
 
                 if text:
                     preprocessed_docs.append(text)
                     preprocessed_metadata.append(
                         {
                             "source": file_path,
-                            "document_type": doc_type,
-                            "file_name": os.path.basename(file_path),
-                            "index": i,
+                            "metadata": metadata,
                         }
                     )
                     log.info("Successfully preprocessed a file.")
@@ -131,10 +133,12 @@ class Pipeline:
         chunks = []
         chunks_metadata = []
 
-        for i, (doc, meta) in enumerate(zip(preprocessed_docs, preprocessed_metadata)):
+        for i, (doc, data) in enumerate(zip(preprocessed_docs, preprocessed_metadata)):
             try:
+                # Get the metadata
+                meta = data.get("metadata", {})
                 # Get the document type
-                doc_type = meta.get("document_type", "text")
+                doc_type = meta.get("file_type", "text")
 
                 # Split the document
                 doc_chunks = self.splitting_handler.split_text(doc, doc_type)

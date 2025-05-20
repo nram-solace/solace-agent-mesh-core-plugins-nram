@@ -101,8 +101,8 @@ class FileChangeTracker:
             # Extract source paths from metadata
             sources = set()
             for result in results:
-                if "metadata" in result and "source" in result["metadata"]:
-                    sources.add(result["metadata"]["source"])
+                if "metadata" in result and "file_path" in result["metadata"]:
+                    sources.add(result["metadata"]["file_path"])
 
             logger.info(f"Found {len(sources)} existing documents in vector database")
             return list(sources)

@@ -6,7 +6,7 @@ import os
 from typing import Dict, Any, List, Tuple, Optional
 from solace_ai_connector.common.log import log as logger
 
-from .preprocessor_base import PreprocessorBase
+from .preprocessor_base import PreprocessorBase, PreprocessedOutput
 from .document_preprocessor import (
     TextFilePreprocessor,
     PDFPreprocessor,
@@ -88,7 +88,7 @@ class PreprocessorService:
         _, ext = os.path.splitext(file_path.lower())
         return ext
 
-    def preprocess_file(self, file_path: str) -> Optional[str]:
+    def preprocess_file(self, file_path: str) -> PreprocessedOutput:
         """
         Preprocess a single file.
 

@@ -88,7 +88,7 @@ class JSONSplitter(SplitterBase):
 
 class RecursiveJSONSplitter(SplitterBase):
     """
-    Split JSON data recursively by traversing the structure.
+    Split JSON data recursively by traversing the structure, outputting small JSON objects as chunks.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
@@ -105,9 +105,116 @@ class RecursiveJSONSplitter(SplitterBase):
         self.chunk_size = self.config.get("chunk_size", 1000)
         self.chunk_overlap = self.config.get("chunk_overlap", 200)
         self.include_metadata = self.config.get("include_metadata", True)
+        # text_splitter is only used as fallback
         self.text_splitter = RecursiveCharacterTextSplitter(
             {"chunk_size": self.chunk_size, "chunk_overlap": self.chunk_overlap}
         )
+
+    @staticmethod
+    def _json_size(data: dict) -> int:
+        """Calculate the size of the serialized JSON object."""
+        return len(json.dumps(data))
+
+    @staticmethod
+    def _set_nested_dict(d: dict, path: list, value: Any) -> None:
+        """Set a value in a nested dictionary based on the given path."""
+        for key in path[:-1]:
+            d = d.setdefault(key, {})
+        d[path[-1]] = value
+
+    def _json_split(
+        self,
+        data: Any,
+        current_path: list = None,
+        chunks: list = None,
+    ) -> list:
+        """Split json into maximum size dictionaries while preserving structure."""
+        current_path = current_path or []
+        if chunks is None:
+            chunks = [{}]
+        if isinstance(data, dict):
+            for key, value in data.items():
+                new_path = current_path + [key]
+                value_dict = {key: value}
+                value_size = self._json_size(value_dict)
+                chunk_size = self._json_size(chunks[-1])
+                remaining = self.chunk_size - chunk_size
+                # If value is a dict or list, try to split its children into chunks
+                if isinstance(value, (dict, list)):
+                    sub_chunks = self._json_split(value, [], [{}])
+                    for sub_chunk in sub_chunks:
+                        sub_chunk_size = self._json_size(sub_chunk)
+                        chunk_size = self._json_size(chunks[-1])
+                        if sub_chunk_size > self.chunk_size:
+                            # If still too big, flatten further
+                            deeper_chunks = self._json_split(sub_chunk, [], [{}])
+                            for deeper_chunk in deeper_chunks:
+                                if self._json_size(deeper_chunk) > self.chunk_size:
+                                    chunks.append(deeper_chunk)
+                                else:
+                                    if (
+                                        self._json_size(chunks[-1])
+                                        + self._json_size(deeper_chunk)
+                                        > self.chunk_size
+                                    ):
+                                        chunks.append({})
+                                    chunks[-1].update(deeper_chunk)
+                        else:
+                            if chunk_size + sub_chunk_size > self.chunk_size:
+                                chunks.append({})
+                            chunks[-1].update(sub_chunk)
+                else:
+                    # For primitives, add to current chunk or start new chunk
+                    if value_size > self.chunk_size:
+                        # Should not happen for primitives, but handle just in case
+                        chunks.append({key: value})
+                    elif value_size > remaining:
+                        if chunk_size > 0:
+                            chunks.append({})
+                        self._set_nested_dict(chunks[-1], new_path, value)
+                    else:
+                        self._set_nested_dict(chunks[-1], new_path, value)
+        elif isinstance(data, list):
+            for idx, item in enumerate(data):
+                new_path = current_path + [str(idx)]
+                value_dict = {str(idx): item}
+                value_size = self._json_size(value_dict)
+                chunk_size = self._json_size(chunks[-1])
+                remaining = self.chunk_size - chunk_size
+                if isinstance(item, (dict, list)):
+                    sub_chunks = self._json_split(item, [], [{}])
+                    for sub_chunk in sub_chunks:
+                        sub_chunk_size = self._json_size(sub_chunk)
+                        chunk_size = self._json_size(chunks[-1])
+                        if sub_chunk_size > self.chunk_size:
+                            deeper_chunks = self._json_split(sub_chunk, [], [{}])
+                            for deeper_chunk in deeper_chunks:
+                                if self._json_size(deeper_chunk) > self.chunk_size:
+                                    chunks.append(deeper_chunk)
+                                else:
+                                    if (
+                                        self._json_size(chunks[-1])
+                                        + self._json_size(deeper_chunk)
+                                        > self.chunk_size
+                                    ):
+                                        chunks.append({})
+                                    chunks[-1].update(deeper_chunk)
+                        else:
+                            if chunk_size + sub_chunk_size > self.chunk_size:
+                                chunks.append({})
+                            chunks[-1].update(sub_chunk)
+                else:
+                    if value_size > self.chunk_size:
+                        chunks.append({str(idx): item})
+                    elif value_size > remaining:
+                        if chunk_size > 0:
+                            chunks.append({})
+                        self._set_nested_dict(chunks[-1], new_path, item)
+                    else:
+                        self._set_nested_dict(chunks[-1], new_path, item)
+        else:
+            self._set_nested_dict(chunks[-1], current_path, data)
+        return [chunk for chunk in chunks if chunk]  # Remove empty chunks
 
     def split_text(self, text: str) -> List[str]:
         """
@@ -117,92 +224,21 @@ class RecursiveJSONSplitter(SplitterBase):
             text: The JSON text to split.
 
         Returns:
-            A list of text chunks.
+            A list of JSON-formatted string chunks.
         """
         if not text:
             return []
-
         try:
-            # Parse the JSON
             data = json.loads(text)
-
-            # Extract chunks from the JSON structure
-            chunks = self._extract_chunks(data)
-
-            # If no chunks were extracted or they're too small, fall back to the text splitter
-            if not chunks or all(len(chunk) < self.chunk_size / 2 for chunk in chunks):
-                return self.text_splitter.split_text(text)
-
-            return chunks
+            chunks = self._json_split(data)
+            # Remove the last chunk if it's empty
+            if chunks and not chunks[-1]:
+                chunks.pop()
+            # Convert to JSON-formatted strings
+            return [json.dumps(chunk, ensure_ascii=True) for chunk in chunks]
         except json.JSONDecodeError:
             # If the JSON is invalid, fall back to treating it as plain text
             return self.text_splitter.split_text(text)
-
-    def _extract_chunks(self, data: Any, path: str = "") -> List[str]:
-        """
-        Extract chunks from a JSON structure.
-
-        Args:
-            data: The JSON data.
-            path: The current path in the JSON structure.
-
-        Returns:
-            A list of text chunks.
-        """
-        chunks = []
-
-        if isinstance(data, dict):
-            # Process dictionary
-            for key, value in data.items():
-                current_path = f"{path}.{key}" if path else key
-
-                if (
-                    isinstance(value, (dict, list))
-                    and len(json.dumps(value, indent=2)) > self.chunk_size / 2
-                ):
-                    # Recursively process nested structures
-                    sub_chunks = self._extract_chunks(value, current_path)
-                    chunks.extend(sub_chunks)
-                else:
-                    # Add leaf node as a chunk
-                    chunk_text = (
-                        f"{current_path}: {json.dumps(value, indent=2)}"
-                        if self.include_metadata
-                        else json.dumps(value, indent=2)
-                    )
-                    chunks.append(chunk_text)
-
-        elif isinstance(data, list):
-            # Process list
-            for i, item in enumerate(data):
-                current_path = f"{path}[{i}]" if path else f"[{i}]"
-
-                if (
-                    isinstance(item, (dict, list))
-                    and len(json.dumps(item, indent=2)) > self.chunk_size / 2
-                ):
-                    # Recursively process nested structures
-                    sub_chunks = self._extract_chunks(item, current_path)
-                    chunks.extend(sub_chunks)
-                else:
-                    # Add leaf node as a chunk
-                    chunk_text = (
-                        f"{current_path}: {json.dumps(item, indent=2)}"
-                        if self.include_metadata
-                        else json.dumps(item, indent=2)
-                    )
-                    chunks.append(chunk_text)
-
-        else:
-            # Handle primitive types
-            chunk_text = (
-                f"{path}: {json.dumps(data)}"
-                if self.include_metadata
-                else json.dumps(data)
-            )
-            chunks.append(chunk_text)
-
-        return chunks
 
     def can_handle(self, data_type: str) -> bool:
         """

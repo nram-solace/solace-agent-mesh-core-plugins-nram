@@ -27,6 +27,7 @@ dependencies = [
     "PyPDF2~=3.0.1",  # For PDF processing
     "watchdog==6.0.0",  # Fixed syntax for watchdog dependency
     "ujson==5.10.0",  # For faster JSON processing
+    "odfpy==1.4.1",
 ]
 
 [project.optional-dependencies]
