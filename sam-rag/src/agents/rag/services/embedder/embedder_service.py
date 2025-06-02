@@ -224,20 +224,67 @@ class EmbedderService:
                     if not token.isdigit() and not re.match(r"^-?\d+(?:\.\d+)?$", token)
                 ]
 
+            # Be less aggressive with stopword removal for better query term preservation
             if (
                 options.get("remove_stopwords") and self._stop_words_set
             ):  # Check self._stop_words_set directly
+                # Keep some important stopwords that might be meaningful in queries
+                important_stopwords = {
+                    "not",
+                    "no",
+                    "very",
+                    "more",
+                    "most",
+                    "much",
+                    "many",
+                }
                 tokens = [
-                    token for token in tokens if token not in self._stop_words_set
+                    token
+                    for token in tokens
+                    if token not in self._stop_words_set or token in important_stopwords
                 ]
 
             # if stemmer:
             #     tokens = [stemmer.stem(token) for token in tokens]
 
-            # Filter out any remaining empty strings or very short tokens (e.g., single chars if not desired)
-            return [token for token in tokens if token and len(token) > 1]
+            # Filter out empty strings but allow single characters that might be meaningful
+            return [token for token in tokens if token and len(token.strip()) > 0]
 
         return tokenizer_function
+
+    def refit_sparse_model_with_corpus(self, corpus_texts: List[str]) -> None:
+        """
+        Refits the sparse model with actual corpus documents.
+        This should be called after document ingestion to improve sparse vector quality.
+
+        Args:
+            corpus_texts: List of actual document texts from the ingested corpus
+        """
+        if not self.hybrid_search_enabled or self.sparse_model_type != "tfidf":
+            logger.info(
+                "Hybrid search disabled or not using TF-IDF. Skipping corpus refit."
+            )
+            return
+
+        if not corpus_texts:
+            logger.warning(
+                "No corpus texts provided for refitting. Keeping existing model."
+            )
+            return
+
+        logger.info(
+            f"Refitting TF-IDF model with {len(corpus_texts)} actual corpus documents..."
+        )
+
+        # Combine sample corpus with actual corpus for better vocabulary coverage
+        combined_corpus = corpus_texts
+        if hasattr(self, "_sample_corpus_texts"):
+            combined_corpus = list(set(corpus_texts + self._sample_corpus_texts))
+            logger.info(f"Combined corpus size: {len(combined_corpus)} documents")
+
+        # Refit the model with actual corpus
+        self.fit_sparse_model(combined_corpus)
+        logger.info("TF-IDF model successfully refitted with actual corpus documents.")
 
     def fit_sparse_model(self, corpus_texts: List[str]) -> None:
         """
@@ -299,11 +346,11 @@ class EmbedderService:
                     tokenizer=custom_tokenizer,
                     max_df=max_df_param,
                     min_df=min_df_param,
-                    max_features=10000,
-                    ngram_range=(1, 1),
+                    max_features=50000,  # Increased vocabulary size for better coverage
+                    ngram_range=(1, 2),  # Include bigrams for better matching
                     use_idf=True,
                     smooth_idf=True,
-                    sublinear_tf=False,
+                    sublinear_tf=True,  # Better for sparse vectors
                 )
 
                 self.tfidf_vectorizer.fit(corpus_texts)
@@ -313,7 +360,7 @@ class EmbedderService:
                     f"TF-IDF model fitted successfully. Vocabulary size: {len(self.tfidf_vocabulary_)}"
                 )
                 logger.debug(
-                    f"[HYBRID_SEARCH_DEBUG] TF-IDF parameters: min_df={min_df_param}, max_df={max_df_param}, max_features=10000"
+                    f"[HYBRID_SEARCH_DEBUG] TF-IDF parameters: min_df={min_df_param}, max_df={max_df_param}, max_features=50000"
                 )
                 logger.debug(
                     f"[HYBRID_SEARCH_DEBUG] Sample vocabulary terms: {list(self.tfidf_vocabulary_.keys())[:10]}"
@@ -407,6 +454,7 @@ class EmbedderService:
                     try:
                         # The TfidfVectorizer's tokenizer (our custom_tokenizer) will be applied.
                         # transform expects an iterable of documents.
+                        print("----text:", text)
                         vector_transformed = self.tfidf_vectorizer.transform([text])
 
                         # Convert the sparse matrix row to {index: value} format
@@ -417,6 +465,8 @@ class EmbedderService:
                             # col_idx is the feature index (term_index in our vocabulary)
                             # val_data is the tf-idf score
                             current_sparse_values[int(col_idx)] = float(val_data)
+
+                        print("----current_sparse_values:", current_sparse_values)
 
                         sparse_vector_dict = current_sparse_values  # This will be {} if no terms were found
                         # which is the desired format for Qdrant.
@@ -438,35 +488,61 @@ class EmbedderService:
                                 f"[HYBRID_SEARCH_DEBUG] Full sparse vector: {sparse_vector_dict}"
                             )
 
-                            # # Map indices back to actual terms for better understanding
-                            # if self.tfidf_vocabulary_:
-                            #     reverse_vocab = {
-                            #         v: k for k, v in self.tfidf_vocabulary_.items()
-                            #     }
-                            #     term_scores = {}
-                            #     for idx, score in sparse_vector_dict.items():
-                            #         if idx in reverse_vocab:
-                            #             term_scores[reverse_vocab[idx]] = score
-                            #     logger.info(
-                            #         f"[HYBRID_SEARCH_DEBUG] TF-IDF terms with scores: {term_scores}"
-                            #     )
+                            # Map indices back to actual terms for better understanding
+                            if self.tfidf_vocabulary_:
+                                reverse_vocab = {
+                                    v: k for k, v in self.tfidf_vocabulary_.items()
+                                }
+                                term_scores = {}
+                                for idx, score in sparse_vector_dict.items():
+                                    if idx in reverse_vocab:
+                                        term_scores[reverse_vocab[idx]] = score
+                                logger.info(
+                                    f"[HYBRID_SEARCH_DEBUG] TF-IDF terms with scores: {term_scores}"
+                                )
 
-                            #     # Show top scoring terms
-                            #     sorted_terms = sorted(
-                            #         term_scores.items(),
-                            #         key=lambda x: x[1],
-                            #         reverse=True,
-                            #     )
-                            #     logger.info(
-                            #         f"[HYBRID_SEARCH_DEBUG] Top 10 TF-IDF terms: {sorted_terms[:10]}"
-                            #     )
+                                # Show top scoring terms
+                                sorted_terms = sorted(
+                                    term_scores.items(),
+                                    key=lambda x: x[1],
+                                    reverse=True,
+                                )
+                                logger.info(
+                                    f"[HYBRID_SEARCH_DEBUG] Top 10 TF-IDF terms: {sorted_terms[:10]}"
+                                )
                         else:
                             logger.warning(
-                                "Generated empty sparse vector. This may indicate an issue with the TF-IDF model or the input text."
+                                "Generated empty sparse vector. This may indicate vocabulary mismatch between query and TF-IDF model."
                             )
                             logger.debug(
                                 f"[HYBRID_SEARCH_DEBUG] Text preview for empty sparse vector: '{text[:100]}...'"
                             )
+
+                            # Analyze why sparse vector is empty
+                            if self.tfidf_vocabulary_:
+                                custom_tokenizer = self._create_tokenizer()
+                                query_tokens = custom_tokenizer(text)
+                                vocab_tokens = set(self.tfidf_vocabulary_.keys())
+                                matching_tokens = [
+                                    token
+                                    for token in query_tokens
+                                    if token in vocab_tokens
+                                ]
+
+                                logger.debug(
+                                    f"[HYBRID_SEARCH_DEBUG] Query tokens: {query_tokens[:10]}"
+                                )
+                                logger.debug(
+                                    f"[HYBRID_SEARCH_DEBUG] Matching vocabulary tokens: {matching_tokens}"
+                                )
+                                logger.debug(
+                                    f"[HYBRID_SEARCH_DEBUG] Vocabulary size: {len(vocab_tokens)}"
+                                )
+
+                                if not matching_tokens:
+                                    logger.warning(
+                                        "No query tokens found in TF-IDF vocabulary. Consider refitting the model with actual corpus documents."
+                                    )
                     except Exception as e:
                         logger.error(
                             f"Error generating TF-IDF sparse vector for text: {e}",
@@ -580,24 +656,52 @@ class EmbedderService:
 
         logger.info("Fitting TF-IDF model with sample corpus...")
 
-        # Create a sample corpus with common English words and phrases
+        # Create a comprehensive sample corpus with diverse vocabulary
         sample_corpus = [
-            "This is a sample document for TF-IDF model fitting.",
-            "The quick brown fox jumps over the lazy dog.",
-            "Machine learning and natural language processing are fascinating fields.",
-            "Vector databases store and retrieve high-dimensional vectors efficiently.",
-            "Hybrid search combines dense and sparse vector representations.",
-            "Embeddings capture semantic meaning of text in vector space.",
-            "Information retrieval systems help find relevant documents.",
-            "Document similarity can be measured using cosine distance.",
-            "Query expansion improves search results by adding related terms.",
-            "Sparse vectors represent text using term frequency statistics.",
-            "Dense vectors capture contextual relationships between words.",
-            "Tokenization splits text into meaningful units for processing.",
-            "Stop words are common words that are filtered out during text processing.",
-            "Stemming reduces words to their root form for better matching.",
-            "TF-IDF weighs terms based on their frequency in documents and corpus.",
+            "This is a sample document for TF-IDF model fitting and testing purposes.",
+            "The quick brown fox jumps over the lazy dog in the forest.",
+            "Machine learning and natural language processing are fascinating fields of study.",
+            "Vector databases store and retrieve high-dimensional vectors efficiently for search.",
+            "Hybrid search combines dense and sparse vector representations for better results.",
+            "Embeddings capture semantic meaning of text in high-dimensional vector space.",
+            "Information retrieval systems help find relevant documents from large collections.",
+            "Document similarity can be measured using cosine distance and other metrics.",
+            "Query expansion improves search results by adding related terms and synonyms.",
+            "Sparse vectors represent text using term frequency and statistical methods.",
+            "Dense vectors capture contextual relationships between words and phrases.",
+            "Tokenization splits text into meaningful units for further processing and analysis.",
+            "Stop words are common words that are filtered out during text processing steps.",
+            "Stemming reduces words to their root form for better matching and retrieval.",
+            "TF-IDF weighs terms based on their frequency in documents and entire corpus.",
+            "Data science involves analyzing large datasets to extract meaningful insights.",
+            "Artificial intelligence systems can process and understand human language effectively.",
+            "Search engines use complex algorithms to rank and retrieve relevant web pages.",
+            "Text preprocessing includes cleaning, normalization, and feature extraction steps.",
+            "Knowledge graphs represent relationships between entities in structured format.",
+            "Recommendation systems suggest relevant items based on user preferences and behavior.",
+            "Classification algorithms categorize documents into predefined classes or categories.",
+            "Clustering techniques group similar documents together without predefined labels.",
+            "Feature engineering creates meaningful representations from raw text data.",
+            "Model evaluation measures performance using metrics like precision, recall, and accuracy.",
+            "Cross-validation techniques ensure robust model performance across different datasets.",
+            "Hyperparameter tuning optimizes model configuration for better performance results.",
+            "Deep learning models can learn complex patterns from large amounts of data.",
+            "Neural networks consist of interconnected layers that process information sequentially.",
+            "Transformer architectures have revolutionized natural language understanding tasks.",
+            "Attention mechanisms help models focus on relevant parts of input sequences.",
+            "Pre-trained models can be fine-tuned for specific downstream tasks and applications.",
+            "Transfer learning leverages knowledge from one domain to improve performance in another.",
+            "Evaluation metrics help assess model quality and compare different approaches.",
+            "Data augmentation techniques increase training data diversity and model robustness.",
+            "Regularization methods prevent overfitting and improve model generalization capabilities.",
+            "Ensemble methods combine multiple models to achieve better predictive performance.",
+            "Feature selection identifies most relevant attributes for model training and inference.",
+            "Dimensionality reduction techniques compress high-dimensional data while preserving information.",
+            "Semantic search understands query intent and meaning rather than just keyword matching.",
         ]
+
+        # Store sample corpus for later combination with actual corpus
+        self._sample_corpus_texts = sample_corpus
 
         # Fit the TF-IDF model with the sample corpus
         self.fit_sparse_model(sample_corpus)

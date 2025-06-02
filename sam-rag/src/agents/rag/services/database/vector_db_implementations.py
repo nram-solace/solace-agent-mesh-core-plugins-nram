@@ -439,7 +439,8 @@ class QdrantDB(VectorDBBase):
         # Hybrid search specific params for Qdrant
         self.hybrid_search_params = self.config.get("hybrid_search_params", {})
         self.sparse_vector_name = self.hybrid_search_params.get(
-            "sparse_vector_name", "bm25_sparse"  # Default sparse vector name
+            "sparse_vector_name",
+            "sparse_db",  # Default sparse vector name to match config
         )
 
         self.client = None
@@ -658,6 +659,12 @@ class QdrantDB(VectorDBBase):
 
         query_input: Any  # Can be List[float] or List[models.Query]
 
+        print("request_hybrid:", request_hybrid)
+        print("hybrid_search_enabled:", self.hybrid_search_enabled)
+        print(
+            "query_sparse_vector:",
+            query_sparse_vector is not None and len(query_sparse_vector) > 0,
+        )
         if request_hybrid and self.hybrid_search_enabled and query_sparse_vector:
             logger.info(
                 f"Performing hybrid search with sparse vector on Qdrant collection '{self.collection_name}'."
@@ -676,6 +683,7 @@ class QdrantDB(VectorDBBase):
                     ),
                 ),
             ]
+            logger.debug(f"Hybrid search query input: {query_input}")
         else:
             logger.info(
                 f"Performing dense-only search on Qdrant collection '{self.collection_name}'."
