@@ -445,32 +445,50 @@ class GoogleDriveDataSource(CloudStorageDataSource):
         """
         Perform batch scanning of all files in configured Google Drive folders.
         """
-        logger.info("Starting Google Drive batch scan")
+        logger.info("=== GOOGLE_DRIVE: Starting batch scan ===")
+        logger.info(f"Google Drive batch mode: {self.batch}")
+        logger.info(f"Google Drive folders configured: {len(self.folders)}")
 
         if not self._authenticate():
             logger.error("Failed to authenticate with Google Drive")
             return
 
-        for folder_config in self.folders:
+        logger.info("Google Drive authentication successful")
+
+        for i, folder_config in enumerate(self.folders):
             folder_id = folder_config.get("folder_id")
             folder_name = folder_config.get("name", "Unknown")
             recursive = folder_config.get("recursive", True)
             folder_type = folder_config.get("type", "personal")
 
             logger.info(
-                f"Scanning Google Drive folder: {folder_name} (type: {folder_type})"
+                f"Scanning Google Drive folder {i+1}/{len(self.folders)}: {folder_name} (ID: {folder_id}, type: {folder_type})"
             )
 
             try:
                 files = self._list_files(folder_id, recursive, folder_type)
-                for file_info in files:
+                logger.info(
+                    f"Found {len(files)} files in Google Drive folder {folder_name}"
+                )
+
+                for j, file_info in enumerate(files):
+                    logger.debug(
+                        f"Processing Google Drive file {j+1}/{len(files)}: {file_info.get('name')}"
+                    )
                     self._process_cloud_file(file_info)
+
+                logger.info(
+                    f"Completed processing {len(files)} files from folder {folder_name}"
+                )
             except Exception as e:
                 logger.error(
                     f"Error scanning Google Drive folder {folder_name}: {str(e)}"
                 )
+                import traceback
 
-        logger.info("Google Drive batch scan completed")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+
+        logger.info("=== GOOGLE_DRIVE: Batch scan completed ===")
 
     def _process_cloud_file(self, file_info: Dict[str, Any]) -> None:
         """

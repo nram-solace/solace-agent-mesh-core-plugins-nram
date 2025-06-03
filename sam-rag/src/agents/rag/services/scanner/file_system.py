@@ -151,10 +151,20 @@ class LocalFileSystemDataSource(DataSource):
         Monitor the configured directories for file system changes.
         If batch mode is enabled, first scan all existing files.
         """
+        logger.info("=== FILESYSTEM: Starting scan ===")
+        logger.info(f"Filesystem batch mode: {self.batch}")
+        logger.info(f"Filesystem directories: {self.directories}")
+
         # If batch mode is enabled, first scan existing files
         if self.batch:
+            logger.info("Filesystem: Starting batch scan")
             self.batch_scan()
+            logger.info("Filesystem: Batch scan completed")
+        else:
+            logger.info("Filesystem: Batch mode disabled, skipping batch scan")
 
+        # Set up file system monitoring (non-blocking)
+        logger.info("Filesystem: Setting up file system monitoring")
         event_handler = FileSystemEventHandler()
         event_handler.on_created = self.on_created
         event_handler.on_deleted = self.on_deleted
@@ -162,9 +172,16 @@ class LocalFileSystemDataSource(DataSource):
 
         observer = Observer()
         for directory in self.directories:
-            observer.schedule(event_handler, directory, recursive=True)
-        observer.start()
+            if os.path.exists(directory):
+                observer.schedule(event_handler, directory, recursive=True)
+                logger.info(f"Filesystem: Monitoring directory: {directory}")
+            else:
+                logger.warning(f"Filesystem: Directory does not exist: {directory}")
 
+        observer.start()
+        logger.info("Filesystem: File system observer started")
+
+        # Start periodic monitoring in background (non-blocking)
         def run_periodically():
             while True:
                 time.sleep(self.interval)
@@ -172,12 +189,12 @@ class LocalFileSystemDataSource(DataSource):
         thread = threading.Thread(target=run_periodically)
         thread.daemon = True  # Make thread a daemon so it exits when main thread exits
         thread.start()
+        logger.info(
+            f"Filesystem: Started periodic monitoring with {self.interval}s interval"
+        )
 
-        try:
-            thread.join()
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
+        # Don't block here - let the scan method return so other data sources can be processed
+        logger.info("=== FILESYSTEM: Scan method completed (non-blocking) ===")
 
     def on_created(self, event):
         """

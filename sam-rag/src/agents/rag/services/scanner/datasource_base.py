@@ -98,6 +98,32 @@ class DataSource(ABC):
         max_size_bytes = self.max_file_size * 1024
         return file_size <= max_size_bytes
 
+    def is_cloud_uri(self, path: str) -> bool:
+        """
+        Check if path is a cloud URI for any provider.
+
+        Args:
+            path: The file path to check.
+
+        Returns:
+            True if the path is a cloud URI, False otherwise.
+        """
+        cloud_prefixes = [
+            "google_drive://",
+            "gdrive://",
+            "onedrive://",
+            "od://",
+            "s3://",
+            "aws://",
+            "gcs://",
+            "gs://",
+            "azure://",
+            "az://",
+            "dropbox://",
+            "db://",
+        ]
+        return any(path.startswith(prefix) for prefix in cloud_prefixes)
+
     def extract_file_metadata(self, file_path: str, **kwargs) -> Dict[str, Any]:
         """
         Extract metadata from a file.

@@ -101,10 +101,15 @@ class Pipeline:
 
         for i, file_path in enumerate(file_paths):
             try:
-                # Verify the file exists
-                if not os.path.exists(file_path):
-                    log.warning(f"File not found: {file_path}")
-                    continue
+                # Handle both cloud URIs and local files
+                if self._is_cloud_uri(file_path):
+                    # Cloud file - should already be downloaded to temp location by cloud provider
+                    log.debug(f"Processing cloud file: {file_path}")
+                else:
+                    # Local file - verify it exists
+                    if not os.path.exists(file_path):
+                        log.warning(f"Local file not found: {file_path}")
+                        continue
 
                 # Get the document type
                 doc_type = self._get_file_type(file_path)
@@ -124,7 +129,7 @@ class Pipeline:
                     # Ensure the file_path is preserved from the provided metadata if it exists
                     if "file_path" in metadata:
                         merged_metadata["file_path"] = metadata["file_path"]
-                        # Use the Google Drive URI as the source for consistency
+                        # Use the cloud URI as the source for consistency
                         source_path = metadata["file_path"]
                     else:
                         source_path = file_path
@@ -144,7 +149,7 @@ class Pipeline:
                 else:
                     log.warning("Failed to preprocess a file.")
             except Exception as e:
-                log.error("Error preprocessing a file.")
+                log.error(f"Error preprocessing file {file_path}: {str(e)}")
 
         if not preprocessed_docs:
             log.warning("No documents were successfully preprocessed")
@@ -212,6 +217,32 @@ class Pipeline:
                 "document_ids": [],
             }
 
+    def _is_cloud_uri(self, path: str) -> bool:
+        """
+        Check if path is a cloud URI for any provider.
+
+        Args:
+            path: The file path to check.
+
+        Returns:
+            True if the path is a cloud URI, False otherwise.
+        """
+        cloud_prefixes = [
+            "google_drive://",
+            "gdrive://",
+            "onedrive://",
+            "od://",
+            "s3://",
+            "aws://",
+            "gcs://",
+            "gs://",
+            "azure://",
+            "az://",
+            "dropbox://",
+            "db://",
+        ]
+        return any(path.startswith(prefix) for prefix in cloud_prefixes)
+
     def _get_file_type(self, file_path: str) -> str:
         """
         Get the file type from a file path.
@@ -242,10 +273,15 @@ class Pipeline:
                         log.warning(f"Invalid file path: {file}")
                         continue
 
-                    # Verify the file exists
-                    if not os.path.exists(file_path):
-                        log.warning(f"File not found: {file_path}")
-                        continue
+                    # Handle both cloud URIs and local files
+                    if self._is_cloud_uri(file_path):
+                        # Cloud files don't need local existence check
+                        log.debug(f"Cloud file detected: {file_path}")
+                    else:
+                        # Local files need existence check
+                        if not os.path.exists(file_path):
+                            log.warning(f"Local file not found: {file_path}")
+                            continue
 
                     file_status = file.get("status", None)  # Get the file status
                     if file_status not in {"modified", "new"}:
@@ -320,12 +356,12 @@ class Pipeline:
                     if directories:
                         has_valid_source = True
                         log.info("PIPELINE: Valid filesystem source found")
-                        break
+                        # Continue processing other sources instead of breaking
                 elif source_type in ["google_drive", "onedrive", "s3", "cloud"]:
                     # Cloud sources don't need directories
                     log.info(f"PIPELINE: Cloud source '{source_type}' found")
                     has_valid_source = True
-                    break
+                    # Continue processing other sources instead of breaking
                 else:
                     log.info(
                         f"PIPELINE: Unknown source type '{source_type}' - skipping"

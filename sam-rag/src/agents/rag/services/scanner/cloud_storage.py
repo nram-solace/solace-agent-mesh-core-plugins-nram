@@ -147,16 +147,31 @@ class CloudStorageDataSource(DataSource):
         """
         Monitor the cloud storage for changes.
         """
+        logger.info(f"=== {self.provider_name.upper()}: Starting scan ===")
+        logger.info(f"{self.provider_name} batch mode: {self.batch}")
+        logger.info(f"{self.provider_name} real-time enabled: {self.real_time_enabled}")
+
         # Perform batch scan if enabled
         if self.batch:
+            logger.info(f"{self.provider_name}: Starting batch scan")
             self.batch_scan()
+        else:
+            logger.info(
+                f"{self.provider_name}: Batch mode disabled, skipping batch scan"
+            )
 
         # Set up real-time monitoring if enabled
         if self.real_time_enabled:
+            logger.info(f"{self.provider_name}: Setting up real-time monitoring")
             self._setup_real_time_monitoring()
         else:
+            logger.info(
+                f"{self.provider_name}: Real-time monitoring disabled, starting polling"
+            )
             # Fallback to periodic polling
             self._start_polling()
+
+        logger.info(f"=== {self.provider_name.upper()}: Scan method completed ===")
 
     def _start_polling(self) -> None:
         """

@@ -249,14 +249,34 @@ class FileChangeTracker:
         """
         logger.info(f"Starting scan across {len(self.data_sources)} data source(s)")
 
+        # Log details about each data source before scanning
+        for i, data_source in enumerate(self.data_sources):
+            logger.info(
+                f"Data source {i}: {type(data_source).__name__} - Provider: {getattr(data_source, 'provider_name', 'N/A')}"
+            )
+
         for i, data_source in enumerate(self.data_sources):
             try:
                 logger.info(
                     f"Scanning data source {i+1}/{len(self.data_sources)}: {type(data_source).__name__}"
                 )
+                logger.info(
+                    f"Data source batch mode: {getattr(data_source, 'batch', 'N/A')}"
+                )
+                logger.info(f"About to call scan() on data source {i+1}")
                 data_source.scan()
+                logger.info(f"Successfully completed scanning data source {i+1}")
             except Exception as e:
                 logger.error(f"Error scanning data source {i+1}: {str(e)}")
+                import traceback
+
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                # Continue with next data source even if this one fails
+                logger.info(f"Continuing to next data source despite error in {i+1}")
+            finally:
+                logger.info(f"Finished processing data source {i+1}, moving to next")
+
+        logger.info("Completed scanning all data sources")
 
     def upload_files(self, documents) -> str:
         """
