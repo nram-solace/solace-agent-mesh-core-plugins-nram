@@ -471,3 +471,141 @@ class GoogleDriveDataSource(CloudStorageDataSource):
                 )
 
         logger.info("Google Drive batch scan completed")
+
+    def _process_cloud_file(self, file_info: Dict[str, Any]) -> None:
+        """
+        Process a Google Drive file with proper duplicate checking.
+
+        Args:
+            file_info: Dictionary containing file information.
+        """
+        file_id = file_info.get("id")
+        file_name = file_info.get("name")
+        file_size = file_info.get("size", 0)
+        mime_type = file_info.get("mime_type")
+        modified_time = file_info.get("modified_time")
+
+        # Create standardized Google Drive URI for consistent identification
+        google_drive_uri = f"google_drive://{file_id}"
+
+        # Also create a display path for logging
+        display_path = f"google_drive://{file_id}/{file_name}"
+
+        # Check if already ingested using multiple strategies for robustness
+        if self._is_file_already_ingested(
+            file_id, file_name, google_drive_uri, modified_time
+        ):
+            logger.info(f"Google Drive file already ingested: {file_name} ({file_id})")
+            return
+
+        # Validate file
+        if not self._is_valid_cloud_file(file_name, mime_type, file_size):
+            logger.debug(f"Invalid Google Drive file: {file_name}")
+            return
+
+        # Track the file with enhanced metadata
+        metadata = self._create_enhanced_metadata(file_info, google_drive_uri)
+        self._track_file(google_drive_uri, file_name, "new", metadata)
+
+        # Download and process
+        try:
+            temp_file_path = self._download_file(file_id, file_name)
+            if temp_file_path:
+                # Process the downloaded file with enhanced metadata
+                # Pass the metadata to the pipeline for proper Google Drive URI storage
+                self.pipeline.process_files([temp_file_path], metadata=metadata)
+
+                # Cleanup temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to cleanup temp file {temp_file_path}: {str(e)}"
+                    )
+        except Exception as e:
+            logger.error(f"Error processing Google Drive file {file_name}: {str(e)}")
+
+    def _is_file_already_ingested(
+        self,
+        file_id: str,
+        file_name: str,
+        google_drive_uri: str,
+        modified_time: Optional[str],
+    ) -> bool:
+        """
+        Check if a Google Drive file has already been ingested using multiple strategies.
+
+        Args:
+            file_id: The Google Drive file ID.
+            file_name: The name of the file.
+            google_drive_uri: The standardized Google Drive URI.
+            modified_time: The file's last modified time.
+
+        Returns:
+            True if the file has already been ingested, False otherwise.
+        """
+        # Strategy 1: Check using standardized Google Drive URI
+        if google_drive_uri in self.ingested_documents:
+            logger.debug(f"Found duplicate using Google Drive URI: {google_drive_uri}")
+            return True
+
+        # Strategy 2: Check using file ID patterns
+        file_id_patterns = [
+            f"google_drive://{file_id}",
+            f"gdrive://{file_id}",
+            f"google_drive://{file_id}/{file_name}",
+            f"gdrive://{file_id}/{file_name}",
+        ]
+
+        for pattern in file_id_patterns:
+            if pattern in self.ingested_documents:
+                logger.debug(f"Found duplicate using pattern: {pattern}")
+                return True
+
+        # Strategy 3: Check for file name patterns (less reliable but useful fallback)
+        # This helps catch cases where the same file might have been ingested differently
+        name_patterns = [file_name, f"google_drive_{file_name}", f"gdrive_{file_name}"]
+
+        for pattern in name_patterns:
+            if any(pattern in doc for doc in self.ingested_documents):
+                logger.debug(f"Found potential duplicate using name pattern: {pattern}")
+                # This is less certain, so we log it but don't immediately return
+                # In the future, we could add more sophisticated checking here
+                pass
+
+        return False
+
+    def _create_enhanced_metadata(
+        self, file_info: Dict[str, Any], google_drive_uri: str
+    ) -> Dict[str, Any]:
+        """
+        Create enhanced metadata for Google Drive files.
+
+        Args:
+            file_info: Dictionary containing file information.
+            google_drive_uri: The standardized Google Drive URI.
+
+        Returns:
+            A dictionary containing enhanced metadata.
+        """
+        # Start with base metadata
+        metadata = self.extract_file_metadata(google_drive_uri, **file_info)
+
+        # Add Google Drive specific metadata
+        metadata.update(
+            {
+                "source": "google_drive",
+                "provider": "google_drive",
+                "google_drive_id": file_info.get("id"),
+                "google_drive_uri": google_drive_uri,
+                "original_name": file_info.get("name"),
+                "mime_type": file_info.get("mime_type"),
+                "size": file_info.get("size", 0),
+                "modified_time": file_info.get("modified_time"),
+                "web_view_link": file_info.get("web_view_link"),
+                "drive_id": file_info.get("drive_id"),
+                "parents": file_info.get("parents", []),
+            }
+        )
+
+        return metadata

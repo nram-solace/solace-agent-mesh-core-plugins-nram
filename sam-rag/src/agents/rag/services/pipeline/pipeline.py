@@ -80,12 +80,15 @@ class Pipeline:
 
         log.info("=== PIPELINE: Finished _run method ===")
 
-    def process_files(self, file_paths: List[str]) -> Dict[str, Any]:
+    def process_files(
+        self, file_paths: List[str], metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         Process files through a complete RAG pipeline: preprocess, chunk, embed, and ingest.
 
         Args:
             file_paths: List of file paths to process.
+            metadata: Optional metadata to merge with file metadata for cloud storage files.
 
         Returns:
             A dictionary containing the processing results.
@@ -112,14 +115,29 @@ class Pipeline:
                     file_path
                 )
                 text = preprocess_output.get("text_content", None)
-                metadata = preprocess_output.get("metadata", None)
+                file_metadata = preprocess_output.get("metadata", {})
+
+                # Merge provided metadata with file metadata (provided metadata takes precedence)
+                if metadata:
+                    merged_metadata = file_metadata.copy()
+                    merged_metadata.update(metadata)
+                    # Ensure the file_path is preserved from the provided metadata if it exists
+                    if "file_path" in metadata:
+                        merged_metadata["file_path"] = metadata["file_path"]
+                        # Use the Google Drive URI as the source for consistency
+                        source_path = metadata["file_path"]
+                    else:
+                        source_path = file_path
+                else:
+                    merged_metadata = file_metadata
+                    source_path = file_path
 
                 if text:
                     preprocessed_docs.append(text)
                     preprocessed_metadata.append(
                         {
-                            "source": file_path,
-                            "metadata": metadata,
+                            "source": source_path,
+                            "metadata": merged_metadata,
                         }
                     )
                     log.info("Successfully preprocessed a file.")
