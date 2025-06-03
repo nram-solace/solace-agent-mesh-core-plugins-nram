@@ -41,6 +41,19 @@ pinecone = [
     "pinecone>=6.0.0",  # For Pinecone vector database access
 ]
 
+cloud_storage = [
+    "google-api-python-client>=2.100.0",  # For Google Drive API
+    "google-auth-httplib2>=0.1.1",  # For Google API authentication
+    "google-auth-oauthlib>=1.0.0",  # For Google OAuth2 flow
+    "requests>=2.31.0",  # For HTTP requests
+    "boto3>=1.28.0",  # For AWS S3 integration
+]
+
+onedrive = [
+    "msal>=1.24.0",  # Microsoft Authentication Library
+    "requests>=2.31.0",  # For HTTP requests to Microsoft Graph API
+]
+
 [tool.hatch.build.targets.wheel.force-include]
 "src" = "sam_rag/src"
 "interfaces" = "sam_rag/interfaces"

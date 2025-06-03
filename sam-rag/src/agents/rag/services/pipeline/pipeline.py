@@ -56,22 +56,29 @@ class Pipeline:
 
     def _run(self):
         """Ingest documents into the vector database."""
-        log.info("Starting document ingestion process")
+        log.info("=== PIPELINE: Starting _run method ===")
+        log.info("PIPELINE: Starting document ingestion process")
+        log.info(f"PIPELINE: File tracker state: {self.file_tracker is not None}")
+
         if self.file_tracker:
+            log.info("PIPELINE: File tracker is available, proceeding with scan...")
             # Scan for file changes
             self._scan_files()
 
             # Get new/modified/deleted files
             files = self._get_tracked_files()
+            log.info(f"PIPELINE: Found {len(files) if files else 0} files to process")
 
             if files:
                 # Process files through the complete pipeline
                 result = self.process_files(files)
-                log.info(f"Processing result: {result}")
+                log.info(f"PIPELINE: Processing result: {result}")
             else:
-                log.info("No files found to process.")
+                log.info("PIPELINE: No files found to process.")
         else:
-            log.error("No file tracker is initialized.")
+            log.error("PIPELINE: No file tracker is initialized.")
+
+        log.info("=== PIPELINE: Finished _run method ===")
 
     def process_files(self, file_paths: List[str]) -> Dict[str, Any]:
         """
@@ -247,33 +254,95 @@ class Pipeline:
 
     def _create_handlers(self):
         """Create handlers for the agent."""
+        log.info("=== PIPELINE: Starting _create_handlers ===")
+
         # Initialize the ingestion handler
         self.ingestion_handler = IngestionService(self.component_config)
+        log.info("PIPELINE: Ingestion handler initialized")
 
         # Initialize the file tracker
         scanner_config = self.component_config.get("scanner", {})
+        log.info(f"PIPELINE: Scanner config found: {bool(scanner_config)}")
+        log.info(
+            f"PIPELINE: Scanner config keys: {list(scanner_config.keys()) if scanner_config else 'None'}"
+        )
+
         if scanner_config:
-            source_config = scanner_config.get("source", {})
+            # Support both new 'sources' array format and legacy 'source' format
+            sources_config = scanner_config.get("sources", [])
+            log.info(f"PIPELINE: Found 'sources' config: {len(sources_config)} sources")
 
-            # Get directories from scanner configuration
-            if (
-                source_config.get("type") == "filesystem"
-                and "directories" in source_config
-            ):
-                directories = source_config.get("directories", [])
+            if not sources_config:
+                # Fallback to single source for backward compatibility
+                source_config = scanner_config.get("source", {})
+                log.info(
+                    f"PIPELINE: Fallback to 'source' config: {bool(source_config)}"
+                )
+                if source_config:
+                    sources_config = [source_config]
+                    log.info("PIPELINE: Converted single source to sources array")
 
-                if directories:
-                    self.file_tracker = FileChangeTracker(self.component_config, self)
-                    self.use_memory_storage = scanner_config["use_memory_storage"]
+            log.info(f"PIPELINE: Final sources_config length: {len(sources_config)}")
+            for i, source in enumerate(sources_config):
+                log.info(
+                    f"PIPELINE: Source {i}: type='{source.get('type', 'unknown')}', keys={list(source.keys())}"
+                )
+
+            # Check if any source has valid configuration
+            has_valid_source = False
+            for i, source_config in enumerate(sources_config):
+                source_type = source_config.get("type", "filesystem")
+                log.info(f"PIPELINE: Checking source {i} of type '{source_type}'")
+
+                if source_type == "filesystem" and "directories" in source_config:
+                    directories = source_config.get("directories", [])
                     log.info(
-                        "File tracker initialized with memory storage"
-                        if self.use_memory_storage
-                        else "File tracker initialized with database"
+                        f"PIPELINE: Filesystem source has {len(directories)} directories"
                     )
+                    if directories:
+                        has_valid_source = True
+                        log.info("PIPELINE: Valid filesystem source found")
+                        break
+                elif source_type in ["google_drive", "onedrive", "s3", "cloud"]:
+                    # Cloud sources don't need directories
+                    log.info(f"PIPELINE: Cloud source '{source_type}' found")
+                    has_valid_source = True
+                    break
                 else:
-                    log.info("No directories provided for ingestion.")
+                    log.info(
+                        f"PIPELINE: Unknown source type '{source_type}' - skipping"
+                    )
+
+            log.info(f"PIPELINE: Has valid source: {has_valid_source}")
+
+            if has_valid_source:
+                try:
+                    log.info("PIPELINE: Attempting to create FileChangeTracker...")
+                    self.file_tracker = FileChangeTracker(self.component_config, self)
+                    self.use_memory_storage = scanner_config.get(
+                        "use_memory_storage", False
+                    )
+                    log.info(
+                        f"PIPELINE: File tracker initialized successfully with {len(sources_config)} source(s) using "
+                        + (
+                            "memory storage"
+                            if self.use_memory_storage
+                            else "database storage"
+                        )
+                    )
+                except Exception as e:
+                    log.error(f"PIPELINE: Failed to initialize file tracker: {str(e)}")
+                    import traceback
+
+                    log.error(f"PIPELINE: Traceback: {traceback.format_exc()}")
+                    self.file_tracker = None
             else:
-                log.info("No directories provided in scanner configuration.")
+                log.warning("PIPELINE: No valid sources configured for file tracking.")
+        else:
+            log.warning("PIPELINE: No scanner configuration provided.")
+
+        log.info(f"PIPELINE: File tracker final state: {self.file_tracker is not None}")
+        log.info("=== PIPELINE: Finished _create_handlers ===")
 
         # Initialize the preprocessing handler
         preprocessor_config = self.component_config.get("preprocessor", {})
