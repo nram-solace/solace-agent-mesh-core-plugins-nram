@@ -454,7 +454,6 @@ class EmbedderService:
                     try:
                         # The TfidfVectorizer's tokenizer (our custom_tokenizer) will be applied.
                         # transform expects an iterable of documents.
-                        print("----text:", text)
                         vector_transformed = self.tfidf_vectorizer.transform([text])
 
                         # Convert the sparse matrix row to {index: value} format
@@ -465,8 +464,6 @@ class EmbedderService:
                             # col_idx is the feature index (term_index in our vocabulary)
                             # val_data is the tf-idf score
                             current_sparse_values[int(col_idx)] = float(val_data)
-
-                        print("----current_sparse_values:", current_sparse_values)
 
                         sparse_vector_dict = current_sparse_values  # This will be {} if no terms were found
                         # which is the desired format for Qdrant.
