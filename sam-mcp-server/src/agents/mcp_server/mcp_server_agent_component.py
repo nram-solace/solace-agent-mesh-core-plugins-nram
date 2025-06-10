@@ -5,6 +5,7 @@ agents, converting their capabilities into actions.
 """
 
 import copy
+import os
 from typing import Dict, Any, Optional
 
 from solace_agent_mesh.agents.base_agent_component import (
@@ -23,20 +24,14 @@ from .actions.mcp_server_action import MCPServerAction
 info = copy.deepcopy(agent_info)
 info.update(
     {
-        "agent_name": None,  # Will be set from configuration
+        "agent_name": None,  # Replaced at agent creation
         "class_name": "McpServerAgentComponent",
-        "description": None,  # Will be set from configuration
+        "description": None,  # Updated after init
         "config_parameters": [
             {
                 "name": "server_name",
                 "required": True,
-                "description": "Name of the MCP server",
-                "type": "string",
-            },
-            {
-                "name": "server_description",
-                "required": True,
-                "description": "Description of the MCP server",
+                "description": "Name of this MCP server agent instance",
                 "type": "string",
             },
             {
@@ -81,9 +76,15 @@ info.update(
                 "default": 30,
             },
             {
+                "name": "server_description",
+                "required": False,  # Now optional, defaults in config
+                "description": "Description of the MCP server's purpose",
+                "type": "string",
+            },
+            {
                 "name": "server_command",
                 "required": False,
-                "description": "Shell command to start the MCP server (required for stdio mode)",
+                "description": "Shell command to start the MCP server process (e.g., 'npx -y @modelcontextprotocol/server-filesystem /path')",
                 "type": "string",
             },
             {
@@ -99,6 +100,20 @@ info.update(
                 "description": "Enables sampling (Allowing servers to access LLMs through client)",
                 "type": "boolean",
                 "default": False,
+            },
+            {
+                "name": "environment_variables",
+                "required": False,
+                "description": "Dictionary of environment variables to pass to the MCP server process. Overrides variables from environment_file.",
+                "type": "object",
+                "default": {},
+            },
+            {
+                "name": "environment_file",
+                "required": False,
+                "description": "Path to a file (e.g., .env format) containing environment variables for the MCP server process.",
+                "type": "string",
+                "default": None,
             },
         ],
     }
@@ -134,11 +149,19 @@ class McpServerAgentComponent(BaseAgentComponent):
         # Call the parent constructor
         super().__init__(module_info, **kwargs)
 
+        # Get core config values
         self.agent_name = self.get_config("server_name")
-        self.agent_description = self.get_config("server_description")
-        self.enable_sampling = self.get_config("enable_sampling")
-        self.info["agent_name"] = self.agent_name
-        self.info["description"] = self.agent_description
+        self.agent_description = self.get_config(
+            "server_description"
+        )  # Fetches default if env var not set
+        self.enable_sampling = self.get_config(
+            "enable_sampling", False
+        )  # Default to false if not specified
+
+        # Update component info with specific instance details
+        module_info["agent_name"] = self.agent_name
+        module_info["description"] = self.agent_description  # Set initial description
+        self.info = module_info  # Ensure self.info uses the updated module_info
 
         # Initialize these in run()
         self.client_session = None
@@ -179,14 +202,39 @@ class McpServerAgentComponent(BaseAgentComponent):
                         "SSE mode not yet supported with async thread"
                     )
                 else:  # stdio mode
+                    import os
+                    import dotenv
                     from mcp import StdioServerParameters
                     from .async_server import AsyncServerThread
 
                     parts = server_command.split()
+                    
+                    # Load environment variables
+                    final_env = {}
+                    env_file_path = self.get_config("environment_file")
+                    direct_env_vars = self.get_config("environment_variables", {})
+
+                    # Load from file first, if specified and exists
+                    if env_file_path:
+                        # Ensure the path is absolute or relative to a known location if needed
+                        # For simplicity, assuming relative to SAM execution or absolute path
+                        if os.path.exists(env_file_path):
+                            try:
+                                file_env = dotenv.dotenv_values(env_file_path)
+                                final_env.update(file_env)
+                                log.info(f"Loaded environment variables from {env_file_path}")
+                            except Exception as e:
+                                log.warning(f"Failed to load environment variables from {env_file_path}: {e}")
+                        else:
+                            log.warning(f"Environment file specified but not found: {env_file_path}")
+                    
+                    # Merge/override with directly configured variables
+                    final_env.update(direct_env_vars)
+                    
                     server_params = StdioServerParameters(
                         command=parts[0],
                         args=parts[1:],
-                        env=None,  # Use default safe environment
+                        env=final_env,  # Use merged environment variables
                     )
 
                     # Create and start async server thread
@@ -201,11 +249,15 @@ class McpServerAgentComponent(BaseAgentComponent):
                 raise e
 
             # Convert server's capabilities into solace-agent-mesh actions
-            self.action_list = self.get_actions_list(agent=self, config_fn=self.get_config)
+            self.action_list = self.get_actions_list(
+                agent=self, config_fn=self.get_config
+            )
 
             # Wait for server initialization to complete with timeout
             if not self.server_thread.initialized.wait(timeout=timeout):
-                raise TimeoutError(f"Server initialization timed out after {timeout} seconds")
+                raise TimeoutError(
+                    f"Server initialization timed out after {timeout} seconds"
+                )
 
             # Convert tools to actions
             for tool in self.server_thread.tools:
@@ -344,10 +396,12 @@ class McpServerAgentComponent(BaseAgentComponent):
             elif isinstance(content, types.ImageContent):
                 mime_type = content.mimeType or "image/png"
                 data = content.data
-                entry["content"] = [{
-                    "type": "image_url",
-                    "text": f"data:{mime_type};base64,{data}",
-                }]
+                entry["content"] = [
+                    {
+                        "type": "image_url",
+                        "text": f"data:{mime_type};base64,{data}",
+                    }
+                ]
             else:
                 raise ValueError("Invalid message content format")
             messages.append(entry)
