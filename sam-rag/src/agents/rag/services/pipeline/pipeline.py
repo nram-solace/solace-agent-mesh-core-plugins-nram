@@ -149,7 +149,7 @@ class Pipeline:
                 else:
                     log.warning("Failed to preprocess a file.")
             except Exception as e:
-                log.error(f"Error preprocessing file {file_path}: {str(e)}")
+                log.error(f"Error preprocessing file {file_path}.", trace=e)
 
         if not preprocessed_docs:
             log.warning("No documents were successfully preprocessed")
@@ -194,10 +194,10 @@ class Pipeline:
             embeddings = self.embedding_handler.embed_texts(chunks)
             log.info(f"Created {len(embeddings)} embeddings")
         except Exception as e:
-            log.error(f"Error embedding chunks: {str(e)}")
+            log.error("Error embedding chunks.", trace=e)
             return {
                 "success": False,
-                "message": f"Error embedding chunks: {str(e)}",
+                "message": "Error embedding chunks.",
                 "document_ids": [],
             }
 
@@ -210,10 +210,10 @@ class Pipeline:
             log.info(f"Ingestion result: {result['message']}")
             return result
         except Exception as e:
-            log.error(f"Error ingesting embeddings: {str(e)}")
+            log.error(f"Error ingesting embeddings.", trace=e)
             return {
                 "success": False,
-                "message": f"Error ingesting embeddings: {str(e)}",
+                "message": "Error ingesting embeddings.",
                 "document_ids": [],
             }
 
@@ -290,7 +290,7 @@ class Pipeline:
                     files.append(file_path)
                 return files
             except Exception as e:
-                log.error(f"Error getting tracked files: {str(e)}")
+                log.error("Error getting tracked files.", trace=e)
                 return []
 
     def _scan_files(self) -> Dict[str, List[str]]:
@@ -385,7 +385,7 @@ class Pipeline:
                         )
                     )
                 except Exception as e:
-                    log.error(f"PIPELINE: Failed to initialize file tracker: {str(e)}")
+                    log.error("PIPELINE: Failed to initialize file tracker.", trace=e)
                     import traceback
 
                     log.error(f"PIPELINE: Traceback: {traceback.format_exc()}")

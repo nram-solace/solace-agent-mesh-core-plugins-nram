@@ -246,7 +246,7 @@ class CloudStorageDataSource(DataSource):
                     os.unlink(temp_file_path)
                 except Exception as e:
                     logger.warning(
-                        f"Failed to cleanup temp file {temp_file_path}: {str(e)}"
+                        f"Failed to cleanup temp file {temp_file_path}.", trace=e
                     )
         except Exception as e:
             logger.error(

@@ -20,7 +20,7 @@ def read_document_data(db: Session) -> List[Tuple[str, str, StatusEnum, str]]:
         log.info(f"Successfully read {len(results)} rows from the database")
         return results
     except Exception as e:
-        log.error(f"Error reading from database: {str(e)}")
+        log.error(f"Error reading from database.", trace=e)
         return []
 
 
