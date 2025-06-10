@@ -5,10 +5,11 @@ Service for vector database operations.
 from typing import Dict, Any, List, Optional
 
 from .vector_db_base import VectorDBBase
-from .vector_db_implementations import (
+from .vector_db_implementation import (  # Corrected import path
     PineconeDB,
     QdrantDB,
-    RedisDB,
+    RedisLegacyDB,
+    RedisVLDB,
     PgVectorDB,
     ChromaDB,
 )
@@ -63,8 +64,12 @@ class VectorDBService:
             return QdrantDB(
                 config=self.db_params, hybrid_search_config=self.hybrid_search_config
             )
-        elif self.db_type == "redis":
-            return RedisDB(
+        elif self.db_type == "redis_legacy":  # Updated
+            return RedisLegacyDB(  # Updated
+                config=self.db_params, hybrid_search_config=self.hybrid_search_config
+            )
+        elif self.db_type == "redis_vl":  # Added
+            return RedisVLDB(  # Added
                 config=self.db_params, hybrid_search_config=self.hybrid_search_config
             )
         elif self.db_type == "pgvector":
