@@ -166,9 +166,10 @@ class DatabaseService(ABC):
             True if the column type supports DISTINCT, False otherwise
         """
         # MSSQL geography and geometry types don't support DISTINCT
+        # Also include SQL Server text types that don't support DISTINCT
         unsupported_types = [
             'geography', 'geometry', 'hierarchyid', 'sql_variant',
-            'timestamp', 'rowversion'
+            'timestamp', 'rowversion', 'text', 'ntext', 'image'
         ]
         
         # Handle both string and SQLAlchemy type objects
@@ -264,15 +265,33 @@ class DatabaseService(ABC):
         Returns:
             Dictionary of statistics (min, max, avg, etc.)
         """
-        query = f"""
-            SELECT 
-                COUNT(*) as count,
-                COUNT(DISTINCT {column}) as unique_count,
-                MIN({column}) as min_value,
-                MAX({column}) as max_value
-            FROM {table}
-            WHERE {column} IS NOT NULL
-        """
+        # Check if the column type supports DISTINCT operations
+        columns = self.get_columns(table)
+        column_info = next((col for col in columns if col["name"] == column), None)
+        
+        if column_info and not self._is_column_supported_for_distinct(column_info["type"], column_info["name"]):
+            # For unsupported types, avoid DISTINCT operations
+            query = f"""
+                SELECT 
+                    COUNT(*) as count,
+                    NULL as unique_count,
+                    NULL as min_value,
+                    NULL as max_value
+                FROM {table}
+                WHERE {column} IS NOT NULL
+            """
+        else:
+            # Use DISTINCT for supported types
+            query = f"""
+                SELECT 
+                    COUNT(*) as count,
+                    COUNT(DISTINCT {column}) as unique_count,
+                    MIN({column}) as min_value,
+                    MAX({column}) as max_value
+                FROM {table}
+                WHERE {column} IS NOT NULL
+            """
+        
         results = self.execute_query(query)
         return results[0] if results else {}
 
