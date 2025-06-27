@@ -14,7 +14,8 @@ from .services.database_service import (
     DatabaseService,
     MySQLService,
     PostgresService,
-    SQLiteService
+    SQLiteService,
+    MSSQLService,
 )
 from .actions.search_query import SearchQuery
 
@@ -35,7 +36,7 @@ info.update(
             {
                 "name": "db_type",
                 "required": True,
-                "description": "Database type (mysql, postgres, or sqlite)",
+                "description": "Database type (mysql, mssql, postgres, or sqlite )",
                 "type": "string",
             },
             {
@@ -252,7 +253,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             "database": self.get_config("database"),
         }
 
-        if self.db_type in ("mysql", "postgres"):
+        if self.db_type in ("mysql", "mssql", "postgres"):
             # Add connection parameters needed for MySQL/PostgreSQL
             connection_params.update({
                 "host": self.get_config("host"),
@@ -263,6 +264,8 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
 
         if self.db_type == "mysql":
             return MySQLService(connection_params, query_timeout=self.query_timeout)
+        if self.db_type == "mssql":
+            return MSSQLService(connection_params, query_timeout=self.query_timeout)
         elif self.db_type == "postgres":
             return PostgresService(connection_params, query_timeout=self.query_timeout)
         elif self.db_type in ("sqlite", "sqlite3"):
