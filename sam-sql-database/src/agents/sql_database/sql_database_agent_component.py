@@ -303,21 +303,36 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
                 try:
                     unique_values = self.db_handler.get_unique_values(table, col_name)
                     if unique_values:
-                        table_info["columns"][col_name]["sample_values"] = unique_values
+                        # Convert any decimal.Decimal objects to strings for YAML serialization
+                        cleaned_values = []
+                        for value in unique_values:
+                            if hasattr(value, 'as_tuple'):  # Check if it's a Decimal
+                                cleaned_values.append(str(value))
+                            else:
+                                cleaned_values.append(value)
+                        table_info["columns"][col_name]["sample_values"] = cleaned_values
 
                     stats = self.db_handler.get_column_stats(table, col_name)
                     if stats:
-                        table_info["columns"][col_name]["statistics"] = stats
+                        # Convert any decimal.Decimal objects to strings for YAML serialization
+                        cleaned_stats = {}
+                        for key, value in stats.items():
+                            if hasattr(value, 'as_tuple'):  # Check if it's a Decimal
+                                cleaned_stats[key] = str(value)
+                            else:
+                                cleaned_stats[key] = value
+                        table_info["columns"][col_name]["statistics"] = cleaned_stats
                 except Exception:
                     # Skip sample data if there's an error
                     pass
 
             schema[table] = table_info
 
-        return schema
+        # Clean the schema to remove any problematic fields
+        return self._clean_schema(schema)
 
     def _clean_schema(self, schema_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """Clean the schema dictionary by removing problematic fields.
+        """Clean the schema dictionary by removing problematic fields and converting unsupported types.
         
         Args:
             schema_dict: The schema dictionary to clean
@@ -325,11 +340,40 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         Returns:
             Cleaned schema dictionary
         """
+        def clean_value(value):
+            """Recursively clean values to ensure YAML serialization compatibility."""
+            if hasattr(value, 'as_tuple'):  # decimal.Decimal
+                return str(value)
+            elif hasattr(value, '__dict__') and not isinstance(value, (str, int, float, bool, list, dict)):
+                # Convert custom objects to string representation
+                return str(value)
+            elif isinstance(value, (list, tuple)):
+                return [clean_value(item) for item in value]
+            elif isinstance(value, dict):
+                return {k: clean_value(v) for k, v in value.items()}
+            else:
+                return value
+        
+        cleaned_schema = {}
         for table, table_data in schema_dict.items():
-            for column, column_data in table_data["columns"].items():
-                # Remove problematic fields (if they exist)
-                column_data.pop("statistics", None)
-        return schema_dict
+            cleaned_table_data = {}
+            for key, value in table_data.items():
+                if key == "columns":
+                    cleaned_columns = {}
+                    for column, column_data in value.items():
+                        cleaned_column_data = {}
+                        for col_key, col_value in column_data.items():
+                            if col_key in ["statistics", "sample_values"]:
+                                cleaned_column_data[col_key] = clean_value(col_value)
+                            else:
+                                cleaned_column_data[col_key] = col_value
+                        cleaned_columns[column] = cleaned_column_data
+                    cleaned_table_data[key] = cleaned_columns
+                else:
+                    cleaned_table_data[key] = clean_value(value)
+            cleaned_schema[table] = cleaned_table_data
+        
+        return cleaned_schema
 
     def _get_schema_summary(self) -> str:
         """Gets a terse formatted summary of the database schema.
