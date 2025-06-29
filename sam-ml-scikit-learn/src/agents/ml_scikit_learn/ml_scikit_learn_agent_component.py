@@ -177,6 +177,25 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         # Generate agent description
         self._generate_agent_description()
 
+        # Log prominent startup message
+        log.info("=" * 80)
+        log.info("🚀 ML SCIKIT-LEARN AGENT STARTED SUCCESSFULLY")
+        log.info("=" * 80)
+        log.info("Agent Name: %s", self.agent_name)
+        log.info("Version: %s", "0.0.0+local.nram")
+        log.info("Available Actions: %s", [action.__name__ for action in self.actions])
+        log.info("Data Source: %s", self.data_source)
+        if self.data_path:
+            log.info("Data Path: %s", self.data_path)
+        log.info("Model Storage: %s", self.model_storage_path)
+        log.info("Visualization Output: %s", self.visualization_output_path)
+        log.info("Default Model Type: %s", self.default_model_type)
+        log.info("Parallel Jobs: %s", self.parallel_jobs)
+        log.info("Caching Enabled: %s", self.enable_caching)
+        log.info("=" * 80)
+        log.info("✅ ML Scikit-Learn Agent is ready for machine learning tasks!")
+        log.info("=" * 80)
+
     def _create_ml_service(self) -> MLService:
         """Create and configure the ML service.
 
