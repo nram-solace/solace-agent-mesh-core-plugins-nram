@@ -223,6 +223,10 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         print("✅ ML Scikit-Learn Agent is ready for machine learning tasks!")
         print("🔍 Agent should be available in SAM as 'ml_scikit_learn'")
         print("=" * 80)
+        
+        # Force flush to ensure message appears immediately
+        import sys
+        sys.stdout.flush()
 
     def _create_ml_service(self) -> MLService:
         """Create and configure the ML service.
