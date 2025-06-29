@@ -187,6 +187,8 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         log.info("Data Source: %s", self.data_source)
         if self.data_path:
             log.info("Data Path: %s", self.data_path)
+        else:
+            log.warning("⚠️  ML_DATA_PATH environment variable not set - agent may not function properly")
         log.info("Model Storage: %s", self.model_storage_path)
         log.info("Visualization Output: %s", self.visualization_output_path)
         log.info("Default Model Type: %s", self.default_model_type)
@@ -194,7 +196,20 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         log.info("Caching Enabled: %s", self.enable_caching)
         log.info("=" * 80)
         log.info("✅ ML Scikit-Learn Agent is ready for machine learning tasks!")
+        log.info("🔍 Agent should be available in SAM as 'ml_scikit_learn'")
         log.info("=" * 80)
+        
+        # Also print to stdout for immediate visibility
+        print("=" * 80)
+        print("🚀 ML SCIKIT-LEARN AGENT STARTED SUCCESSFULLY")
+        print("=" * 80)
+        print(f"Agent Name: {self.agent_name}")
+        print(f"Version: 0.0.0+local.nram")
+        print(f"Available Actions: {[action.__name__ for action in self.actions]}")
+        print("=" * 80)
+        print("✅ ML Scikit-Learn Agent is ready for machine learning tasks!")
+        print("🔍 Agent should be available in SAM as 'ml_scikit_learn'")
+        print("=" * 80)
 
     def _create_ml_service(self) -> MLService:
         """Create and configure the ML service.

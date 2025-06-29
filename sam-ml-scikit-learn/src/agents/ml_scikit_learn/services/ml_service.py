@@ -69,6 +69,21 @@ class MLService:
         # Set seaborn style
         sns.set_style("whitegrid")
         
+        log.info("=" * 60)
+        log.info("🔬 ML SCIKIT-LEARN SERVICE INITIALIZED")
+        log.info("=" * 60)
+        log.info("Random State: %d", random_state)
+        log.info("Parallel Jobs: %d", parallel_jobs)
+        log.info("Max Memory Usage: %d MB", max_memory_usage)
+        log.info("Caching Enabled: %s", enable_caching)
+        log.info("Available Models:")
+        log.info("  - Regression: %s", list(self.get_regression_models().keys()))
+        log.info("  - Classification: %s", list(self.get_classification_models().keys()))
+        log.info("  - Outlier Detection: %s", list(self.get_outlier_detection_methods().keys()))
+        log.info("=" * 60)
+        log.info("✅ ML Service ready for machine learning operations!")
+        log.info("=" * 60)
+        
         log.info("ML Service initialized with random_state=%d, parallel_jobs=%d", 
                 random_state, parallel_jobs)
 
