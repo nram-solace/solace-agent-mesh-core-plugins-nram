@@ -240,6 +240,40 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         # Generate and store the agent description
         self._generate_agent_description()
 
+        # Log prominent startup message
+        log.info("=" * 80)
+        log.info("🗄️  SQL DATABASE AGENT STARTED SUCCESSFULLY")
+        log.info("=" * 80)
+        log.info("Agent Name: %s", self.agent_name)
+        log.info("Database Type: %s", self.db_type)
+        log.info("Database Name: %s", self.get_config("database"))
+        if self.get_config("host"):
+            log.info("Database Host: %s", self.get_config("host"))
+        if self.get_config("port"):
+            log.info("Database Port: %s", self.get_config("port"))
+        log.info("Available Actions: %s", [action.__name__ for action in self.actions])
+        log.info("Auto Detect Schema: %s", self.auto_detect_schema)
+        log.info("Query Timeout: %s seconds", self.query_timeout)
+        if self.database_purpose:
+            log.info("Database Purpose: %s", self.database_purpose)
+        log.info("=" * 80)
+        log.info("✅ SQL Database Agent is ready for database operations!")
+        log.info("🔍 Agent should be available in SAM as 'sql_database'")
+        log.info("=" * 80)
+        
+        # Also print to stdout for immediate visibility
+        print("=" * 80)
+        print("🗄️  SQL DATABASE AGENT STARTED SUCCESSFULLY")
+        print("=" * 80)
+        print(f"Agent Name: {self.agent_name}")
+        print(f"Database Type: {self.db_type}")
+        print(f"Database Name: {self.get_config('database')}")
+        print(f"Available Actions: {[action.__name__ for action in self.actions]}")
+        print("=" * 80)
+        print("✅ SQL Database Agent is ready for database operations!")
+        print("🔍 Agent should be available in SAM as 'sql_database'")
+        print("=" * 80)
+
     def _create_db_handler(self) -> DatabaseService:
         """Create appropriate database handler based on configuration.
         
