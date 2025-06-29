@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional, List
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import os
 
 from solace_ai_connector.common.log import log
 from solace_agent_mesh.agents.base_agent_component import (
@@ -185,10 +186,15 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         log.info("Version: %s", "0.0.0+local.nram")
         log.info("Available Actions: %s", [action.__name__ for action in self.actions])
         log.info("Data Source: %s", self.data_source)
-        if self.data_path:
+        
+        # Check if ML_DATA_PATH is actually set (not just empty)
+        ml_data_path_env = os.environ.get('ML_DATA_PATH')
+        if ml_data_path_env and ml_data_path_env.strip():
             log.info("Data Path: %s", self.data_path)
         else:
-            log.warning("⚠️  ML_DATA_PATH environment variable not set - agent may not function properly")
+            log.info("Data Path: Not configured (will be set per request)")
+            log.info("ℹ️  ML_DATA_PATH not set - agent will use data paths from individual requests")
+        
         log.info("Model Storage: %s", self.model_storage_path)
         log.info("Visualization Output: %s", self.visualization_output_path)
         log.info("Default Model Type: %s", self.default_model_type)
@@ -206,6 +212,13 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         print(f"Agent Name: {self.agent_name}")
         print(f"Version: 0.0.0+local.nram")
         print(f"Available Actions: {[action.__name__ for action in self.actions]}")
+        
+        if ml_data_path_env and ml_data_path_env.strip():
+            print(f"Data Path: {self.data_path}")
+        else:
+            print("Data Path: Not configured (will be set per request)")
+            print("ℹ️  ML_DATA_PATH not set - agent will use data paths from individual requests")
+        
         print("=" * 80)
         print("✅ ML Scikit-Learn Agent is ready for machine learning tasks!")
         print("🔍 Agent should be available in SAM as 'ml_scikit_learn'")

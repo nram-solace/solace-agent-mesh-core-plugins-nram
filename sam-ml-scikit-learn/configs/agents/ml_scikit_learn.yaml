@@ -40,9 +40,6 @@ flows:
         component_config:
           agent_name: ml_scikit_learn
           data_source: ${ML_DATA_SOURCE, csv}
-          data_path: ${ML_DATA_PATH}
-          target_column: ${ML_TARGET_COLUMN}
-          feature_columns: ${ML_FEATURE_COLUMNS}
           test_size: ${ML_TEST_SIZE, 0.2}
           random_state: ${ML_RANDOM_STATE, 42}
           model_storage_path: ${ML_MODEL_STORAGE_PATH, ./models}
