@@ -1,0 +1,72 @@
+# Configuration file for the ML Scikit-Learn agent that provides:
+# - Exploratory Data Analysis (EDA)
+# - Regression and Classification
+# - Outlier Detection
+# - Model Persistence and Visualization
+
+---
+log:
+  stdout_log_level: INFO
+  log_file_level: INFO
+  log_file: solace_ai_connector.log
+
+shared_config:
+  - broker_config: &broker_connection
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL}
+      broker_username: ${SOLACE_BROKER_USERNAME}
+      broker_password: ${SOLACE_BROKER_PASSWORD}
+      broker_vpn: ${SOLACE_BROKER_VPN}
+
+flows:
+  # Flow to handle action requests
+  - name: ml_scikit_learn_action_request_processor
+    components:
+      # Input from a Solace broker
+      - component_name: broker_input
+        component_module: broker_input
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_ml_scikit_learn_action_request
+          broker_subscriptions:
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/ml_scikit_learn/>
+              qos: 1
+
+      # Custom component to process the action request
+      - component_name: action_request_processor
+        component_module: sam_ml_scikit_learn.src.agents.ml_scikit_learn.ml_scikit_learn_agent_component
+        component_config:
+          agent_name: ml_scikit_learn
+          data_source: ${ML_DATA_SOURCE, csv}
+          data_path: ${ML_DATA_PATH}
+          target_column: ${ML_TARGET_COLUMN}
+          feature_columns: ${ML_FEATURE_COLUMNS}
+          test_size: ${ML_TEST_SIZE, 0.2}
+          random_state: ${ML_RANDOM_STATE, 42}
+          model_storage_path: ${ML_MODEL_STORAGE_PATH, ./models}
+          visualization_output_path: ${ML_VISUALIZATION_OUTPUT_PATH, ./visualizations}
+          max_memory_usage: ${ML_MAX_MEMORY_USAGE, 1024}
+          parallel_jobs: ${ML_PARALLEL_JOBS, -1}
+          default_model_type: ${ML_DEFAULT_MODEL_TYPE, random_forest}
+          enable_caching: ${ML_ENABLE_CACHING, true}
+        broker_request_response:
+          enabled: true
+          broker_config: *broker_connection
+          request_expiry_ms: 120000
+          payload_encoding: utf-8
+          payload_format: json
+          response_topic_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+          response_queue_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+        component_input:
+          source_expression: input.payload
+
+      # Output to a Solace broker
+      - component_name: broker_output
+        component_module: broker_output
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          copy_user_properties: true 
