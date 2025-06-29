@@ -8,7 +8,7 @@
 log:
   stdout_log_level: INFO
   log_file_level: INFO
-  log_file: solace_ai_connector.log
+  log_file: logs/sam-ml-scikit-learn.log
 
 shared_config:
   - broker_config: &broker_connection
@@ -36,7 +36,7 @@ flows:
 
       # Custom component to process the action request
       - component_name: action_request_processor
-        component_module: sam_ml_scikit_learn.src.agents.ml_scikit_learn.ml_scikit_learn_agent_component
+        component_module: {{MODULE_DIRECTORY}}.agents.ml_scikit_learn.ml_scikit_learn_agent_component
         component_config:
           agent_name: ml_scikit_learn
           data_source: ${ML_DATA_SOURCE, csv}
