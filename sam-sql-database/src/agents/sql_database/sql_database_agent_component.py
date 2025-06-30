@@ -20,7 +20,10 @@ from .services.database_service import (
 from .actions.search_query import SearchQuery
 
 # Import version
-from ... import __version__
+try:
+    from ... import __version__
+except ImportError:
+    __version__ = "0.0.0+local.unknown"  # Fallback version
 
 
 info = copy.deepcopy(agent_info)

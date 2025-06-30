@@ -21,7 +21,10 @@ from .actions.model_persistence import ModelPersistence
 from .services.ml_service import MLService
 
 # Import version
-from ... import __version__
+try:
+    from ... import __version__
+except ImportError:
+    __version__ = "0.0.3+local.unknown"  # Fallback version
 
 
 info = copy.deepcopy(agent_info)
