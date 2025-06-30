@@ -20,6 +20,9 @@ from .actions.outlier_detection import OutlierDetection
 from .actions.model_persistence import ModelPersistence
 from .services.ml_service import MLService
 
+# Import version
+from .. import __version__
+
 
 info = copy.deepcopy(agent_info)
 info.update(
@@ -180,10 +183,9 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
 
         # Log prominent startup message
         log.info("=" * 80)
-        log.info("🚀 ML SCIKIT-LEARN AGENT STARTED SUCCESSFULLY")
+        log.info("🚀 ML SCIKIT-LEARN AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
         log.info("Agent Name: %s", self.agent_name)
-        log.info("Version: %s", "0.0.0+local.nram")
         log.info("Available Actions: %s", [action.__name__ for action in self.actions])
         log.info("Data Source: %s", self.data_source)
         
@@ -207,10 +209,9 @@ class MLScikitLearnAgentComponent(BaseAgentComponent):
         
         # Also print to stdout for immediate visibility
         print("=" * 80)
-        print("🚀 ML SCIKIT-LEARN AGENT STARTED SUCCESSFULLY")
+        print(f"🚀 ML SCIKIT-LEARN AGENT (v{__version__}) STARTED SUCCESSFULLY")
         print("=" * 80)
         print(f"Agent Name: {self.agent_name}")
-        print(f"Version: 0.0.0+local.nram")
         print(f"Available Actions: {[action.__name__ for action in self.actions]}")
         
         if ml_data_path_env and ml_data_path_env.strip():

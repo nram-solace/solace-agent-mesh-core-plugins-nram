@@ -19,6 +19,9 @@ from .services.database_service import (
 )
 from .actions.search_query import SearchQuery
 
+# Import version
+from .. import __version__
+
 
 info = copy.deepcopy(agent_info)
 info.update(
@@ -242,7 +245,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
 
         # Log prominent startup message
         log.info("=" * 80)
-        log.info("🗄️  SQL DATABASE AGENT STARTED SUCCESSFULLY")
+        log.info("🗄️  SQL DATABASE AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
         log.info("Agent Name: %s", self.agent_name)
         log.info("Database Type: %s", self.db_type)
@@ -263,7 +266,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         
         # Also print to stdout for immediate visibility
         print("=" * 80)
-        print("🗄️  SQL DATABASE AGENT STARTED SUCCESSFULLY")
+        print(f"🗄️  SQL DATABASE AGENT (v{__version__}) STARTED SUCCESSFULLY")
         print("=" * 80)
         print(f"Agent Name: {self.agent_name}")
         print(f"Database Type: {self.db_type}")
