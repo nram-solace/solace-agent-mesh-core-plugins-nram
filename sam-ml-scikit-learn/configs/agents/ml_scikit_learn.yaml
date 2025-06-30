@@ -20,7 +20,7 @@ shared_config:
 
 flows:
   # Flow to handle action requests
-  - name: ml_scikit_learn_action_request_processor
+  - name: {{SNAKE_CASE_NAME}}_action_request_processor
     components:
       # Input from a Solace broker
       - component_name: broker_input
@@ -29,25 +29,25 @@ flows:
           <<: *broker_connection
           payload_encoding: utf-8
           payload_format: json
-          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_ml_scikit_learn_action_request
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_{{SNAKE_CASE_NAME}}_action_request
           broker_subscriptions:
-            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/ml_scikit_learn/>
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/{{SNAKE_CASE_NAME}}/>
               qos: 1
 
       # Custom component to process the action request
       - component_name: action_request_processor
         component_module: {{MODULE_DIRECTORY}}.agents.ml_scikit_learn.ml_scikit_learn_agent_component
         component_config:
-          agent_name: ml_scikit_learn
-          data_source: ${ML_DATA_SOURCE, csv}
-          test_size: ${ML_TEST_SIZE, 0.2}
-          random_state: ${ML_RANDOM_STATE, 42}
-          model_storage_path: ${ML_MODEL_STORAGE_PATH, ./models}
-          visualization_output_path: ${ML_VISUALIZATION_OUTPUT_PATH, ./visualizations}
-          max_memory_usage: ${ML_MAX_MEMORY_USAGE, 1024}
-          parallel_jobs: ${ML_PARALLEL_JOBS, -1}
-          default_model_type: ${ML_DEFAULT_MODEL_TYPE, random_forest}
-          enable_caching: ${ML_ENABLE_CACHING, true}
+          agent_name: {{SNAKE_CASE_NAME}}
+          data_source: ${{{SNAKE_UPPER_CASE_NAME}}_DATA_SOURCE, csv}
+          test_size: ${{{SNAKE_UPPER_CASE_NAME}}_TEST_SIZE, 0.2}
+          random_state: ${{{SNAKE_UPPER_CASE_NAME}}_RANDOM_STATE, 42}
+          model_storage_path: ${{{SNAKE_UPPER_CASE_NAME}}_MODEL_STORAGE_PATH, ./models}
+          visualization_output_path: ${{{SNAKE_UPPER_CASE_NAME}}_VISUALIZATION_OUTPUT_PATH, ./visualizations}
+          max_memory_usage: ${{{SNAKE_UPPER_CASE_NAME}}_MAX_MEMORY_USAGE, 1024}
+          parallel_jobs: ${{{SNAKE_UPPER_CASE_NAME}}_PARALLEL_JOBS, -1}
+          default_model_type: ${{{SNAKE_UPPER_CASE_NAME}}_DEFAULT_MODEL_TYPE, random_forest}
+          enable_caching: ${{{SNAKE_UPPER_CASE_NAME}}_ENABLE_CACHING, true}
         broker_request_response:
           enabled: true
           broker_config: *broker_connection
