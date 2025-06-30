@@ -20,7 +20,7 @@ from .services.database_service import (
 from .actions.search_query import SearchQuery
 
 # Import version
-from .. import __version__
+from ... import __version__
 
 
 info = copy.deepcopy(agent_info)

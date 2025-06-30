@@ -21,7 +21,7 @@ from .actions.model_persistence import ModelPersistence
 from .services.ml_service import MLService
 
 # Import version
-from .. import __version__
+from ... import __version__
 
 
 info = copy.deepcopy(agent_info)
