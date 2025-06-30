@@ -1,4 +1,4 @@
-solace-agent-mesh plugin remove sam-ml-agent --pip -u file:./sam-ml-scikit-learn || exit 1
+solace-agent-mesh plugin remove sam-ml-agent || exit 1
 pip uninstall sam_ml_scikit_learn || exit 2
 solace-agent-mesh plugin add sam-ml-agent --pip -u file:./sam-ml-scikit-learn || exit 3
 echo sam_ml_scikit_learn re-added.
