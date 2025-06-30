@@ -31,7 +31,7 @@ dependencies = [
 "solace-agent-mesh-plugin.yaml" = "sam_ml_scikit_learn/solace-agent-mesh-plugin.yaml"
 
 [tool.hatch.build.targets.wheel]
-packages = ["sam_ml_scikit_learn"]
+packages = ["src"]
 
 [tool.hatch.version]
 path = "src/__init__.py" 
