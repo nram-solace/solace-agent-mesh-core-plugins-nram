@@ -188,7 +188,7 @@ class DataService:
             if save_plot:
                 plot_path = os.path.join(self.output_directory, f"{viz_type}_plot.png")
                 plt.savefig(plot_path, dpi=150, bbox_inches='tight')
-                log.info("Plot saved to: %s", plot_path)
+                log.info("ml-pandas: Plot saved to: %s", plot_path)
             
             # Convert plot to base64 string
             buffer = io.BytesIO()
@@ -202,7 +202,7 @@ class DataService:
             
         except Exception as e:
             plt.close()
-            log.error("Error creating visualization: %s", str(e))
+            log.error("ml-pandas: Error creating visualization: %s", str(e))
             return f"Error creating {viz_type} visualization: {str(e)}"
 
     def save_results(self, results: Dict[str, Any], filename: str) -> str:
@@ -211,10 +211,10 @@ class DataService:
             filepath = os.path.join(self.output_directory, filename)
             with open(filepath, 'w') as f:
                 json.dump(results, f, indent=2, default=str)
-            log.info("Results saved to: %s", filepath)
+            log.info("ml-pandas: Results saved to: %s", filepath)
             return filepath
         except Exception as e:
-            log.error("Error saving results: %s", str(e))
+            log.error("ml-pandas: Error saving results: %s", str(e))
             return f"Error saving results: {str(e)}"
 
     def clean_data_for_json(self, obj: Any) -> Any:

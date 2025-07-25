@@ -102,23 +102,23 @@ class DataAnalysisAction(Action):
 
             # Perform the requested analysis
             if analysis_type == "summary" or analysis_type == "all":
-                log.info("Performing data summary analysis")
+                log.info("ml-pandas: Performing data summary analysis")
                 result["summary"] = data_service.get_data_summary(data)
 
             if analysis_type == "preview" or analysis_type == "all":
-                log.info("Generating data preview")
+                log.info("ml-pandas: Generating data preview")
                 result["preview"] = data_service.get_data_preview(data, n_rows)
 
             if analysis_type == "missing_data" or analysis_type == "all":
-                log.info("Analyzing missing data")
+                log.info("ml-pandas: Analyzing missing data")
                 result["missing_data_analysis"] = data_service.analyze_missing_data(data)
 
             if analysis_type == "correlation" or analysis_type == "all":
-                log.info("Performing correlation analysis")
+                log.info("ml-pandas: Performing correlation analysis")
                 result["correlation_analysis"] = data_service.get_correlation_analysis(data)
 
             if analysis_type == "visualization" or analysis_type == "all":
-                log.info("Creating visualization: %s", visualization_type)
+                log.info("ml-pandas: Creating visualization: %s", visualization_type)
                 plot_base64 = data_service.create_visualization(
                     data, visualization_type, columns
                 )
@@ -142,7 +142,7 @@ class DataAnalysisAction(Action):
             )
 
         except Exception as e:
-            log.error("Error in data analysis action: %s", str(e))
+            log.error("ml-pandas: Error in data analysis action: %s", str(e))
             return ActionResponse(
                 message=f"Failed to perform data analysis: {str(e)}",
                 error_info=ErrorInfo(f"Failed to perform data analysis: {str(e)}")

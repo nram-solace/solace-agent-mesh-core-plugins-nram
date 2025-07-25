@@ -78,11 +78,11 @@ class DataLoaderAction(Action):
             description = request_data.get("description", "")
 
             # Log the request for debugging
-            log.info("Data loader action called with load_type: %s", load_type)
+            log.info("ml-pandas: Data loader action called with load_type: %s", load_type)
             if load_type == "json_data":
-                log.info("JSON data length: %d characters", len(json_data) if json_data else 0)
-                log.info("Source agent: %s", source_agent)
-                log.info("Description: %s", description)
+                log.info("ml-pandas: JSON data length: %d characters", len(json_data) if json_data else 0)
+                log.info("ml-pandas: Source agent: %s", source_agent)
+                log.info("ml-pandas: Description: %s", description)
 
             # Validate load_type
             valid_load_types = ["file", "agent_data", "json_data"]
@@ -183,7 +183,7 @@ class DataLoaderAction(Action):
             )
 
         except Exception as e:
-            log.error("Error in data loader action: %s", str(e))
+            log.error("ml-pandas: Error in data loader action: %s", str(e))
             return ActionResponse(
                 message=f"Failed to load data: {str(e)}",
                 error_info=ErrorInfo(f"Failed to load data: {str(e)}")
