@@ -10,6 +10,28 @@ from sqlalchemy import inspect, text
 
 from solace_ai_connector.common.log import log
 
+""""
+FIXME! SQLITE IS NOT THREAD SAFE!
+
+Its broken now.
+
+Loading works, but query is broken.
+
+Action request 784bf3c3-d197-4106-8713-fc6cdc264e99 is complete
+Exception closing connection <sqlite3.Connection object at 0x70ca3b7dd030>
+Traceback (most recent call last):
+  File "/home/azureuser/sam/0.2.4/ccgoldminer-v3/venv/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 376, in _close_connection
+    self._dialect.do_close(connection)
+  File "/home/azureuser/sam/0.2.4/ccgoldminer-v3/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 712, in do_close
+    dbapi_connection.close()
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 124017314214016 and this is thread id 124012294350528.
+Database connection error: (sqlite3.OperationalError) no such table: results
+[SQL:
+SELECT * FROM results LIMIT 5;
+]
+
+"""
+
 from .csv_import_service import CsvImportService
 
 

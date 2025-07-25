@@ -42,6 +42,9 @@ flows:
           embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
           agent_name: {{SNAKE_CASE_NAME}}
           data_source: ${{{SNAKE_UPPER_CASE_NAME}}_DATA_SOURCE, csv}
+          data_path: ${{{SNAKE_UPPER_CASE_NAME}}_DATA_PATH}
+          target_column: ${{{SNAKE_UPPER_CASE_NAME}}_TARGET_COLUMN}
+          feature_columns: ${{{SNAKE_UPPER_CASE_NAME}}_FEATURE_COLUMNS}
           test_size: ${{{SNAKE_UPPER_CASE_NAME}}_TEST_SIZE, 0.2}
           random_state: ${{{SNAKE_UPPER_CASE_NAME}}_RANDOM_STATE, 42}
           model_storage_path: ${{{SNAKE_UPPER_CASE_NAME}}_MODEL_STORAGE_PATH, ./models}
