@@ -126,6 +126,7 @@ class MLPandasAgentComponent(BaseAgentComponent):
         self.max_rows_display = self.get_config("max_rows_display", 100)
 
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
+        self.action_list.set_agent(self)
         module_info["agent_name"] = self.agent_name
 
         # Validate data file exists
