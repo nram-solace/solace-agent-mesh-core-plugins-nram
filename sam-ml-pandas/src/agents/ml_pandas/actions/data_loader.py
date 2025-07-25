@@ -179,8 +179,7 @@ class DataLoaderAction(Action):
             response_text = self._format_response(clean_result, saved_path)
 
             return ActionResponse(
-                message=response_text,
-                response_data=clean_result
+                message=response_text
             )
 
         except Exception as e:

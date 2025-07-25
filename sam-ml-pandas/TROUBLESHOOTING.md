@@ -56,8 +56,7 @@ This error suggests there's an XML/JSON parsing issue in the response format.
    ```python
    # Ensure proper ActionResponse format
    return ActionResponse(
-       message="Success message",
-       response_data=clean_result  # Must be JSON serializable
+       message="Success message"
    )
    ```
 
