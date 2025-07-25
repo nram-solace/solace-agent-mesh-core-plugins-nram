@@ -1,6 +1,6 @@
 """Data summarizer action for quick data summaries in collaborative workflows."""
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 import pandas as pd
 import numpy as np
 
@@ -18,49 +18,46 @@ class DataSummarizerAction(Action):
             {
                 "name": "summarize_data",
                 "prompt_directive": (
-                    "Provide quick, focused summaries of data received from other agents. "
-                    "This action is designed for collaborative workflows where you receive data "
-                    "from SQL agents, database agents, or other sources and need to summarize it quickly. "
-                    "Examples: 'Summarize sales data', 'Get key metrics from customer data'"
+                    "Generate quick summaries of loaded data for collaborative workflows. "
+                    "This action provides various summary types including basic statistics, "
+                    "detailed analysis, grouped summaries, and simple record counts. "
+                    "Useful for getting quick insights without displaying all the data."
                 ),
                 "params": [
                     {
                         "name": "summary_type",
                         "desc": "Type of summary to generate",
                         "type": "string",
-                        "required": True,
-                        "enum": ["overview", "key_metrics", "trends", "comparison", "custom"],
+                        "required": False,
+                        "enum": ["basic", "detailed", "grouped", "count"],
+                        "default": "basic",
                     },
                     {
-                        "name": "focus_columns",
-                        "desc": "Comma-separated list of columns to focus on (empty for all)",
-                        "type": "string",
+                        "name": "columns",
+                        "desc": "List of columns to analyze (for detailed and grouped summaries)",
+                        "type": "array",
                         "required": False,
+                        "items": {"type": "string"},
                     },
                     {
                         "name": "group_by",
-                        "desc": "Column to group by for comparison summaries",
-                        "type": "string",
+                        "desc": "List of columns to group by (for grouped summaries)",
+                        "type": "array",
+                        "required": False,
+                        "items": {"type": "string"},
+                    },
+                    {
+                        "name": "filters",
+                        "desc": "Filters to apply before summarization",
+                        "type": "object",
                         "required": False,
                     },
                     {
-                        "name": "time_column",
-                        "desc": "Column containing time/date data for trend analysis",
-                        "type": "string",
+                        "name": "max_rows",
+                        "desc": "Maximum number of rows to display in summaries",
+                        "type": "integer",
                         "required": False,
-                    },
-                    {
-                        "name": "custom_metrics",
-                        "desc": "Comma-separated list of custom metrics to calculate",
-                        "type": "string",
-                        "required": False,
-                    },
-                    {
-                        "name": "include_visualization",
-                        "desc": "Whether to include a simple visualization",
-                        "type": "boolean",
-                        "required": False,
-                        "default": False,
+                        "default": 10,
                     },
                 ],
             }
@@ -70,94 +67,56 @@ class DataSummarizerAction(Action):
         """Execute the data summarizer action."""
         try:
             # Get parameters
-            summary_type = request_data.get("summary_type")
-            focus_columns_str = request_data.get("focus_columns", "")
-            group_by = request_data.get("group_by", "")
-            time_column = request_data.get("time_column", "")
-            custom_metrics_str = request_data.get("custom_metrics", "")
-            include_visualization = request_data.get("include_visualization", False)
+            summary_type = request_data.get("summary_type", "basic")
+            columns = request_data.get("columns", [])
+            group_by = request_data.get("group_by", [])
+            filters = request_data.get("filters", {})
+            max_rows = request_data.get("max_rows", 10)
 
-            # Validate summary_type
-            valid_summary_types = ["overview", "key_metrics", "trends", "comparison", "custom"]
-            if summary_type not in valid_summary_types:
-                return ActionResponse(
-                    message=f"Invalid summary_type '{summary_type}'. Valid types are: {', '.join(valid_summary_types)}",
-                    error_info=ErrorInfo(f"Invalid summary_type '{summary_type}'. Valid types are: {', '.join(valid_summary_types)}")
-                )
-
-            # Get the agent and its data
+            # Get the agent and data
             agent = self.get_agent()
             
             try:
-                data = agent.get_working_data()
+                data = agent.get_working_data().copy()
             except ValueError as e:
                 return ActionResponse(
-                    message=str(e),
+                    message=f"No data available for summarization. {str(e)}",
                     error_info=ErrorInfo(str(e))
                 )
-            
-            data_service = agent.get_data_service()
 
-            # Parse focus columns
-            focus_columns = [col.strip() for col in focus_columns_str.split(",") if col.strip()] if focus_columns_str else None
+            log.info("ml-pandas: Data summarizer called with summary_type: %s, data shape: %s", 
+                    summary_type, data.shape)
 
-            # Parse custom metrics
-            custom_metrics = [metric.strip() for metric in custom_metrics_str.split(",") if metric.strip()] if custom_metrics_str else None
+            # Apply filters if provided
+            if filters:
+                data = self._apply_filters(data, filters)
 
-            # Validate columns if specified
-            if focus_columns:
-                missing_cols = [col for col in focus_columns if col not in data.columns]
-                if missing_cols:
-                    return ActionResponse(
-                        message=f"Focus columns not found in dataset: {missing_cols}",
-                        error_info=ErrorInfo(f"Focus columns not found in dataset: {missing_cols}")
-                    )
-                # Filter data to focus columns
-                data = data[focus_columns]
+            # Handle different summary types
+            if summary_type == "count":
+                # Just return the record count
+                record_count = len(data)
+                response_text = f"**Record Count**: {record_count:,} records"
+                if filters:
+                    response_text += f"\n\n**Applied Filters**: {filters}"
+                
+                return ActionResponse(message=response_text)
 
-            # Generate summary based on type
-            if summary_type == "overview":
-                result = self._generate_overview_summary(data, agent)
-            elif summary_type == "key_metrics":
-                result = self._generate_key_metrics_summary(data, agent)
-            elif summary_type == "trends":
-                result = self._generate_trends_summary(data, time_column, agent)
-            elif summary_type == "comparison":
-                result = self._generate_comparison_summary(data, group_by, agent)
-            elif summary_type == "custom":
-                result = self._generate_custom_summary(data, custom_metrics, agent)
+            elif summary_type == "basic":
+                # Basic summary statistics
+                response_text = self._generate_basic_summary(data, max_rows)
+            elif summary_type == "detailed":
+                # Detailed analysis
+                response_text = self._generate_detailed_summary(data, columns, max_rows)
+            elif summary_type == "grouped":
+                # Grouped analysis
+                response_text = self._generate_grouped_summary(data, group_by, columns, max_rows)
             else:
                 return ActionResponse(
-                    message=f"Unsupported summary type: {summary_type}",
-                    error_info=ErrorInfo(f"Unsupported summary type: {summary_type}")
+                    message=f"Invalid summary_type '{summary_type}'. Valid types are: basic, detailed, grouped, count",
+                    error_info=ErrorInfo(f"Invalid summary_type: {summary_type}")
                 )
 
-            # Add visualization if requested
-            if include_visualization:
-                try:
-                    plot_base64 = data_service.create_visualization(
-                        data, "summary_chart", focus_columns
-                    )
-                    result["visualization"] = {
-                        "type": "summary_chart",
-                        "plot_base64": plot_base64
-                    }
-                except Exception as e:
-                    log.warning("Failed to create visualization: %s", str(e))
-                    result["visualization"] = {"error": str(e)}
-
-            # Clean result for JSON serialization
-            clean_result = data_service.clean_data_for_json(result)
-
-            # Save results to file
-            filename = f"data_summary_{summary_type}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.json"
-            saved_path = data_service.save_results(clean_result, filename)
-
-            response_text = self._format_response(clean_result, saved_path)
-
-            return ActionResponse(
-                message=response_text
-            )
+            return ActionResponse(message=response_text)
 
         except Exception as e:
             log.error("ml-pandas: Error in data summarizer action: %s", str(e))
@@ -165,6 +124,127 @@ class DataSummarizerAction(Action):
                 message=f"Failed to summarize data: {str(e)}",
                 error_info=ErrorInfo(f"Failed to summarize data: {str(e)}")
             )
+
+    def _apply_filters(self, data: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
+        """Apply filters to the data."""
+        filtered_data = data.copy()
+        
+        for column, filter_value in filters.items():
+            if column in filtered_data.columns:
+                if isinstance(filter_value, dict):
+                    # Handle range filters
+                    if 'min' in filter_value:
+                        filtered_data = filtered_data[filtered_data[column] >= filter_value['min']]
+                    if 'max' in filter_value:
+                        filtered_data = filtered_data[filtered_data[column] <= filter_value['max']]
+                    if 'values' in filter_value:
+                        filtered_data = filtered_data[filtered_data[column].isin(filter_value['values'])]
+                else:
+                    # Handle simple equality filter
+                    filtered_data = filtered_data[filtered_data[column] == filter_value]
+        
+        return filtered_data
+
+    def _generate_basic_summary(self, data: pd.DataFrame, max_rows: int) -> str:
+        """Generate basic summary statistics."""
+        summary_parts = []
+        
+        # Basic info
+        summary_parts.append(f"**Data Overview**")
+        summary_parts.append(f"- Total Records: {len(data):,}")
+        summary_parts.append(f"- Total Columns: {len(data.columns)}")
+        summary_parts.append(f"- Memory Usage: {data.memory_usage(deep=True).sum() / 1024:.1f} KB")
+        
+        # Column info
+        summary_parts.append(f"\n**Columns**: {', '.join(data.columns.tolist())}")
+        
+        # Data types
+        dtype_counts = data.dtypes.value_counts()
+        summary_parts.append(f"\n**Data Types**:")
+        for dtype, count in dtype_counts.items():
+            summary_parts.append(f"- {dtype}: {count} columns")
+        
+        # Sample data
+        if len(data) > 0:
+            summary_parts.append(f"\n**Sample Data** (first {min(max_rows, len(data))} rows):")
+            sample_data = data.head(max_rows)
+            summary_parts.append("```")
+            summary_parts.append(sample_data.to_string(index=False))
+            summary_parts.append("```")
+        
+        return "\n".join(summary_parts)
+
+    def _generate_detailed_summary(self, data: pd.DataFrame, columns: List[str], max_rows: int) -> str:
+        """Generate detailed summary with statistics."""
+        summary_parts = []
+        
+        # Use specified columns or all columns
+        cols_to_analyze = columns if columns else data.columns.tolist()
+        
+        summary_parts.append(f"**Detailed Summary**")
+        summary_parts.append(f"- Total Records: {len(data):,}")
+        summary_parts.append(f"- Columns Analyzed: {len(cols_to_analyze)}")
+        
+        for col in cols_to_analyze:
+            if col in data.columns:
+                summary_parts.append(f"\n**{col}**:")
+                
+                # Basic stats
+                if data[col].dtype in ['int64', 'float64']:
+                    summary_parts.append(f"- Type: Numeric")
+                    summary_parts.append(f"- Mean: {data[col].mean():.2f}")
+                    summary_parts.append(f"- Median: {data[col].median():.2f}")
+                    summary_parts.append(f"- Min: {data[col].min()}")
+                    summary_parts.append(f"- Max: {data[col].max()}")
+                    summary_parts.append(f"- Std Dev: {data[col].std():.2f}")
+                else:
+                    summary_parts.append(f"- Type: {data[col].dtype}")
+                    summary_parts.append(f"- Unique Values: {data[col].nunique()}")
+                    summary_parts.append(f"- Most Common: {data[col].mode().iloc[0] if not data[col].mode().empty else 'N/A'}")
+                
+                summary_parts.append(f"- Missing Values: {data[col].isnull().sum()}")
+        
+        return "\n".join(summary_parts)
+
+    def _generate_grouped_summary(self, data: pd.DataFrame, group_by: List[str], columns: List[str], max_rows: int) -> str:
+        """Generate grouped summary statistics."""
+        summary_parts = []
+        
+        if not group_by:
+            return "No group_by columns specified for grouped summary."
+        
+        # Validate group columns exist
+        missing_groups = [col for col in group_by if col not in data.columns]
+        if missing_groups:
+            return f"Group columns not found: {missing_groups}"
+        
+        summary_parts.append(f"**Grouped Summary**")
+        summary_parts.append(f"- Grouped by: {', '.join(group_by)}")
+        summary_parts.append(f"- Total Groups: {data.groupby(group_by).ngroups}")
+        
+        # Group statistics
+        grouped = data.groupby(group_by)
+        
+        # Count by group
+        group_counts = grouped.size().reset_index(name='count')
+        summary_parts.append(f"\n**Record Count by Group** (top {max_rows}):")
+        summary_parts.append("```")
+        summary_parts.append(group_counts.head(max_rows).to_string(index=False))
+        summary_parts.append("```")
+        
+        # If numeric columns specified, show their stats by group
+        if columns:
+            numeric_cols = [col for col in columns if col in data.columns and data[col].dtype in ['int64', 'float64']]
+            if numeric_cols:
+                summary_parts.append(f"\n**Numeric Statistics by Group** (columns: {', '.join(numeric_cols)}):")
+                for col in numeric_cols:
+                    group_stats = grouped[col].agg(['mean', 'min', 'max', 'count']).reset_index()
+                    summary_parts.append(f"\n**{col} Statistics**:")
+                    summary_parts.append("```")
+                    summary_parts.append(group_stats.head(max_rows).to_string(index=False))
+                    summary_parts.append("```")
+        
+        return "\n".join(summary_parts)
 
     def _generate_overview_summary(self, data: pd.DataFrame, agent) -> Dict[str, Any]:
         """Generate an overview summary of the data."""

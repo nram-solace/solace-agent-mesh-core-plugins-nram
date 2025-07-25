@@ -3,6 +3,7 @@
 from typing import Dict, Any
 import pandas as pd
 import os
+import json
 
 from solace_agent_mesh.common.action import Action
 from solace_agent_mesh.common.action_response import ActionResponse, ErrorInfo
@@ -103,6 +104,46 @@ class DataLoaderAction(Action):
                         error_info=ErrorInfo("file_path is required when load_type is 'file'")
                     )
 
+                # Validate that file_path is actually a file path, not data content
+                if ',' in file_path and '\n' in file_path:
+                    log.warning("ml-pandas: file_path appears to contain CSV data instead of a file path")
+                    
+                    # Try to convert the CSV data to JSON format
+                    try:
+                        csv_data = file_path.strip()
+                        lines = csv_data.split('\n')
+                        if len(lines) >= 2:
+                            headers = lines[0].split(',')
+                            records = []
+                            for line in lines[1:]:
+                                if line.strip():
+                                    values = line.split(',')
+                                    if len(values) == len(headers):
+                                        record = dict(zip(headers, values))
+                                        records.append(record)
+                            
+                            if records:
+                                json_data = json.dumps(records)
+                                log.info("ml-pandas: Converted CSV data to JSON format with %d records", len(records))
+                                return ActionResponse(
+                                    message=f"Detected CSV data in file_path parameter. Converted to JSON format with {len(records)} records. Please use load_type='json_data' and json_data parameter instead.",
+                                    error_info=ErrorInfo("file_path contains CSV data - use json_data parameter")
+                                )
+                    except Exception as e:
+                        log.debug("ml-pandas: Failed to convert CSV data to JSON: %s", str(e))
+                    
+                    return ActionResponse(
+                        message="The file_path parameter appears to contain CSV data instead of a file path. If you have CSV data, use load_type='json_data' and pass the data as json_data parameter.",
+                        error_info=ErrorInfo("file_path contains data content instead of file path")
+                    )
+
+                # Check if file exists
+                if not os.path.exists(file_path):
+                    return ActionResponse(
+                        message=f"File not found: {file_path}. Please provide a valid file path.",
+                        error_info=ErrorInfo(f"File not found: {file_path}")
+                    )
+
                 # Validate file format
                 valid_formats = ["csv", "json", "excel", "parquet"]
                 if file_format not in valid_formats:
@@ -110,6 +151,8 @@ class DataLoaderAction(Action):
                         message=f"Invalid file_format '{file_format}'. Valid formats are: {', '.join(valid_formats)}",
                         error_info=ErrorInfo(f"Invalid file_format '{file_format}'. Valid formats are: {', '.join(valid_formats)}")
                     )
+
+                log.info("ml-pandas: Loading data from file: %s (format: %s)", file_path, file_format)
 
                 # Load the data
                 data = agent.load_data_from_file(file_path, file_format)
