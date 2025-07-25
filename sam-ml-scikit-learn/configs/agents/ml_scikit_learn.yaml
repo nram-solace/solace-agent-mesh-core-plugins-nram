@@ -38,6 +38,8 @@ flows:
       - component_name: action_request_processor
         component_module: {{MODULE_DIRECTORY}}.agents.ml_scikit_learn.ml_scikit_learn_agent_component
         component_config:
+          llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
+          embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
           agent_name: {{SNAKE_CASE_NAME}}
           data_source: ${{{SNAKE_UPPER_CASE_NAME}}_DATA_SOURCE, csv}
           test_size: ${{{SNAKE_UPPER_CASE_NAME}}_TEST_SIZE, 0.2}
