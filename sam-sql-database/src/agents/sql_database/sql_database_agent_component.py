@@ -182,7 +182,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             try:
                 self.db_handler.import_csv_files(csv_files, csv_directories)
             except Exception as e:
-                log.error("Error importing CSV files: %s", str(e))
+                log.error("sql-db: Error importing CSV files: %s", str(e))
 
         # Get schema information
         if self.auto_detect_schema:
@@ -248,23 +248,23 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
 
         # Log prominent startup message
         log.info("=" * 80)
-        log.info("🗄️  SQL DATABASE AGENT (v%s) STARTED SUCCESSFULLY", __version__)
+        log.info("sql-db: 🗄️  SQL DATABASE AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
-        log.info("Agent Name: %s", self.agent_name)
-        log.info("Database Type: %s", self.db_type)
-        log.info("Database Name: %s", self.get_config("database"))
+        log.info("sql-db: Agent Name: %s", self.agent_name)
+        log.info("sql-db: Database Type: %s", self.db_type)
+        log.info("sql-db: Database Name: %s", self.get_config("database"))
         if self.get_config("host"):
-            log.info("Database Host: %s", self.get_config("host"))
+            log.info("sql-db: Database Host: %s", self.get_config("host"))
         if self.get_config("port"):
-            log.info("Database Port: %s", self.get_config("port"))
-        log.info("Available Actions: %s", [action.__name__ for action in self.actions])
-        log.info("Auto Detect Schema: %s", self.auto_detect_schema)
-        log.info("Query Timeout: %s seconds", self.query_timeout)
+            log.info("sql-db: Database Port: %s", self.get_config("port"))
+        log.info("sql-db: Available Actions: %s", [action.__name__ for action in self.actions])
+        log.info("sql-db: Auto Detect Schema: %s", self.auto_detect_schema)
+        log.info("sql-db: Query Timeout: %s seconds", self.query_timeout)
         if self.database_purpose:
-            log.info("Database Purpose: %s", self.database_purpose)
+            log.info("sql-db: Database Purpose: %s", self.database_purpose)
         log.info("=" * 80)
-        log.info("✅ SQL Database Agent is ready for database operations!")
-        log.info("🔍 Agent should be available in SAM as 'sql_database'")
+        log.info("sql-db: ✅ SQL Database Agent is ready for database operations!")
+        log.info("sql-db: 🔍 Agent should be available in SAM as 'sql_database'")
         log.info("=" * 80)
         
         # Also print to stdout for immediate visibility

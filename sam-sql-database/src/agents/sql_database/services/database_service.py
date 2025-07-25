@@ -83,7 +83,7 @@ class DatabaseService(ABC):
             connection = self.engine.connect()
             yield connection
         except SQLAlchemyError as e:
-            log.error("Database connection error: %s", str(e), exc_info=True)
+            log.error("sql-db: Database connection error: %s", str(e), exc_info=True)
             raise
         finally:
             connection.close()
@@ -105,7 +105,7 @@ class DatabaseService(ABC):
                 result = conn.execute(text(query))
                 return list(result.mappings())
         except SQLAlchemyError as e:
-            log.error("Query execution error: %s", str(e), exc_info=True)
+            log.error("sql-db: Query execution error: %s", str(e), exc_info=True)
             raise
 
     def get_tables(self) -> List[str]:
@@ -136,7 +136,7 @@ class DatabaseService(ABC):
                 supported_columns.append(column)
             else:
                 # Log that we're skipping unsupported column types
-                log.debug(f"Skipping column '{column['name']}' with unsupported type '{column['type']}' for schema detection")
+                log.debug(f"sql-db: Skipping column '{column['name']}' with unsupported type '{column['type']}' for schema detection")
         
         return supported_columns
 

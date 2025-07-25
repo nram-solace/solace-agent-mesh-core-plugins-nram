@@ -54,7 +54,7 @@ class CsvImportService:
             try:
                 self._import_csv_file(csv_file)
             except Exception as e:
-                log.error("Error importing CSV file %s: %s", csv_file, str(e))
+                log.error("sql-db: Error importing CSV file %s: %s", csv_file, str(e))
 
 
     @staticmethod
@@ -98,7 +98,7 @@ class CsvImportService:
 
         # Check if table already exists
         if inspect(self.engine).has_table(table_name):
-            log.info("Table %s already exists, skipping import", table_name)
+            log.info("sql-db: Table %s already exists, skipping import", table_name)
             return
 
         try:
@@ -147,7 +147,7 @@ class CsvImportService:
                 
                 for row in reader:
                     if len(row) != len(headers):
-                        log.warning("Skipping row with incorrect number of columns in %s", 
+                        log.warning("sql-db: Skipping row with incorrect number of columns in %s", 
                                   file_path)
                         continue
 
@@ -164,7 +164,7 @@ class CsvImportService:
                     self._insert_chunk(table_name, chunk)
 
         except Exception as e:
-            log.error("Error processing CSV file %s: %s", file_path, str(e))
+            log.error("sql-db: Error processing CSV file %s: %s", file_path, str(e))
             raise
 
     def _insert_chunk(self, table_name: str, chunk: List[Dict[str, Any]]) -> None:
@@ -188,5 +188,5 @@ class CsvImportService:
                 # Execute with chunk of rows
                 conn.execute(insert_stmt, chunk)
         except Exception as e:
-            log.error("Error inserting chunk into %s: %s", table_name, str(e))
+            log.error("sql-db: Error inserting chunk into %s: %s", table_name, str(e))
             raise
