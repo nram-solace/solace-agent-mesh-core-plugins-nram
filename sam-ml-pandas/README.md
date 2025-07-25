@@ -1,8 +1,27 @@
 # SAM ML Pandas Plugin
 
-A simple machine learning and exploratory data analysis (EDA) agent for Solace Agent Mesh using pandas and scikit-learn.
+A collaborative machine learning and exploratory data analysis (EDA) agent for Solace Agent Mesh using pandas and scikit-learn. **Designed for multi-agent workflows!**
 
 ## Features
+
+- **Collaborative Data Loading**
+  - Receive data from other agents (SQL, database, RAG, etc.)
+  - Load data from files (CSV, JSON, Excel, Parquet)
+  - Support for JSON data transfer between agents
+  - No canned or generated data - works with real data from other agents
+
+- **Quick Data Summarization**
+  - Fast summaries for collaborative workflows
+  - Key metrics extraction
+  - Trend analysis
+  - Comparison summaries
+  - Custom metric calculations
+
+- **Data Querying and Filtering**
+  - Filter data using pandas query syntax
+  - Select specific columns
+  - Perform aggregations and grouping
+  - Sort and limit results
 
 - **Exploratory Data Analysis (EDA)**
   - Data summary statistics
@@ -34,7 +53,7 @@ solace-agent-mesh add agent my_ml_agent --copy-from sam_ml_pandas:ml_pandas
 Configure the agent using environment variables. For an agent named `my_ml_agent`:
 
 ```bash
-# Required: Path to your data file
+# Optional: Path to default data file (can be omitted for collaborative usage)
 export MY_ML_AGENT_DATA_FILE="/path/to/your/data.csv"
 
 # Optional: Data file format (default: csv)
@@ -57,9 +76,90 @@ export MY_ML_AGENT_OUTPUT_DIRECTORY="./ml_results"
 
 # Optional: Maximum rows to display in results (default: 100)
 export MY_ML_AGENT_MAX_ROWS_DISPLAY="50"
+
+# Optional: Enable collaborative mode (default: true)
+export MY_ML_AGENT_COLLABORATIVE_MODE="true"
 ```
 
+## Collaborative Workflows
+
+This agent is designed to work with other agents in collaborative workflows:
+
+### Example: SQL Agent + ML Pandas Agent
+
+1. **SQL Agent gets data:**
+   ```
+   "Get sales data for last 3 months from NY region"
+   ```
+
+2. **ML Pandas Agent receives and summarizes:**
+   ```
+   "Load data from SQL agent and summarize sales"
+   ```
+
+3. **ML Pandas Agent analyzes:**
+   ```
+   "Perform detailed analysis on the sales data"
+   ```
+
+### Example: Database Agent + ML Pandas Agent
+
+1. **MongoDB Agent queries data:**
+   ```
+   "Query customer data from MongoDB collection"
+   ```
+
+2. **ML Pandas Agent processes:**
+   ```
+   "Load customer data and find patterns"
+   ```
+
 ## Usage
+
+### Data Loading Actions
+
+1. **Receive Data from Other Agents:**
+   ```
+   "Load data from SQL agent results"
+   "Receive customer data from database agent"
+   ```
+
+2. **Load Data from File:**
+   ```
+   "Load data from /path/to/sales_data.csv"
+   "Load Excel file from /path/to/data.xlsx"
+   ```
+
+### Data Summarization Actions
+
+1. **Quick Summaries** - For collaborative workflows:
+   ```
+   "Summarize the sales data from SQL agent"
+   "Get key metrics from customer data"
+   "Show trends in the data"
+   ```
+
+2. **Focused Analysis:**
+   ```
+   "Compare sales by region"
+   "Analyze trends over time"
+   "Calculate custom metrics"
+   ```
+
+### Data Querying Actions
+
+1. **Filter Data** - Use pandas query syntax:
+   ```
+   "Get sales data for NY region from last 3 years"
+   "Show data where total_sales > 1000 and year >= 2022"
+   "Filter by region in ['NY', 'CA']"
+   ```
+
+2. **Aggregate Data:**
+   ```
+   "Summarize sales by region"
+   "Get summary statistics for filtered data"
+   ```
 
 ### Data Analysis Actions
 
@@ -73,17 +173,17 @@ export MY_ML_AGENT_MAX_ROWS_DISPLAY="50"
    "Show me a summary of the data"
    ```
 
-3. **Missing Data Analysis**:
+3. **Missing Data Analysis:**
    ```
    "Analyze missing values in the dataset"  
    ```
 
-4. **Correlation Analysis**:
+4. **Correlation Analysis:**
    ```
    "Show correlations between numerical columns"
    ```
 
-5. **Data Visualization**:
+5. **Data Visualization:**
    ```
    "Create a histogram visualization"
    "Generate a correlation heatmap"
@@ -97,19 +197,19 @@ export MY_ML_AGENT_MAX_ROWS_DISPLAY="50"
    "Run machine learning on the target column"
    ```
 
-2. **Classification**:
+2. **Classification:**
    ```
    "Perform classification using random forest"
    "Train a logistic regression model"
    ```
 
-3. **Regression**:
+3. **Regression:**
    ```
    "Build a regression model to predict the target"
    "Use linear regression for prediction"
    ```
 
-4. **Custom Features**:
+4. **Custom Features:**
    ```
    "Train a model using columns: feature1,feature2,feature3"
    ```

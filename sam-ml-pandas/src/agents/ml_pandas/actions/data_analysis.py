@@ -76,7 +76,15 @@ class DataAnalysisAction(Action):
 
             # Get the agent and its data
             agent = self.get_agent()
-            data = agent.get_working_data()
+            
+            try:
+                data = agent.get_working_data()
+            except ValueError as e:
+                return ActionResponse(
+                    message=str(e),
+                    error_info=ErrorInfo(str(e))
+                )
+            
             data_service = agent.get_data_service()
 
             # Validate columns if specified

@@ -15,6 +15,9 @@ from solace_agent_mesh.agents.base_agent_component import (
 
 from .actions.data_analysis import DataAnalysisAction
 from .actions.simple_ml import SimpleMlAction
+from .actions.data_loader import DataLoaderAction
+from .actions.data_query import DataQueryAction
+from .actions.data_summarizer import DataSummarizerAction
 from .services.data_service import DataService
 
 # Import version
@@ -32,7 +35,7 @@ info.update(
     {
         "agent_name": "ml_pandas",
         "class_name": "MLPandasAgentComponent",
-        "description": "Simple ML and EDA agent using pandas for data analysis and basic machine learning",
+        "description": "Collaborative ML and EDA agent using pandas for data analysis and basic machine learning with multi-agent workflow support",
         "config_parameters": [
             {
                 "name": "agent_name",
@@ -42,8 +45,8 @@ info.update(
             },
             {
                 "name": "data_file",
-                "required": True,
-                "description": "Path to the data file",
+                "required": False,
+                "description": "Path to the default data file (optional - can receive data from other agents)",
                 "type": "string",
             },
             {
@@ -91,6 +94,13 @@ info.update(
                 "type": "integer",
                 "default": 100,
             },
+            {
+                "name": "collaborative_mode",
+                "required": False,
+                "description": "Enable collaborative mode for multi-agent workflows",
+                "type": "boolean",
+                "default": True,
+            },
         ],
     }
 )
@@ -100,7 +110,7 @@ class MLPandasAgentComponent(BaseAgentComponent):
     """Component for handling simple ML and EDA operations using pandas."""
 
     info = info
-    actions = [DataAnalysisAction, SimpleMlAction]
+    actions = [DataLoaderAction, DataQueryAction, DataAnalysisAction, SimpleMlAction, DataSummarizerAction]
 
     def __init__(self, module_info: Dict[str, Any] = None, **kwargs):
         """Initialize the ML Pandas agent component.
@@ -116,7 +126,7 @@ class MLPandasAgentComponent(BaseAgentComponent):
         super().__init__(module_info, **kwargs)
 
         self.agent_name = self.get_config("agent_name")
-        self.data_file = self.get_config("data_file")
+        self.data_file = self.get_config("data_file", "")  # Make optional
         self.data_file_format = self.get_config("data_file_format", "csv")
         self.data_file_columns = self.get_config("data_file_columns", "")
         self.target_column = self.get_config("target_column", "")
@@ -124,14 +134,11 @@ class MLPandasAgentComponent(BaseAgentComponent):
         self.numerical_columns = self.get_config("numerical_columns", "")
         self.output_directory = self.get_config("output_directory", "./ml_pandas_output")
         self.max_rows_display = self.get_config("max_rows_display", 100)
+        self.collaborative_mode = self.get_config("collaborative_mode", True)
 
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
         self.action_list.set_agent(self)
         module_info["agent_name"] = self.agent_name
-
-        # Validate data file exists
-        if not os.path.exists(self.data_file):
-            raise ValueError(f"Data file not found: {self.data_file}")
 
         # Initialize data service
         self.data_service = self._create_data_service()
@@ -139,8 +146,21 @@ class MLPandasAgentComponent(BaseAgentComponent):
         # Create output directory
         self._create_output_directory()
 
-        # Load and validate data
-        self.data = self._load_data()
+        # Initialize data storage
+        self.data = None
+        self.current_data_source = None
+        self.data_history = []  # Track data sources for collaborative workflows
+        
+        # Load default data if specified
+        if self.data_file and os.path.exists(self.data_file):
+            try:
+                self.data = self._load_data()
+                self.current_data_source = f"Default file: {self.data_file}"
+                self.data_history.append({"source": "file", "path": self.data_file, "shape": self.data.shape})
+                log.info("Loaded default data file: %s", self.data_file)
+            except Exception as e:
+                log.warning("Failed to load default data file: %s", str(e))
+                self.data = None
         
         # Parse column configurations
         self.selected_columns = self._parse_columns(self.data_file_columns)
@@ -156,9 +176,16 @@ class MLPandasAgentComponent(BaseAgentComponent):
         log.info("📊 ML PANDAS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
         log.info("Agent Name: %s", self.agent_name)
-        log.info("Data File: %s", self.data_file)
+        if self.data_file:
+            log.info("Default Data File: %s", self.data_file)
+        else:
+            log.info("Default Data File: None (collaborative mode enabled)")
         log.info("Data Format: %s", self.data_file_format)
-        log.info("Data Shape: %s", self.data.shape)
+        if self.data is not None:
+            log.info("Data Shape: %s", self.data.shape)
+        else:
+            log.info("Data Shape: No data loaded yet")
+        log.info("Collaborative Mode: %s", "Enabled" if self.collaborative_mode else "Disabled")
         log.info("Available Actions: %s", [action.__name__ for action in self.actions])
         if self.target_col:
             log.info("Target Column: %s", self.target_col)
@@ -166,8 +193,10 @@ class MLPandasAgentComponent(BaseAgentComponent):
             log.info("Selected Columns: %s", len(self.selected_columns))
         log.info("Output Directory: %s", self.output_directory)
         log.info("=" * 80)
-        log.info("✅ ML Pandas Agent is ready for data analysis!")
+        log.info("✅ ML Pandas Agent is ready for collaborative data analysis!")
         log.info("🔍 Agent should be available in SAM as 'ml_pandas'")
+        log.info("🤝 Use 'load_data' to receive data from other agents")
+        log.info("📊 Use 'summarize_data' for quick data summaries")
         log.info("=" * 80)
         
         # Also print to stdout for immediate visibility
@@ -175,12 +204,21 @@ class MLPandasAgentComponent(BaseAgentComponent):
         print(f"📊 ML PANDAS AGENT (v{__version__}) STARTED SUCCESSFULLY")
         print("=" * 80)
         print(f"Agent Name: {self.agent_name}")
-        print(f"Data File: {self.data_file}")
-        print(f"Data Shape: {self.data.shape}")
+        if self.data_file:
+            print(f"Default Data File: {self.data_file}")
+        else:
+            print("Default Data File: None (collaborative mode enabled)")
+        if self.data is not None:
+            print(f"Data Shape: {self.data.shape}")
+        else:
+            print("Data Shape: No data loaded yet")
+        print(f"Collaborative Mode: {'Enabled' if self.collaborative_mode else 'Disabled'}")
         print(f"Available Actions: {[action.__name__ for action in self.actions]}")
         print("=" * 80)
-        print("✅ ML Pandas Agent is ready for data analysis!")
+        print("✅ ML Pandas Agent is ready for collaborative data analysis!")
         print("🔍 Agent should be available in SAM as 'ml_pandas'")
+        print("🤝 Use 'load_data' to receive data from other agents")
+        print("📊 Use 'summarize_data' for quick data summaries")
         print("=" * 80)
 
     def _create_data_service(self) -> DataService:
@@ -225,24 +263,30 @@ class MLPandasAgentComponent(BaseAgentComponent):
 
     def _generate_agent_description(self):
         """Generate and store the agent description."""
-        description = f"ML Pandas agent for simple data analysis and machine learning.\n\n"
-        description += f"Data file: {self.data_file}\n"
-        description += f"Data shape: {self.data.shape[0]} rows, {self.data.shape[1]} columns\n"
-        description += f"Format: {self.data_file_format}\n"
+        description = f"ML Pandas agent for flexible data analysis and machine learning.\n\n"
         
-        if self.target_col:
-            description += f"Target column: {self.target_col}\n"
-        
-        if self.selected_columns:
-            description += f"Selected columns: {len(self.selected_columns)} columns\n"
-        else:
-            description += "Using all columns\n"
+        if self.data is not None:
+            description += f"Current data source: {self.current_data_source}\n"
+            description += f"Data shape: {self.data.shape[0]} rows, {self.data.shape[1]} columns\n"
+            description += f"Format: {self.data_file_format}\n"
+            
+            if self.target_col:
+                description += f"Target column: {self.target_col}\n"
+            
+            if self.selected_columns:
+                description += f"Selected columns: {len(self.selected_columns)} columns\n"
+            else:
+                description += "Using all columns\n"
 
-        # Add column info
-        column_list = self.data.columns.tolist()[:10]
-        description += f"\nAvailable columns: {', '.join(column_list)}"
-        if len(self.data.columns) > 10:
-            description += f" (and {len(self.data.columns) - 10} more)"
+            # Add column info
+            column_list = self.data.columns.tolist()[:10]
+            description += f"\nAvailable columns: {', '.join(column_list)}"
+            if len(self.data.columns) > 10:
+                description += f" (and {len(self.data.columns) - 10} more)"
+        else:
+            description += "No data currently loaded.\n"
+            description += "Use the 'load_data' action to load data from files or create sample data.\n"
+            description += "Use the 'query_data' action to filter and analyze data once loaded."
 
         self._agent_description = {
             "agent_name": self.agent_name,
@@ -265,8 +309,125 @@ class MLPandasAgentComponent(BaseAgentComponent):
 
     def get_working_data(self) -> pd.DataFrame:
         """Get the working dataset (selected columns if specified)."""
+        if self.data is None:
+            raise ValueError("No data loaded. Please use the 'load_data' action to load data first.")
+        
         if self.selected_columns:
             available_cols = [col for col in self.selected_columns if col in self.data.columns]
             if available_cols:
                 return self.data[available_cols]
         return self.data
+
+    def load_data_from_file(self, file_path: str, file_format: str = None) -> pd.DataFrame:
+        """Load data from a file dynamically."""
+        try:
+            if not os.path.exists(file_path):
+                raise ValueError(f"Data file not found: {file_path}")
+            
+            format_to_use = file_format or self.data_file_format
+            
+            if format_to_use.lower() == "csv":
+                data = pd.read_csv(file_path)
+            elif format_to_use.lower() == "json":
+                data = pd.read_json(file_path)
+            elif format_to_use.lower() in ["excel", "xlsx"]:
+                data = pd.read_excel(file_path)
+            elif format_to_use.lower() == "parquet":
+                data = pd.read_parquet(file_path)
+            else:
+                raise ValueError(f"Unsupported data format: {format_to_use}")
+            
+            self.data = data
+            self.current_data_source = f"File: {file_path}"
+            self.data_history.append({"source": "file", "path": file_path, "shape": data.shape})
+            log.info("Successfully loaded data from %s with shape: %s", file_path, data.shape)
+            return data
+        except Exception as e:
+            raise ValueError(f"Failed to load data from {file_path}: {str(e)}")
+
+    def receive_data_from_agent(self, data: pd.DataFrame, source_agent: str, description: str = None) -> pd.DataFrame:
+        """Receive data from another agent in collaborative workflows."""
+        try:
+            if not isinstance(data, pd.DataFrame):
+                raise ValueError("Data must be a pandas DataFrame")
+            
+            self.data = data
+            self.current_data_source = f"Agent: {source_agent}"
+            if description:
+                self.current_data_source += f" - {description}"
+            
+            self.data_history.append({
+                "source": "agent", 
+                "agent": source_agent, 
+                "description": description,
+                "shape": data.shape
+            })
+            
+            log.info("Successfully received data from agent %s with shape: %s", source_agent, data.shape)
+            return data
+        except Exception as e:
+            raise ValueError(f"Failed to receive data from agent {source_agent}: {str(e)}")
+
+    def receive_data_from_json(self, json_data: str, source_agent: str = None, description: str = None) -> pd.DataFrame:
+        """Receive data as JSON string from another agent or source."""
+        try:
+            import json
+            data_dict = json.loads(json_data)
+            
+            # Handle different JSON formats
+            if isinstance(data_dict, list):
+                # List of records
+                data = pd.DataFrame(data_dict)
+            elif isinstance(data_dict, dict):
+                if "data" in data_dict and isinstance(data_dict["data"], list):
+                    # {"data": [...]} format
+                    data = pd.DataFrame(data_dict["data"])
+                elif "records" in data_dict and isinstance(data_dict["records"], list):
+                    # {"records": [...]} format
+                    data = pd.DataFrame(data_dict["records"])
+                else:
+                    # Single record or other format
+                    data = pd.DataFrame([data_dict])
+            else:
+                raise ValueError("Invalid JSON data format")
+            
+            self.data = data
+            self.current_data_source = f"JSON from {source_agent or 'external source'}"
+            if description:
+                self.current_data_source += f" - {description}"
+            
+            self.data_history.append({
+                "source": "json", 
+                "agent": source_agent, 
+                "description": description,
+                "shape": data.shape
+            })
+            
+            log.info("Successfully loaded data from JSON with shape: %s", data.shape)
+            return data
+        except Exception as e:
+            raise ValueError(f"Failed to load data from JSON: {str(e)}")
+
+    def get_data_history(self) -> List[Dict[str, Any]]:
+        """Get the history of data sources used in this session."""
+        return self.data_history.copy()
+
+    def clear_data(self) -> None:
+        """Clear the current data and reset data source."""
+        self.data = None
+        self.current_data_source = None
+        log.info("Data cleared")
+
+    def filter_data(self, query: str) -> pd.DataFrame:
+        """Filter data based on a query string."""
+        if self.data is None:
+            raise ValueError("No data loaded. Please use the 'load_data' action to load data first.")
+        
+        try:
+            # Use pandas query method for filtering
+            filtered_data = self.data.query(query)
+            log.info("Filtered data from %d to %d rows using query: %s", 
+                    len(self.data), len(filtered_data), query)
+            return filtered_data
+        except Exception as e:
+            raise ValueError(f"Failed to filter data with query '{query}': {str(e)}")

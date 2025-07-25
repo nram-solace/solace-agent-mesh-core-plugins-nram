@@ -1,0 +1,54 @@
+# Example configuration for ML Pandas Agent with collaborative workflow support
+# This agent works with other agents (SQL, database, etc.) to get real data and analyze it
+
+agent_name: "ml_pandas_collaborative"
+description: "Collaborative ML and EDA agent for multi-agent workflows"
+
+# Optional: Default data file (can be omitted for purely collaborative usage)
+# data_file: "/path/to/default/data.csv"
+# data_file_format: "csv"
+
+# Optional: Column configurations
+# data_file_columns: "date,region,product,quantity,total_sales"
+# target_column: "total_sales"
+# categorical_columns: "region,product"
+# numerical_columns: "quantity,unit_price,total_sales"
+
+# Output settings
+output_directory: "./ml_pandas_output"
+max_rows_display: 100
+
+# Collaborative workflow settings
+collaborative_mode: true
+
+# Example collaborative workflow scenarios:
+#
+# 1. SQL Agent + ML Pandas Agent workflow:
+#    - SQL Agent: "Get sales data for last 3 months from NY region"
+#    - SQL Agent returns: JSON data with sales records
+#    - ML Pandas Agent: "Load data from SQL agent and summarize"
+#    - ML Pandas Agent: Use load_data with json_data parameter
+#    - ML Pandas Agent: Use summarize_data for quick analysis
+#
+# 2. Database Agent + ML Pandas Agent workflow:
+#    - Database Agent: "Query customer data from MongoDB"
+#    - Database Agent returns: Customer records
+#    - ML Pandas Agent: "Analyze customer data for patterns"
+#    - ML Pandas Agent: Use data_analysis for detailed EDA
+#
+# 3. Multi-step analysis workflow:
+#    - Step 1: SQL Agent gets filtered data
+#    - Step 2: ML Pandas Agent loads and summarizes
+#    - Step 3: ML Pandas Agent performs ML analysis
+#
+# Example workflow commands:
+# 1. load_data -> load_type="json_data", json_data="[SQL_AGENT_RESULT]", source_agent="sql_agent"
+# 2. summarize_data -> summary_type="key_metrics", focus_columns="total_sales,region,date"
+# 3. data_analysis -> analysis_type="summary"
+# 4. simple_ml -> task_type="regression", target_column="total_sales"
+#
+# Integration with other agents:
+# - SQL Database Agent: For structured data queries
+# - MongoDB Agent: For document database queries  
+# - RAG Agent: For document analysis
+# - Any agent that can return JSON data 
