@@ -1,0 +1,185 @@
+# Configuration file for the CCGold Construction Database agent that provides:
+# - Natural language to SQL query conversion for construction project management
+# - Query execution against MySQL database with construction-specific context
+# - Results in multiple formats (YAML, JSON, CSV, Markdown)
+
+---
+log:
+  stdout_log_level: INFO
+  log_file_level: INFO
+  log_file: logs/ccgold-local-mysql.log
+
+shared_config:
+  - broker_config: &broker_connection
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL}
+      broker_username: ${SOLACE_BROKER_USERNAME}
+      broker_password: ${SOLACE_BROKER_PASSWORD}
+      broker_vpn: ${SOLACE_BROKER_VPN}
+
+flows:
+  # Flow to handle action requests
+  - name: ccgold_local_mysql_action_request_processor
+    components:
+      # Input from a Solace broker
+      - component_name: broker_input
+        component_module: broker_input
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_ccgold_local_mysql_action_request
+          broker_subscriptions:
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/ccgold_local_mysql/>
+              qos: 1
+
+      # Custom component to process the action request
+      - component_name: action_request_processor
+        # path is completed at build time
+        component_module: sam_sql_database.src.agents.sql_database.sql_database_agent_component
+        component_config:
+          llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
+          embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
+          agent_name: ccgold_local_mysql
+          db_type: ${CCGOLD_LOCAL_DB_TYPE}
+          host: ${CCGOLD_LOCAL_DB_HOST}
+          port: ${CCGOLD_LOCAL_DB_PORT}
+          user: ${CCGOLD_LOCAL_DB_USER}
+          password: ${CCGOLD_LOCAL_DB_PASSWORD}
+          database: ${CCGOLD_LOCAL_DB_NAME}
+          query_timeout: ${CCGOLD_LOCAL_QUERY_TIMEOUT, 30}
+          database_purpose: "CCGold Construction Project Management System - A comprehensive database for managing construction projects, cost estimation, project phases, and CSI (Construction Specifications Institute) codes for construction line items and cost analysis."
+          data_description: |
+            This database contains comprehensive construction project management data including:
+            
+            **Core Tables:**
+            - **projects**: Main project information including project_name, location (longitude/latitude), project_type_id, project_phase_id, project_owner_id, project_city, project_state, project_date, project_sq_ft, and text_meta_data
+            
+            - **project_line_items**: Detailed construction line items with division/subdivision codes, item_code, description, quantities, labor rates, material costs, equipment costs, subcontractor costs, and total calculations. Each line item belongs to a project via project_id
+            
+            - **accounts**: Client/owner information with account_name, account_location, coordinates, and account_type
+            
+            - **project_phases**: Construction phases (e.g., Planning, Design, Construction, Closeout) with phase_description
+            
+            - **project_types**: Project categorization with type, project_category, and construction_category
+            
+            - **csi_codes**: Construction Specifications Institute codes with division, subdivision, item_code, csi_code, and description for standardized construction specifications
+            
+            - **unit_costs**: Standard unit costs for construction items with division, subdivision, item_code, csi_code, description, unit_of_measure, and unit_cost
+            
+            - **area_cost_factors**: Regional cost adjustment factors by state and year
+            
+            - **llm_csi_training**: Training data for LLM CSI code mapping
+            
+            **Key Relationships:**
+            - projects.project_owner_id → accounts.account_id (projects belong to accounts)
+            - projects.project_type_id → project_types.project_type_id (projects have types)
+            - projects.project_phase_id → project_phases.project_phase_id (projects have phases)
+            - project_line_items.project_id → projects.project_id (line items belong to projects)
+            - project_line_items.item_code → csi_codes.item_code (line items reference CSI codes)
+            
+            **Business Context:**
+            This system is used for construction cost estimation, project tracking, and analysis. Line items represent individual construction tasks with detailed cost breakdowns including labor, materials, equipment, and subcontractor costs. CSI codes provide standardized construction specifications.
+          auto_detect_schema: true
+          query_examples:
+            - natural_language: "Show all construction projects with their owners and phases"
+              sql_query: |
+                SELECT p.project_name, p.project_city, p.project_state, 
+                       a.account_name as owner, pp.phase_description as phase
+                FROM projects p
+                LEFT JOIN accounts a ON p.project_owner_id = a.account_id
+                LEFT JOIN project_phases pp ON p.project_phase_id = pp.project_phase_id
+                ORDER BY p.project_date DESC
+            - natural_language: "List all line items for a specific project with their costs"
+              sql_query: |
+                SELECT pli.description, pli.quantity, pli.unit, 
+                       pli.labor_total, pli.material_total, pli.equipment_total,
+                       pli.total_mat_lab_equip
+                FROM project_line_items pli
+                WHERE pli.project_id = 'PROJECT_ID_HERE'
+                ORDER BY pli.division, pli.subdivision, pli.item_code
+            - natural_language: "Calculate total project cost by summing all line items"
+              sql_query: |
+                SELECT p.project_name, 
+                       SUM(pli.total_mat_lab_equip) as total_project_cost,
+                       COUNT(pli.line_item_id) as line_item_count
+                FROM projects p
+                JOIN project_line_items pli ON p.project_id = pli.project_id
+                GROUP BY p.project_id, p.project_name
+                ORDER BY total_project_cost DESC
+            - natural_language: "Find projects by construction category and phase"
+              sql_query: |
+                SELECT p.project_name, pt.construction_category, pp.phase_description,
+                       p.project_city, p.project_state
+                FROM projects p
+                JOIN project_types pt ON p.project_type_id = pt.project_type_id
+                JOIN project_phases pp ON p.project_phase_id = pp.project_phase_id
+                WHERE pt.construction_category = 'CATEGORY_HERE'
+                AND pp.phase_description = 'PHASE_HERE'
+            - natural_language: "Show CSI codes and their descriptions for a specific division"
+              sql_query: |
+                SELECT division, subdivision, item_code, csi_code, description
+                FROM csi_codes
+                WHERE division = 'DIVISION_NUMBER_HERE'
+                ORDER BY subdivision, item_code
+            - natural_language: "List projects with their total square footage and cost per square foot"
+              sql_query: |
+                SELECT p.project_name, p.project_sq_ft,
+                       SUM(pli.total_mat_lab_equip) as total_cost,
+                       SUM(pli.total_mat_lab_equip) / p.project_sq_ft as cost_per_sq_ft
+                FROM projects p
+                JOIN project_line_items pli ON p.project_id = pli.project_id
+                WHERE p.project_sq_ft IS NOT NULL AND p.project_sq_ft > 0
+                GROUP BY p.project_id, p.project_name, p.project_sq_ft
+                ORDER BY cost_per_sq_ft DESC
+            - natural_language: "Find line items with highest labor costs"
+              sql_query: |
+                SELECT pli.description, pli.labor_total, pli.quantity, pli.unit,
+                       p.project_name
+                FROM project_line_items pli
+                JOIN projects p ON pli.project_id = p.project_id
+                WHERE pli.labor_total IS NOT NULL
+                ORDER BY pli.labor_total DESC
+                LIMIT 20
+            - natural_language: "Show projects by state with their total costs"
+              sql_query: |
+                SELECT p.project_state, 
+                       COUNT(DISTINCT p.project_id) as project_count,
+                       SUM(pli.total_mat_lab_equip) as total_cost
+                FROM projects p
+                JOIN project_line_items pli ON p.project_id = pli.project_id
+                WHERE p.project_state IS NOT NULL
+                GROUP BY p.project_state
+                ORDER BY total_cost DESC
+          response_guidelines: |
+            When responding to construction-related queries:
+            
+            1. **Cost Analysis**: Always include both individual line item costs and project totals when relevant
+            2. **Units**: Pay attention to units of measure (sq ft, linear ft, each, etc.) in calculations
+            3. **CSI Codes**: Reference CSI division/subdivision codes when discussing construction specifications
+            4. **Project Phases**: Consider project phases (Planning, Design, Construction, Closeout) in analysis
+            5. **Geographic Context**: Include location information (city, state) when relevant
+            6. **Cost Breakdowns**: Distinguish between labor, materials, equipment, and subcontractor costs
+            7. **Date Context**: Consider project dates for temporal analysis
+            8. **Square Footage**: Use project_sq_ft for cost-per-square-foot calculations when available
+            
+            Format monetary values with appropriate precision and include relevant project metadata in responses.
+        broker_request_response:
+          enabled: true
+          broker_config: *broker_connection
+          request_expiry_ms: 120000
+          payload_encoding: utf-8
+          payload_format: json
+          response_topic_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+          response_queue_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+        component_input:
+          source_expression: input.payload
+
+      # Output to a Solace broker
+      - component_name: broker_output
+        component_module: broker_output
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          copy_user_properties: true

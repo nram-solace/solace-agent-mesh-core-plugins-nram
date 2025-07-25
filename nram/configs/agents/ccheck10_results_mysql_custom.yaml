@@ -1,0 +1,281 @@
+# Configuration file for the CCGold Results Database agent that provides:
+# - Natural language to SQL query conversion for construction cost analysis
+# - Query execution against MySQL database with construction cost analysis context
+# - Results in multiple formats (YAML, JSON, CSV, Markdown)
+
+---
+log:
+  stdout_log_level: INFO
+  log_file_level: INFO
+  log_file: logs/ccgold-results-mysql.log
+
+shared_config:
+  - broker_config: &broker_connection
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL}
+      broker_username: ${SOLACE_BROKER_USERNAME}
+      broker_password: ${SOLACE_BROKER_PASSWORD}
+      broker_vpn: ${SOLACE_BROKER_VPN}
+
+flows:
+  # Flow to handle action requests
+  - name: ccgold_results_mysql_action_request_processor
+    components:
+      # Input from a Solace broker
+      - component_name: broker_input
+        component_module: broker_input
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_ccgold_results_mysql_action_request
+          broker_subscriptions:
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/ccgold_results_mysql/>
+              qos: 1
+
+      # Custom component to process the action request
+      - component_name: action_request_processor
+        # path is completed at build time
+        component_module: sam_sql_database.src.agents.sql_database.sql_database_agent_component
+        component_config:
+          llm_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/llm-service/request/general-good/
+          embedding_service_topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/embedding-service/request/text/
+          agent_name: ccgold_results_mysql
+          db_type: ${CCHECK10_RESULTS_DB_TYPE}
+          host: ${CCHECK10_RESULTS_DB_HOST}
+          port: ${CCHECK10_RESULTS_DB_PORT}
+          user: ${CCHECK10_RESULTS_DB_USER}
+          password: ${CCHECK10_RESULTS_DB_PASSWORD}
+          database: ${CCHECK10_RESULTS_DB_NAME}
+          query_timeout: ${CCHECK10_RESULTS_QUERY_TIMEOUT, 30}
+          database_purpose: "CCGold Construction Cost Analysis Results Database - A comprehensive database containing analyzed construction project data with detailed cost breakdowns by CSI divisions, economic indicators, and project characteristics for cost estimation and market analysis."
+          data_description: |
+            This database contains comprehensive construction cost analysis results including:
+            
+            **Main Table: final_results**
+            
+            **Project Information:**
+            - project_id: Unique project identifier
+            - project_city, project_state: Geographic location
+            - project_sq_ft: Project square footage
+            - year: Project year
+            - type: Project type
+            - project_category: Project category classification
+            - construction_category: Construction category classification
+            
+            **Economic Indicators:**
+            - acf_2023: Area Cost Factor for 2023
+            - new_construction_median_sale_price_per_sqft_norm: Normalized median sale price per square foot
+            - annual_ppi_index_inputs_to_construction: Producer Price Index for construction inputs
+            - annual_ppi_index_inputs_to_construction_services: PPI for construction services
+            - annual_ppi_index_average_hourly_earnings_construction: Average hourly earnings in construction
+            - annual_ppi_index_lumber_and_wood_products: PPI for lumber and wood products
+            - annual_ppi_index_ready_mixed_concrete: PPI for ready-mixed concrete
+            - annual_ppi_index_steel_mill_products: PPI for steel mill products
+            - annual_ppi_index_plastic_construction_products: PPI for plastic construction products
+            
+            **CSI Division Costs (cost_div_X):**
+            - cost_div_0_sel: Division 0 - Procurement and Contracting Requirements
+            - cost_div_1_sel: Division 1 - General Requirements
+            - cost_div_2: Division 2 - Existing Conditions
+            - cost_div_3_sel: Division 3 - Concrete
+            - cost_div_4: Division 4 - Masonry
+            - cost_div_5_sel: Division 5 - Metals
+            - cost_div_6_sel: Division 6 - Wood and Plastics
+            - cost_div_7_sel: Division 7 - Thermal and Moisture Protection
+            - cost_div_8_sel: Division 8 - Doors and Windows
+            - cost_div_9_sel: Division 9 - Finishes
+            - cost_div_10: Division 10 - Specialties
+            - cost_div_11: Division 11 - Equipment
+            - cost_div_12_sel: Division 12 - Furnishings
+            - cost_div_13: Division 13 - Special Construction
+            - cost_div_14: Division 14 - Conveying Systems
+            - cost_div_21: Division 21 - Fire Suppression
+            - cost_div_22: Division 22 - Plumbing
+            - cost_div_23_sel: Division 23 - Heating, Ventilating, and Air Conditioning
+            - cost_div_25: Division 25 - Integrated Automation
+            - cost_div_26: Division 26 - Electrical
+            - cost_div_27: Division 27 - Communications
+            - cost_div_28_sel: Division 28 - Electronic Safety and Security
+            - cost_div_31: Division 31 - Earthwork
+            - cost_div_32: Division 32 - Exterior Improvements
+            - cost_div_33: Division 33 - Utilities
+            - cost_div_34: Division 34 - Transportation
+            - cost_div_35: Division 35 - Waterway and Marine Construction
+            - cost_div_40: Division 40 - Process Integration
+            - cost_div_41_sel: Division 41 - Material Processing and Handling Equipment
+            - cost_div_42: Division 42 - Process Heating, Cooling, and Drying Equipment
+            - cost_div_43: Division 43 - Process Gas and Liquid Storage
+            - cost_div_44: Division 44 - Pollution Control Equipment
+            - cost_div_46: Division 46 - Water and Wastewater Equipment
+            - cost_div_48: Division 48 - Electrical Power Generation and Distribution Equipment
+            
+            **Cost Analysis Metrics:**
+            - has_div_X_cost: Binary indicators for presence of costs in specific divisions
+            - line_item_count: Total number of line items in the project
+            - total_material_sq_ft: Total material cost per square foot
+            - divisions_with_cost: Number of CSI divisions with costs
+            - average_line_item_cost: Average cost per line item
+            - total_project_cost: Total project cost
+            
+            **Business Context:**
+            This database is used for construction cost analysis, market research, and cost estimation. It provides insights into cost distribution across different construction divisions, economic trends, and regional cost variations. The data supports cost estimation, benchmarking, and market analysis for construction projects.
+          auto_detect_schema: true
+          query_examples:
+            - natural_language: "Show projects with highest total cost and their locations"
+              sql_query: |
+                SELECT project_id, project_city, project_state, project_sq_ft,
+                       total_project_cost, year, type
+                FROM final_results
+                WHERE total_project_cost IS NOT NULL
+                ORDER BY total_project_cost DESC
+                LIMIT 20
+            - natural_language: "Calculate average cost per square foot by state"
+              sql_query: |
+                SELECT project_state,
+                       COUNT(*) as project_count,
+                       AVG(total_project_cost / project_sq_ft) as avg_cost_per_sqft,
+                       AVG(total_project_cost) as avg_total_cost
+                FROM final_results
+                WHERE project_sq_ft IS NOT NULL AND project_sq_ft > 0
+                  AND total_project_cost IS NOT NULL
+                GROUP BY project_state
+                ORDER BY avg_cost_per_sqft DESC
+            - natural_language: "Show cost breakdown by CSI divisions for a specific project"
+              sql_query: |
+                SELECT project_id, project_city, project_state,
+                       cost_div_1_sel as general_requirements,
+                       cost_div_3_sel as concrete,
+                       cost_div_5_sel as metals,
+                       cost_div_6_sel as wood_plastics,
+                       cost_div_7_sel as thermal_moisture,
+                       cost_div_8_sel as doors_windows,
+                       cost_div_9_sel as finishes,
+                       cost_div_12_sel as furnishings,
+                       cost_div_23_sel as hvac,
+                       cost_div_26 as electrical,
+                       cost_div_28_sel as electronic_security,
+                       cost_div_31 as earthwork,
+                       cost_div_32 as exterior_improvements
+                FROM final_results
+                WHERE project_id = PROJECT_ID_HERE
+            - natural_language: "Find projects with highest electrical costs"
+              sql_query: |
+                SELECT project_id, project_city, project_state,
+                       cost_div_26 as electrical_cost,
+                       total_project_cost,
+                       (cost_div_26 / total_project_cost * 100) as electrical_percentage
+                FROM final_results
+                WHERE cost_div_26 IS NOT NULL AND cost_div_26 > 0
+                  AND total_project_cost IS NOT NULL
+                ORDER BY electrical_cost DESC
+                LIMIT 15
+            - natural_language: "Compare construction costs by project category"
+              sql_query: |
+                SELECT project_category,
+                       COUNT(*) as project_count,
+                       AVG(total_project_cost) as avg_total_cost,
+                       AVG(total_project_cost / project_sq_ft) as avg_cost_per_sqft,
+                       AVG(divisions_with_cost) as avg_divisions_with_cost
+                FROM final_results
+                WHERE project_sq_ft IS NOT NULL AND project_sq_ft > 0
+                  AND total_project_cost IS NOT NULL
+                GROUP BY project_category
+                ORDER BY avg_cost_per_sqft DESC
+            - natural_language: "Show projects with highest area cost factors"
+              sql_query: |
+                SELECT project_id, project_city, project_state,
+                       acf_2023 as area_cost_factor,
+                       total_project_cost,
+                       project_sq_ft
+                FROM final_results
+                WHERE acf_2023 IS NOT NULL
+                ORDER BY acf_2023 DESC
+                LIMIT 20
+            - natural_language: "Analyze cost trends by year"
+              sql_query: |
+                SELECT year,
+                       COUNT(*) as project_count,
+                       AVG(total_project_cost) as avg_total_cost,
+                       AVG(total_project_cost / project_sq_ft) as avg_cost_per_sqft,
+                       AVG(annual_ppi_index_inputs_to_construction) as avg_ppi_construction
+                FROM final_results
+                WHERE year IS NOT NULL
+                  AND project_sq_ft IS NOT NULL AND project_sq_ft > 0
+                  AND total_project_cost IS NOT NULL
+                GROUP BY year
+                ORDER BY year DESC
+            - natural_language: "Find projects with most diverse cost distribution across divisions"
+              sql_query: |
+                SELECT project_id, project_city, project_state,
+                       divisions_with_cost,
+                       line_item_count,
+                       average_line_item_cost,
+                       total_project_cost
+                FROM final_results
+                WHERE divisions_with_cost IS NOT NULL
+                  AND line_item_count IS NOT NULL
+                ORDER BY divisions_with_cost DESC, line_item_count DESC
+                LIMIT 15
+            - natural_language: "Show projects with highest material costs per square foot"
+              sql_query: |
+                SELECT project_id, project_city, project_state,
+                       total_material_sq_ft,
+                       total_project_cost,
+                       project_sq_ft,
+                       (total_material_sq_ft / (total_project_cost / project_sq_ft) * 100) as material_percentage
+                FROM final_results
+                WHERE total_material_sq_ft IS NOT NULL
+                  AND total_project_cost IS NOT NULL
+                  AND project_sq_ft IS NOT NULL AND project_sq_ft > 0
+                ORDER BY total_material_sq_ft DESC
+                LIMIT 20
+            - natural_language: "Compare PPI indices for different construction materials"
+              sql_query: |
+                SELECT project_id, project_city, project_state,
+                       annual_ppi_index_lumber_and_wood_products as lumber_ppi,
+                       annual_ppi_index_ready_mixed_concrete as concrete_ppi,
+                       annual_ppi_index_steel_mill_products as steel_ppi,
+                       annual_ppi_index_plastic_construction_products as plastic_ppi,
+                       year
+                FROM final_results
+                WHERE annual_ppi_index_lumber_and_wood_products IS NOT NULL
+                  AND annual_ppi_index_ready_mixed_concrete IS NOT NULL
+                  AND annual_ppi_index_steel_mill_products IS NOT NULL
+                ORDER BY year DESC, project_id
+                LIMIT 30
+          response_guidelines: |
+            When responding to construction cost analysis queries:
+            
+            1. **Cost Metrics**: Always include both absolute costs and cost per square foot when relevant
+            2. **CSI Divisions**: Reference specific CSI division names when discussing cost breakdowns
+            3. **Economic Context**: Include PPI indices and area cost factors when analyzing cost trends
+            4. **Geographic Analysis**: Consider project location (city, state) for regional cost variations
+            5. **Temporal Analysis**: Include year information for trend analysis
+            6. **Cost Distribution**: Highlight divisions with costs and total divisions used
+            7. **Material Analysis**: Distinguish between material costs and total project costs
+            8. **Benchmarking**: Provide comparative analysis when multiple projects are involved
+            9. **Percentage Calculations**: Show cost percentages when analyzing division breakdowns
+            10. **Data Quality**: Note when data is missing or incomplete
+            
+            Format monetary values with appropriate precision and include relevant project metadata in responses.
+            When showing cost breakdowns, organize by CSI division categories for clarity.
+        broker_request_response:
+          enabled: true
+          broker_config: *broker_connection
+          request_expiry_ms: 120000
+          payload_encoding: utf-8
+          payload_format: json
+          response_topic_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+          response_queue_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+        component_input:
+          source_expression: input.payload
+
+      # Output to a Solace broker
+      - component_name: broker_output
+        component_module: broker_output
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          copy_user_properties: true 
