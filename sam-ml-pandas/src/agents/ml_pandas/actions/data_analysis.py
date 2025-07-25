@@ -68,17 +68,14 @@ class DataAnalysisAction(Action):
             if analysis_type not in valid_analysis_types:
                 return ActionResponse(
                     success=False,
-                    error_info=ErrorInfo(
-                        type="ValidationError",
-                        description=f"Invalid analysis_type '{analysis_type}'. Valid types are: {', '.join(valid_analysis_types)}"
-                    )
+                    error_info=ErrorInfo(f"Invalid analysis_type '{analysis_type}'. Valid types are: {', '.join(valid_analysis_types)}")
                 )
 
             # Parse columns
             columns = [col.strip() for col in columns_str.split(",") if col.strip()] if columns_str else None
 
             # Get the agent and its data
-            agent = self.component
+            agent = self.agent
             data = agent.get_working_data()
             data_service = agent.get_data_service()
 
@@ -88,10 +85,7 @@ class DataAnalysisAction(Action):
                 if missing_cols:
                     return ActionResponse(
                         success=False,
-                        error_info=ErrorInfo(
-                            type="ValidationError",
-                            description=f"Columns not found in dataset: {missing_cols}"
-                        )
+                        error_info=ErrorInfo(f"Columns not found in dataset: {missing_cols}")
                     )
                 # Filter data to specified columns
                 data = data[columns]
@@ -145,10 +139,7 @@ class DataAnalysisAction(Action):
             log.error("Error in data analysis action: %s", str(e))
             return ActionResponse(
                 success=False,
-                error_info=ErrorInfo(
-                    type="DataAnalysisError",
-                    description=f"Failed to perform data analysis: {str(e)}"
-                )
+                error_info=ErrorInfo(f"Failed to perform data analysis: {str(e)}")
             )
 
     def _format_response(self, result: Dict[str, Any], saved_path: str) -> str:
