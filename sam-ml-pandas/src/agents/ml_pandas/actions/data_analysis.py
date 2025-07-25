@@ -54,7 +54,7 @@ class DataAnalysisAction(Action):
             }
         )
 
-    def invoke(self, request_data: Dict[str, Any]) -> ActionResponse:
+    def invoke(self, request_data: Dict[str, Any], meta: Dict[str, Any] = None) -> ActionResponse:
         """Execute the data analysis action."""
         try:
             # Get parameters
@@ -62,6 +62,17 @@ class DataAnalysisAction(Action):
             columns_str = request_data.get("columns", "")
             visualization_type = request_data.get("visualization_type", "histogram")
             n_rows = request_data.get("n_rows")
+
+            # Validate analysis_type
+            valid_analysis_types = ["summary", "missing_data", "correlation", "preview", "visualization", "all"]
+            if analysis_type not in valid_analysis_types:
+                return ActionResponse(
+                    success=False,
+                    error_info=ErrorInfo(
+                        type="ValidationError",
+                        description=f"Invalid analysis_type '{analysis_type}'. Valid types are: {', '.join(valid_analysis_types)}"
+                    )
+                )
 
             # Parse columns
             columns = [col.strip() for col in columns_str.split(",") if col.strip()] if columns_str else None

@@ -74,7 +74,7 @@ class SimpleMlAction(Action):
             }
         )
 
-    def invoke(self, request_data: Dict[str, Any]) -> ActionResponse:
+    def invoke(self, request_data: Dict[str, Any], meta: Dict[str, Any] = None) -> ActionResponse:
         """Execute the simple ML action."""
         try:
             # Get parameters
@@ -84,6 +84,28 @@ class SimpleMlAction(Action):
             model_type = request_data.get("model_type", "random_forest")
             test_size = request_data.get("test_size", 0.2)
             random_state = request_data.get("random_state", 42)
+
+            # Validate task_type
+            valid_task_types = ["classification", "regression", "auto"]
+            if task_type not in valid_task_types:
+                return ActionResponse(
+                    success=False,
+                    error_info=ErrorInfo(
+                        type="ValidationError",
+                        description=f"Invalid task_type '{task_type}'. Valid types are: {', '.join(valid_task_types)}"
+                    )
+                )
+
+            # Validate model_type
+            valid_model_types = ["random_forest", "linear", "logistic"]
+            if model_type not in valid_model_types:
+                return ActionResponse(
+                    success=False,
+                    error_info=ErrorInfo(
+                        type="ValidationError",
+                        description=f"Invalid model_type '{model_type}'. Valid types are: {', '.join(valid_model_types)}"
+                    )
+                )
 
             # Validate test_size
             if not 0.1 <= test_size <= 0.5:
