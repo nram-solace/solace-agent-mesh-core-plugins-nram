@@ -169,7 +169,7 @@ class SimpleMlAction(Action):
                 else:
                     task_type = "classification"
                 
-                log.info("ml-pandas: Auto-detected task type: %s (unique values: %d, numeric: %s)", 
+                log.info("Auto-detected task type: %s (unique values: %d, numeric: %s)", 
                         task_type, unique_values, is_numeric)
 
             # Prepare features and target
@@ -256,7 +256,7 @@ class SimpleMlAction(Action):
             )
 
         except Exception as e:
-            log.error("ml-pandas: Error in simple ML action: %s", str(e))
+            log.error("Error in simple ML action: %s", str(e))
             return ActionResponse(
                 message=f"Failed to perform ML task: {str(e)}",
                 error_info=ErrorInfo(f"Failed to perform ML task: {str(e)}")

@@ -219,7 +219,7 @@ class DataQueryAction(Action):
             )
 
         except Exception as e:
-            log.error("ml-pandas: Error in data query action: %s", str(e))
+            log.error("Error in data query action: %s", str(e))
             return ActionResponse(
                 message=f"Failed to query data: {str(e)}",
                 error_info=ErrorInfo(f"Failed to query data: {str(e)}")

@@ -119,7 +119,7 @@ class DataSummarizerAction(Action):
             return ActionResponse(message=response_text)
 
         except Exception as e:
-            log.error("ml-pandas: Error in data summarizer action: %s", str(e))
+            log.error("Error in data summarizer action: %s", str(e))
             return ActionResponse(
                 message=f"Failed to summarize data: {str(e)}",
                 error_info=ErrorInfo(f"Failed to summarize data: {str(e)}")

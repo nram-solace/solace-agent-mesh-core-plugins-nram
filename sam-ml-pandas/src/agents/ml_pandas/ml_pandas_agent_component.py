@@ -157,9 +157,9 @@ class MLPandasAgentComponent(BaseAgentComponent):
                 self.data = self._load_data()
                 self.current_data_source = f"Default file: {self.data_file}"
                 self.data_history.append({"source": "file", "path": self.data_file, "shape": self.data.shape})
-                log.info("ml-pandas: Loaded default data file: %s", self.data_file)
+                log.info("Loaded default data file: %s", self.data_file)
             except Exception as e:
-                log.warning("ml-pandas: Failed to load default data file: %s", str(e))
+                log.warning("Failed to load default data file: %s", str(e))
                 self.data = None
         
         # Parse column configurations
@@ -173,30 +173,30 @@ class MLPandasAgentComponent(BaseAgentComponent):
 
         # Log prominent startup message
         log.info("=" * 80)
-        log.info("ml-pandas: 📊 ML PANDAS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
+        log.info("📊 ML PANDAS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
-        log.info("ml-pandas: Agent Name: %s", self.agent_name)
+        log.info("Agent Name: %s", self.agent_name)
         if self.data_file:
-            log.info("ml-pandas: Default Data File: %s", self.data_file)
+            log.info("Default Data File: %s", self.data_file)
         else:
-            log.info("ml-pandas: Default Data File: None (collaborative mode enabled)")
-        log.info("ml-pandas: Data Format: %s", self.data_file_format)
+            log.info("Default Data File: None (collaborative mode enabled)")
+        log.info("Data Format: %s", self.data_file_format)
         if self.data is not None:
-            log.info("ml-pandas: Data Shape: %s", self.data.shape)
+            log.info("Data Shape: %s", self.data.shape)
         else:
-            log.info("ml-pandas: Data Shape: No data loaded yet")
-        log.info("ml-pandas: Collaborative Mode: %s", "Enabled" if self.collaborative_mode else "Disabled")
-        log.info("ml-pandas: Available Actions: %s", [action.__name__ for action in self.actions])
+            log.info("Data Shape: No data loaded yet")
+        log.info("Collaborative Mode: %s", "Enabled" if self.collaborative_mode else "Disabled")
+        log.info("Available Actions: %s", [action.__name__ for action in self.actions])
         if self.target_col:
-            log.info("ml-pandas: Target Column: %s", self.target_col)
+            log.info("Target Column: %s", self.target_col)
         if self.selected_columns:
-            log.info("ml-pandas: Selected Columns: %s", len(self.selected_columns))
-        log.info("ml-pandas: Output Directory: %s", self.output_directory)
+            log.info("Selected Columns: %s", len(self.selected_columns))
+        log.info("Output Directory: %s", self.output_directory)
         log.info("=" * 80)
-        log.info("ml-pandas: ✅ ML Pandas Agent is ready for collaborative data analysis!")
-        log.info("ml-pandas: 🔍 Agent should be available in SAM as 'ml_pandas'")
-        log.info("ml-pandas: 🤝 Use 'load_data' to receive data from other agents")
-        log.info("ml-pandas: 📊 Use 'summarize_data' for quick data summaries")
+        log.info("✅ ML Pandas Agent is ready for collaborative data analysis!")
+        log.info("🔍 Agent should be available in SAM as 'ml_pandas'")
+        log.info("🤝 Use 'load_data' to receive data from other agents")
+        log.info("📊 Use 'summarize_data' for quick data summaries")
         log.info("=" * 80)
         
         # Also print to stdout for immediate visibility
@@ -232,9 +232,9 @@ class MLPandasAgentComponent(BaseAgentComponent):
         """Create the output directory if it doesn't exist."""
         try:
             Path(self.output_directory).mkdir(parents=True, exist_ok=True)
-            log.info("ml-pandas: Created output directory: %s", self.output_directory)
+            log.info("Created output directory: %s", self.output_directory)
         except Exception as e:
-            log.warning("ml-pandas: Failed to create output directory: %s", str(e))
+            log.warning("Failed to create output directory: %s", str(e))
 
     def _load_data(self) -> pd.DataFrame:
         """Load data from the configured file."""
@@ -250,10 +250,10 @@ class MLPandasAgentComponent(BaseAgentComponent):
             else:
                 raise ValueError(f"Unsupported data format: {self.data_file_format}")
             
-            log.info("ml-pandas: Successfully loaded data with shape: %s", data.shape)
+            log.info("Successfully loaded data with shape: %s", data.shape)
             return data
         except Exception as e:
-            raise ValueError(f"ml-pandas: Failed to load data from {self.data_file}: {str(e)}")
+            raise ValueError(f"Failed to load data from {self.data_file}: {str(e)}")
 
     def _parse_columns(self, columns_str: str) -> List[str]:
         """Parse comma-separated column string into list."""
@@ -410,10 +410,10 @@ To work with data from other agents (like SQL Database agent):
             self.data = data
             self.current_data_source = f"File: {file_path}"
             self.data_history.append({"source": "file", "path": file_path, "shape": data.shape})
-            log.info("ml-pandas: Successfully loaded data from %s with shape: %s", file_path, data.shape)
+            log.info("Successfully loaded data from %s with shape: %s", file_path, data.shape)
             return data
         except Exception as e:
-            raise ValueError(f"ml-pandas: Failed to load data from {file_path}: {str(e)}")
+            raise ValueError(f"Failed to load data from {file_path}: {str(e)}")
 
     def receive_data_from_agent(self, data: pd.DataFrame, source_agent: str, description: str = None) -> pd.DataFrame:
         """Receive data from another agent in collaborative workflows."""
@@ -433,10 +433,10 @@ To work with data from other agents (like SQL Database agent):
                 "shape": data.shape
             })
             
-            log.info("ml-pandas: Successfully received data from agent %s with shape: %s", source_agent, data.shape)
+            log.info("Successfully received data from agent %s with shape: %s", source_agent, data.shape)
             return data
         except Exception as e:
-            raise ValueError(f"ml-pandas: Failed to receive data from agent {source_agent}: {str(e)}")
+            raise ValueError(f"Failed to receive data from agent {source_agent}: {str(e)}")
 
     def receive_data_from_json(self, json_data: str, source_agent: str = None, description: str = None) -> pd.DataFrame:
         """Receive data as JSON string from another agent or source."""
@@ -497,10 +497,10 @@ To work with data from other agents (like SQL Database agent):
                 "shape": data.shape
             })
             
-            log.info("ml-pandas: Successfully loaded data from JSON with shape: %s", data.shape)
+            log.info("Successfully loaded data from JSON with shape: %s", data.shape)
             return data
         except Exception as e:
-            raise ValueError(f"ml-pandas: Failed to load data from JSON: {str(e)}")
+            raise ValueError(f"Failed to load data from JSON: {str(e)}")
 
     def receive_data_from_sql_agent(self, sql_json_data: str, source_agent: str = None, description: str = None) -> pd.DataFrame:
         """Receive data from SQL agent in the new JSON format.
@@ -563,7 +563,7 @@ To work with data from other agents (like SQL Database agent):
         """Clear the current data and reset data source."""
         self.data = None
         self.current_data_source = None
-        log.info("ml-pandas: Data cleared")
+        log.info("Data cleared")
 
     def filter_data(self, query: str) -> pd.DataFrame:
         """Filter data based on a query string."""
@@ -573,8 +573,8 @@ To work with data from other agents (like SQL Database agent):
         try:
             # Use pandas query method for filtering
             filtered_data = self.data.query(query)
-            log.info("ml-pandas: Filtered data from %d to %d rows using query: %s", 
+            log.info("Filtered data from %d to %d rows using query: %s", 
                     len(self.data), len(filtered_data), query)
             return filtered_data
         except Exception as e:
-            raise ValueError(f"ml-pandas: Failed to filter data with query '{query}': {str(e)}")
+            raise ValueError(f"Failed to filter data with query '{query}': {str(e)}")
