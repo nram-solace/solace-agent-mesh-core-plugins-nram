@@ -174,66 +174,46 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
 
         # Initialize database handler
         self.db_handler = self._create_db_handler()
+        log.info("sql-db: Database handler created successfully for %s database", self.db_type)
 
         # Import any configured CSV files
         csv_files = self.get_config("csv_files", [])
         csv_directories = self.get_config("csv_directories", [])
         if csv_files or csv_directories:
+            log.info("sql-db: Importing CSV files - Files: %s, Directories: %s", 
+                    len(csv_files) if csv_files else 0, len(csv_directories) if csv_directories else 0)
             try:
                 self.db_handler.import_csv_files(csv_files, csv_directories)
+                log.info("sql-db: CSV import completed successfully")
             except Exception as e:
                 log.error("sql-db: Error importing CSV files: %s", str(e))
+        else:
+            log.info("sql-db: No CSV files configured for import")
 
         # Get schema information
         if self.auto_detect_schema:
-            schema_dict = self._detect_schema()
-            # Clean the schema before converting to YAML
-            schema_dict_cleaned = self._clean_schema(schema_dict)
-            # Convert dictionary to YAML string
-            self.detailed_schema = yaml.dump(schema_dict_cleaned, default_flow_style=False, allow_unicode=True)
-            # Generate schema prompt from detected schema
-            self.schema_summary = self._get_schema_summary()
-            if not self.schema_summary:
-                raise ValueError("Failed to generate schema summary from auto-detected schema")
+            try:
+                log.info("sql-db: Auto-detecting database schema...")
+                self.detailed_schema = self.db_handler.get_detailed_schema()
+                log.info("sql-db: Schema detection completed - Found %d tables", len(self.detailed_schema))
+                for table_name, table_info in self.detailed_schema.items():
+                    column_count = len(table_info.get("columns", {}))
+                    log.debug("sql-db: Table '%s' has %d columns", table_name, column_count)
+            except Exception as e:
+                log.error("sql-db: Failed to auto-detect schema: %s", str(e))
+                self.detailed_schema = {}
         else:
-            # Get schema from config
-            schema = self.get_config("database_schema")
-            if schema is None:
-                raise ValueError(
-                    "database_schema is required when auto_detect_schema is False. "
-                    "This text should describe the database structure."
-                )
-            elif isinstance(schema, dict):
-                # Convert dictionary to YAML string
-                self.detailed_schema = yaml.dump(schema, default_flow_style=False)
-            else:
-                # Already a string, use as is
-                self.detailed_schema = str(schema)
-            # Get query examples if provided
-            query_examples = self.get_config("query_examples")
-            if query_examples:
-                # Format query examples with clear separation and structure
-                formatted_examples = "EXAMPLE QUERIES:\n"
-                formatted_examples += "=================\n\n"
-                
-                # Process examples from the list of dictionaries
-                for i, example in enumerate(query_examples, 1):
-                    if isinstance(example, dict) and "natural_language" in example and "sql_query" in example:
-                        formatted_examples += f"Example {i}:\n"
-                        formatted_examples += f"Natural Language: {example['natural_language'].strip()}\n"
-                        formatted_examples += f"SQL Query: {example['sql_query'].strip()}\n\n"
-                
-                # Attach formatted examples to the schema
-                self.detailed_schema = f"{self.detailed_schema}\n\n{formatted_examples}"
-            
-            # Only use provided schema_summary, don't try to generate one
-            self.schema_summary = self.get_config("schema_summary")
-            if not self.schema_summary:
-                raise ValueError(
-                    "schema_summary is required when auto_detect_schema is False. "
-                    "This text should describe the database schema in natural language "
-                    "to help the agent understand how to query the database."
-                )
+            log.info("sql-db: Schema auto-detection disabled")
+            self.detailed_schema = {}
+
+        # Clean the schema before converting to YAML
+        schema_dict_cleaned = self._clean_schema(self.detailed_schema)
+        # Convert dictionary to YAML string
+        self.detailed_schema = yaml.dump(schema_dict_cleaned, default_flow_style=False, allow_unicode=True)
+        # Generate schema prompt from detected schema
+        self.schema_summary = self._get_schema_summary()
+        if not self.schema_summary:
+            raise ValueError("Failed to generate schema summary from auto-detected schema")
         
         # Update the search_query action with schema information
         for action in self.action_list.actions:

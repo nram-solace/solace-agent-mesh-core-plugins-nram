@@ -10,6 +10,7 @@ import csv
 import datetime
 import dateutil.parser
 from collections.abc import Mapping
+import logging
 
 from solace_agent_mesh.common.action import Action
 from solace_agent_mesh.services.file_service import FileService
@@ -20,6 +21,8 @@ from solace_agent_mesh.common.action_response import (
 )
 
 MAX_TOTAL_INLINE_FILE_SIZE = 100000  # 100KB
+
+log = logging.getLogger(__name__)
 
 
 class SearchQuery(Action):
@@ -81,24 +84,37 @@ class SearchQuery(Action):
             if not query:
                 raise ValueError("Natural language query is required")
 
+            log.info("sql-db: Received natural language query: %s", query)
+
             response_format = params.get("response_format", "yaml").lower()
             if response_format not in ["yaml", "json", "csv"]:
                 raise ValueError("Invalid response format. Choose 'yaml', 'json', or 'csv'")
 
+            log.info("sql-db: Response format requested: %s", response_format)
+
             # Get the SQL queries from the natural language query
             sql_queries = self._generate_sql_queries(query)
+            log.info("sql-db: Generated %d SQL queries from natural language query", len(sql_queries))
 
             # Execute each query and collect results
             db_handler = self.get_agent().get_db_handler()
             query_results = []
             failed_queries = []
 
-            for purpose, sql_query in sql_queries:
+            for i, (purpose, sql_query) in enumerate(sql_queries):
+                log.info("sql-db: Executing query %d/%d - Purpose: %s", i+1, len(sql_queries), purpose)
+                log.info("sql-db: SQL Query %d: %s", i+1, sql_query)
+                
                 try:
                     results = db_handler.execute_query(sql_query)
+                    log.info("sql-db: Query %d successful - Returned %d records", i+1, len(results))
                     query_results.append((purpose, sql_query, results))
                 except Exception as e:
+                    log.error("sql-db: Query %d failed - Purpose: %s, Error: %s", i+1, purpose, str(e))
                     failed_queries.append((purpose, sql_query, str(e)))
+
+            log.info("sql-db: Query execution summary - Successful: %d, Failed: %d", 
+                    len(query_results), len(failed_queries))
 
             inline_result = params.get("inline_result", True)
             if isinstance(inline_result, str):
@@ -115,6 +131,7 @@ class SearchQuery(Action):
             )
 
         except Exception as e:
+            log.error("sql-db: Error executing search query: %s", str(e))
             return ActionResponse(
                 message=f"Error executing search query: {str(e)}",
                 error_info=ErrorInfo(str(e)),
@@ -141,73 +158,88 @@ class SearchQuery(Action):
         db_schema_yaml = yaml.dump(db_schema)
         current_timestamp = datetime.datetime.now().isoformat()
 
-        system_prompt = f"""
-You are an SQL expert and will convert the provided natural language query to one or more SQL queries for {db_type}.
-If the user's request requires multiple SQL queries to fully answer, generate all necessary queries.
-Requests should have a clear context to identify the person or entity or use the word "all" to avoid ambiguity.
-It is required to raise an error if the context is missing or ambiguous.
+        log.info("sql-db: Generating SQL queries for database type: %s", db_type)
+        log.debug("sql-db: Database schema has %d tables", len(db_schema))
 
-The database schema is as follows:
-<db_schema_yaml>
+        # Build the prompt for the LLM
+        prompt = f"""You are a SQL expert. Generate SQL queries based on the natural language request.
+
+Database Information:
+- Database Type: {db_type}
+- Database Purpose: {data_description}
+- Current Timestamp: {current_timestamp}
+
+Database Schema:
 {db_schema_yaml}
-</db_schema_yaml>
 
-Additional information about the data:
-<data_description>
-{data_description}
-</data_description>
+Natural Language Query: {natural_language_query}
 
-The current date and time are available as:
-current_date_time: {current_timestamp}
+Generate one or more SQL queries to answer this request. For each query, provide:
+1. A clear purpose/description of what the query does
+2. The actual SQL query
 
-For each query needed to answer the user's request, respond with the following format:
+Format your response using these XML-like tags:
+<query_purpose>Description of what this query does</query_purpose>
+<sql_query>SELECT ... FROM ... WHERE ...</sql_query>
 
-<query_purpose>
-...Purpose of the query...
-</query_purpose>
-<sql_query>
-...SQL query...
-</sql_query>
+If you need multiple queries, repeat the tags for each query.
 
-If multiple queries are needed, repeat the above format for each query.
+Guidelines:
+- Use appropriate SQL syntax for {db_type}
+- Include LIMIT clauses for large result sets
+- Use proper table and column names from the schema
+- Handle date/time queries appropriately
+- Consider performance and efficiency
+- If the query might return many rows, add a reasonable LIMIT
 
-Or if the request is invalid, respond with an error message:
-
-<error>
-...Error message...
-</error>
-
-
-Ensure that all SQL queries are compatible with {db_type}.
-"""
+Response Guidelines: {agent.response_guidelines if agent.response_guidelines else "Provide clear, accurate SQL queries."}"""
 
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": natural_language_query},
+            {
+                "role": "user",
+                "content": prompt
+            }
         ]
+
+        log.info("sql-db: Sending request to LLM for SQL generation")
+        log.debug("sql-db: LLM prompt length: %d characters", len(prompt))
 
         try:
             response = agent.do_llm_service_request(messages=messages)
             content = response.get("content", "").strip()
 
+            log.info("sql-db: Received LLM response for SQL generation")
+            log.debug("sql-db: LLM response length: %d characters", len(content))
+
             errors = self._get_all_tags(content, "error")
             if errors:
+                log.error("sql-db: LLM returned error: %s", errors[0])
                 raise ValueError(errors[0])
 
             sql_queries = self._get_all_tags(content, "sql_query")
             purposes = self._get_all_tags(content, "query_purpose")
 
+            log.info("sql-db: Extracted %d SQL queries and %d purposes from LLM response", 
+                    len(sql_queries), len(purposes))
+
             if not sql_queries:
+                log.error("sql-db: No SQL queries found in LLM response")
                 raise ValueError("Failed to generate SQL query")
 
             # Match purposes with queries
             if len(purposes) != len(sql_queries):
+                log.warning("sql-db: Purpose count (%d) doesn't match query count (%d), using generic purposes", 
+                           len(purposes), len(sql_queries))
                 # If counts don't match, use generic purposes
                 purposes = [f"Query {i+1}" for i in range(len(sql_queries))]
 
-            return list(zip(purposes, sql_queries))
+            result = list(zip(purposes, sql_queries))
+            log.info("sql-db: Successfully generated %d SQL queries", len(result))
+            
+            return result
 
         except Exception as e:
+            log.error("sql-db: Failed to generate SQL queries: %s", str(e))
             raise ValueError(f"Failed to generate SQL query: {str(e)}")
 
     def _get_all_tags(self, result_text: str, tag_name: str) -> list:
@@ -232,105 +264,79 @@ Ensure that all SQL queries are compatible with {db_type}.
         meta: Dict[str, Any],
         query: Dict[str, Any],
     ) -> ActionResponse:
-        """Create a response with multiple query results as files.
+        """Create a response with multiple query results.
 
         Args:
-            query_results: List of tuples (purpose, sql_query, results)
-            failed_queries: List of tuples (purpose, sql_query, error_message)
-            response_format: Format for the result files
-            inline_result: Whether to return inline files
-            meta: Metadata including session_id
-            query: Original query for file metadata
+            query_results: List of (purpose, sql_query, results) tuples
+            failed_queries: List of (purpose, sql_query, error) tuples
+            response_format: Output format (yaml, json, csv)
+            inline_result: Whether to include results inline
+            meta: Optional metadata
+            query: Original query parameters
 
         Returns:
-            ActionResponse with files or inline files for each query result
+            ActionResponse with results and optional files
         """
-        file_service = FileService()
-        session_id = meta.get("session_id")
+        log.info("sql-db: Creating multi-query response with %d successful and %d failed queries", 
+                len(query_results), len(failed_queries))
 
-        # Build message with query summary
-        message_parts = []
-
-        if not query_results and not failed_queries:
-            return ActionResponse(
-                message="No SQL queries were generated from your request. Please try again with a more specific query.",
-            )
-
-        # Add summary of successful queries
-        if query_results:
-            message_parts.append(
-                f"Successfully executed {len(query_results)} SQL queries:"
-            )
-            for i, (purpose, sql_query, _) in enumerate(query_results, 1):
-                message_parts.append(f"\n{i}. {purpose}\nSQL: ```{sql_query}```")
-
-        # Add summary of failed queries
-        if failed_queries:
-            message_parts.append(
-                f"\n\nFailed to execute {len(failed_queries)} SQL queries:"
-            )
-            for i, (purpose, sql_query, error) in enumerate(failed_queries, 1):
-                message_parts.append(
-                    f"\n{i}. {purpose}\nSQL: ```{sql_query}```\nError: {error}"
-                )
-
-        # Create files for each successful query
         files = []
-        inline_files = []
-        total_size = 0
+        response_parts = []
 
-        for i, (purpose, sql_query, results) in enumerate(query_results, 1):
-            updated_results = self._stringify_non_standard_objects(results)
+        # Process successful queries
+        for i, (purpose, sql_query, results) in enumerate(query_results):
+            log.info("sql-db: Processing successful query %d/%d - Purpose: %s, Records: %d", 
+                    i+1, len(query_results), purpose, len(results))
+            
+            if not results:
+                log.warning("sql-db: Query %d returned no results", i+1)
+                response_parts.append(f"**{purpose}**: No results found")
+                continue
 
-            # Format the results based on the requested format
-            if response_format == "yaml":
-                content = yaml.dump(updated_results)
-                file_extension = "yaml"
+            # Create file for this query result
+            filename = f"query_{i+1}_{purpose.lower().replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            if response_format == "csv":
+                filename += ".csv"
+                content = self._convert_to_csv(results)
             elif response_format == "json":
-                content = json.dumps(updated_results, indent=2, default=str)
-                file_extension = "json"
-            else:  # CSV
-                content = self._format_csv(updated_results)
-                file_extension = "csv"
+                filename += ".json"
+                content = json.dumps(results, indent=2, default=str)
+            else:  # yaml
+                filename += ".yaml"
+                content = yaml.dump(results, default_flow_style=False, allow_unicode=True)
 
-            # Create a unique filename for each query
-            file_name = (
-                f"query_{i}_results_{random.randint(100000, 999999)}.{file_extension}"
-            )
+            files.append({
+                "filename": filename,
+                "content": content,
+                "content_type": "text/plain"
+            })
 
-            total_size += len(content)
-            if total_size > MAX_TOTAL_INLINE_FILE_SIZE:
-                inline_result = False
+            log.info("sql-db: Created file for query %d: %s (%d bytes)", i+1, filename, len(content))
 
+            # Add to response message
             if inline_result:
-                inline_files.append(InlineFile(content, file_name))
+                response_parts.append(f"**{purpose}** ({len(results)} records):\n```{response_format}\n{content}\n```")
             else:
-                data_source = f"SQL Agent - Search Query {i} - {purpose}"
-                file_meta = file_service.upload_from_buffer(
-                    content.encode(), file_name, session_id, data_source=data_source
-                )
-                files.append(file_meta)
+                response_parts.append(f"**{purpose}**: {len(results)} records saved to `{filename}`")
 
-        # Add file summary to message
-        if query_results:
-            if inline_files:
-                message_parts.append(
-                    f"\n\nResults are available in {len(inline_files)} attached inline {response_format.upper()} files."
-                )
-            if files:
-                message_parts.append(
-                    f"\n\nResults are {'also ' if len(inline_files) > 0 else ''} available in {len(files)} attached {response_format.upper()} files."
-                )
-                
-        # Add response guidelines if they exist
-        agent = self.get_agent()
-        if hasattr(agent, 'response_guidelines') and agent.response_guidelines:
-            message_parts.append(f"\n\nGuidelines:\n{agent.response_guidelines}")
+        # Process failed queries
+        if failed_queries:
+            log.warning("sql-db: Processing %d failed queries", len(failed_queries))
+            response_parts.append("\n**Failed Queries:**")
+            for i, (purpose, sql_query, error) in enumerate(failed_queries):
+                log.error("sql-db: Failed query %d - Purpose: %s, Error: %s", i+1, purpose, error)
+                response_parts.append(f"- **{purpose}**: {error}")
+
+        # Combine all parts
+        response_message = "\n\n".join(response_parts)
         
+        log.info("sql-db: Multi-query response created - Total files: %d, Response length: %d characters", 
+                len(files), len(response_message))
+
         return ActionResponse(
-            message="\n".join(message_parts),
-            files=files if files else None,
-            inline_files=inline_files if inline_files else None,
+            message=response_message,
+            files=files if files else None
         )
 
     def _format_csv(self, results: List[Dict[str, Any]]) -> str:
