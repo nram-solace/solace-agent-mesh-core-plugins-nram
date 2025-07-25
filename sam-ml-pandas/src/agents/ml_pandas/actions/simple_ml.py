@@ -89,7 +89,7 @@ class SimpleMlAction(Action):
             valid_task_types = ["classification", "regression", "auto"]
             if task_type not in valid_task_types:
                 return ActionResponse(
-                    success=False,
+                    message=f"Invalid task_type '{task_type}'. Valid types are: {', '.join(valid_task_types)}",
                     error_info=ErrorInfo(f"Invalid task_type '{task_type}'. Valid types are: {', '.join(valid_task_types)}")
                 )
 
@@ -97,19 +97,19 @@ class SimpleMlAction(Action):
             valid_model_types = ["random_forest", "linear", "logistic"]
             if model_type not in valid_model_types:
                 return ActionResponse(
-                    success=False,
+                    message=f"Invalid model_type '{model_type}'. Valid types are: {', '.join(valid_model_types)}",
                     error_info=ErrorInfo(f"Invalid model_type '{model_type}'. Valid types are: {', '.join(valid_model_types)}")
                 )
 
             # Validate test_size
             if not 0.1 <= test_size <= 0.5:
                 return ActionResponse(
-                    success=False,
+                    message="test_size must be between 0.1 and 0.5",
                     error_info=ErrorInfo("test_size must be between 0.1 and 0.5")
                 )
 
             # Get the agent and its data
-            agent = self.agent
+            agent = self.get_agent()
             data = agent.get_working_data().copy()
             data_service = agent.get_data_service()
 
@@ -119,13 +119,13 @@ class SimpleMlAction(Action):
             
             if not target_column:
                 return ActionResponse(
-                    success=False,
+                    message="No target column specified. Please specify target_column parameter or configure it in the agent.",
                     error_info=ErrorInfo("No target column specified. Please specify target_column parameter or configure it in the agent.")
                 )
 
             if target_column not in data.columns:
                 return ActionResponse(
-                    success=False,
+                    message=f"Target column '{target_column}' not found in dataset",
                     error_info=ErrorInfo(f"Target column '{target_column}' not found in dataset")
                 )
 
@@ -135,7 +135,7 @@ class SimpleMlAction(Action):
                 missing_cols = [col for col in feature_columns if col not in data.columns]
                 if missing_cols:
                     return ActionResponse(
-                        success=False,
+                        message=f"Feature columns not found: {missing_cols}",
                         error_info=ErrorInfo(f"Feature columns not found: {missing_cols}")
                     )
             else:
@@ -147,7 +147,7 @@ class SimpleMlAction(Action):
             
             if len(data) == 0:
                 return ActionResponse(
-                    success=False,
+                    message="No valid data rows after removing missing target values",
                     error_info=ErrorInfo("No valid data rows after removing missing target values")
                 )
 
@@ -244,15 +244,14 @@ class SimpleMlAction(Action):
             response_text = self._format_response(clean_result, saved_path)
 
             return ActionResponse(
-                success=True,
-                response_text=response_text,
+                message=response_text,
                 response_data=clean_result
             )
 
         except Exception as e:
             log.error("Error in simple ML action: %s", str(e))
             return ActionResponse(
-                success=False,
+                message=f"Failed to perform ML task: {str(e)}",
                 error_info=ErrorInfo(f"Failed to perform ML task: {str(e)}")
             )
 
