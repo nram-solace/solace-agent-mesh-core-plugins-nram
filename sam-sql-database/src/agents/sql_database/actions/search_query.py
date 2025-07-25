@@ -120,12 +120,17 @@ class SearchQuery(Action):
             if isinstance(inline_result, str):
                 inline_result = inline_result.lower() == "true"
 
+            return_json_data = params.get("return_json_data", False)
+            if isinstance(return_json_data, str):
+                return_json_data = return_json_data.lower() == "true"
+
             # Create response with files for each successful query
             return self._create_multi_query_response(
                 query_results=query_results,
                 failed_queries=failed_queries,
                 response_format=response_format,
                 inline_result=inline_result,
+                return_json_data=return_json_data,
                 meta=meta,
                 query={"query": query},
             )
@@ -261,6 +266,7 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
         failed_queries: List[Tuple[str, str, str]],
         response_format: str,
         inline_result: bool,
+        return_json_data: bool,
         meta: Dict[str, Any],
         query: Dict[str, Any],
     ) -> ActionResponse:
@@ -271,6 +277,7 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
             failed_queries: List of (purpose, sql_query, error) tuples
             response_format: Output format (yaml, json, csv)
             inline_result: Whether to include results inline
+            return_json_data: Whether to return data directly as JSON
             meta: Optional metadata
             query: Original query parameters
 
@@ -280,6 +287,58 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
         log.info("sql-db: Creating multi-query response with %d successful and %d failed queries", 
                 len(query_results), len(failed_queries))
 
+        # If return_json_data is requested, return data directly as JSON
+        if return_json_data and query_results:
+            log.info("sql-db: Returning data directly as JSON for agent consumption")
+            
+            # Combine all results into a single JSON structure
+            combined_data = {
+                "query": query.get("query", ""),
+                "total_queries": len(query_results),
+                "successful_queries": len(query_results),
+                "failed_queries": len(failed_queries),
+                "results": []
+            }
+            
+            for i, (purpose, sql_query, results) in enumerate(query_results):
+                combined_data["results"].append({
+                    "query_number": i + 1,
+                    "purpose": purpose,
+                    "sql_query": sql_query,
+                    "record_count": len(results),
+                    "data": results
+                })
+            
+            # Add failed queries if any
+            if failed_queries:
+                combined_data["failed_queries_details"] = []
+                for i, (purpose, sql_query, error) in enumerate(failed_queries):
+                    combined_data["failed_queries_details"].append({
+                        "query_number": i + 1,
+                        "purpose": purpose,
+                        "sql_query": sql_query,
+                        "error": error
+                    })
+            
+            json_data = json.dumps(combined_data, indent=2, default=str)
+            
+            response_message = f"**SQL Query Results**\n\n"
+            response_message += f"Query: {query.get('query', '')}\n"
+            response_message += f"Successful queries: {len(query_results)}\n"
+            response_message += f"Failed queries: {len(failed_queries)}\n"
+            response_message += f"Total records: {sum(len(results) for _, _, results in query_results)}\n\n"
+            response_message += f"**JSON Data for Agent Consumption:**\n```json\n{json_data}\n```"
+            
+            return ActionResponse(
+                message=response_message,
+                files=[{
+                    "filename": f"sql_results_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    "content": json_data,
+                    "content_type": "application/json"
+                }]
+            )
+
+        # Original file-based response logic
         files = []
         response_parts = []
 

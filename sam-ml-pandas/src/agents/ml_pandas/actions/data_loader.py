@@ -29,7 +29,7 @@ class DataLoaderAction(Action):
                         "desc": "Type of data loading operation",
                         "type": "string",
                         "required": True,
-                        "enum": ["file", "agent_data", "json_data"],
+                        "enum": ["file", "agent_data", "json_data", "sql_agent_data"],
                     },
                     {
                         "name": "file_path",
@@ -100,7 +100,7 @@ class DataLoaderAction(Action):
                 log.info("ml-pandas: Description: %s", description)
 
             # Validate load_type
-            valid_load_types = ["file", "agent_data", "json_data"]
+            valid_load_types = ["file", "agent_data", "json_data", "sql_agent_data"]
             if load_type not in valid_load_types:
                 return ActionResponse(
                     message=f"Invalid load_type '{load_type}'. Valid types are: {', '.join(valid_load_types)}",
@@ -218,6 +218,43 @@ class DataLoaderAction(Action):
                 
                 result = {
                     "load_type": "json_data",
+                    "source_agent": source_agent,
+                    "description": description,
+                    "data_shape": data.shape,
+                    "columns": data.columns.tolist(),
+                    "data_types": data.dtypes.to_dict(),
+                    "sample_data": data.head(5).to_dict('records')
+                }
+
+            elif load_type == "sql_agent_data":
+                # Load data from SQL agent JSON response
+                if not json_data or not json_data.strip():
+                    return ActionResponse(
+                        message="json_data parameter is required and cannot be empty when load_type is 'sql_agent_data'",
+                        error_info=ErrorInfo("json_data parameter is required and cannot be empty when load_type is 'sql_agent_data'")
+                    )
+
+                # Validate JSON format before processing
+                try:
+                    import json
+                    json.loads(json_data)  # Test if it's valid JSON
+                except json.JSONDecodeError as e:
+                    return ActionResponse(
+                        message=f"Invalid JSON format in json_data: {str(e)}",
+                        error_info=ErrorInfo(f"Invalid JSON format in json_data: {str(e)}")
+                    )
+
+                # Load the data using SQL agent specific method
+                try:
+                    data = agent.receive_data_from_sql_agent(json_data, source_agent, description)
+                except ValueError as e:
+                    return ActionResponse(
+                        message=f"Failed to process SQL agent data: {str(e)}",
+                        error_info=ErrorInfo(f"Failed to process SQL agent data: {str(e)}")
+                    )
+                
+                result = {
+                    "load_type": "sql_agent_data",
                     "source_agent": source_agent,
                     "description": description,
                     "data_shape": data.shape,

@@ -356,24 +356,30 @@ class MLPandasAgentComponent(BaseAgentComponent):
 
 To work with data from other agents (like SQL Database agent):
 
-1. **Receive Data from SQL Agent:**
-   - Use `load_type: "json_data"`
-   - Pass the SQL query results as `json_data` parameter
-   - Example: SQL agent returns JSON data → ML pandas agent loads it
+1. **Receive Data from SQL Agent (Recommended):**
+   - Use `load_type: "sql_agent_data"`
+   - Pass the SQL agent JSON response as `json_data` parameter
+   - SQL agent should use `return_json_data: true` parameter
+   - Example: SQL agent returns structured JSON → ML pandas agent loads it
 
-2. **Avoid File References:**
+2. **Receive Generic JSON Data:**
+   - Use `load_type: "json_data"`
+   - Pass any JSON data as `json_data` parameter
+   - Example: Any agent returns JSON data → ML pandas agent loads it
+
+3. **Avoid File References:**
    - Don't use `amfs://` URLs or file references
    - Use direct data transfer via JSON
 
-3. **Example Workflow:**
+4. **Example Workflow:**
    ```
-   SQL Agent: "Get sales data for last 3 months"
-   → Returns JSON data
-   ML Pandas Agent: load_type="json_data", json_data="[{'sales': 1000, 'month': 'Jan'}, ...]"
-   → Loads and analyzes the data
+   SQL Agent: "Get sales data for last 3 months" with return_json_data=true
+   → Returns structured JSON with query info and data
+   ML Pandas Agent: load_type="sql_agent_data", json_data="[SQL_AGENT_JSON_RESPONSE]"
+   → Loads and analyzes the data with full context
    ```
 
-4. **Available Actions:**
+5. **Available Actions:**
    - `load_data`: Receive data from other agents
    - `summarize_data`: Quick data summaries
    - `query_data`: Filter and query data
@@ -495,6 +501,59 @@ To work with data from other agents (like SQL Database agent):
             return data
         except Exception as e:
             raise ValueError(f"ml-pandas: Failed to load data from JSON: {str(e)}")
+
+    def receive_data_from_sql_agent(self, sql_json_data: str, source_agent: str = None, description: str = None) -> pd.DataFrame:
+        """Receive data from SQL agent in the new JSON format.
+        
+        Args:
+            sql_json_data: JSON string from SQL agent with return_json_data=True
+            source_agent: Name of the SQL agent
+            description: Description of the data
+            
+        Returns:
+            DataFrame containing the extracted data
+        """
+        try:
+            import json
+            
+            # Parse the SQL agent JSON response
+            sql_response = json.loads(sql_json_data)
+            
+            # Extract data from all successful queries
+            all_data = []
+            for result in sql_response.get("results", []):
+                data_records = result.get("data", [])
+                all_data.extend(data_records)
+            
+            if not all_data:
+                raise ValueError("No data found in SQL agent response")
+            
+            # Convert to DataFrame
+            data = pd.DataFrame(all_data)
+            
+            # Store metadata
+            self.data = data
+            self.current_data_source = f"SQL Agent: {source_agent or 'unknown'}"
+            if description:
+                self.current_data_source += f" - {description}"
+            
+            # Add to history
+            self.data_history.append({
+                "source": "sql_agent", 
+                "agent": source_agent, 
+                "description": description,
+                "shape": data.shape,
+                "query": sql_response.get("query", ""),
+                "total_queries": sql_response.get("total_queries", 0),
+                "total_records": len(all_data)
+            })
+            
+            log.info("ml-pandas: Successfully loaded data from SQL agent with shape: %s, total records: %d", 
+                    data.shape, len(all_data))
+            return data
+            
+        except Exception as e:
+            raise ValueError(f"ml-pandas: Failed to load data from SQL agent: {str(e)}")
 
     def get_data_history(self) -> List[Dict[str, Any]]:
         """Get the history of data sources used in this session."""
