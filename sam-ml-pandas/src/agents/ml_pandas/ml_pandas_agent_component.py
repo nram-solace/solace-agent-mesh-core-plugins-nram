@@ -21,7 +21,10 @@ from .services.data_service import DataService
 try:
     from ... import __version__
 except ImportError:
-    __version__ = "0.1.0+local.unknown"  # Fallback version
+    try:
+        from sam_ml_pandas import __version__
+    except ImportError:
+        __version__ = "0.1.0+local.nram"  # Fallback version
 
 
 info = copy.deepcopy(agent_info)
