@@ -285,8 +285,8 @@ class MLPandasAgentComponent(BaseAgentComponent):
                 description += f" (and {len(self.data.columns) - 10} more)"
         else:
             description += "No data currently loaded.\n"
-            description += "Use the 'load_data' action to load data from files or create sample data.\n"
-            description += "Use the 'query_data' action to filter and analyze data once loaded."
+            description += "Use the 'load_data' action to receive data from other agents or load from files.\n"
+            description += "Use the 'summarize_data' action for quick summaries once data is loaded."
 
         self._agent_description = {
             "agent_name": self.agent_name,
@@ -372,24 +372,48 @@ class MLPandasAgentComponent(BaseAgentComponent):
         """Receive data as JSON string from another agent or source."""
         try:
             import json
-            data_dict = json.loads(json_data)
+            
+            # Validate input
+            if not json_data or not json_data.strip():
+                raise ValueError("JSON data is empty or not provided")
+            
+            # Try to parse JSON
+            try:
+                data_dict = json.loads(json_data)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON format: {str(e)}")
             
             # Handle different JSON formats
             if isinstance(data_dict, list):
                 # List of records
+                if not data_dict:
+                    raise ValueError("JSON data contains an empty list")
                 data = pd.DataFrame(data_dict)
             elif isinstance(data_dict, dict):
                 if "data" in data_dict and isinstance(data_dict["data"], list):
                     # {"data": [...]} format
+                    if not data_dict["data"]:
+                        raise ValueError("JSON data contains an empty data array")
                     data = pd.DataFrame(data_dict["data"])
                 elif "records" in data_dict and isinstance(data_dict["records"], list):
                     # {"records": [...]} format
+                    if not data_dict["records"]:
+                        raise ValueError("JSON data contains an empty records array")
                     data = pd.DataFrame(data_dict["records"])
+                elif "results" in data_dict and isinstance(data_dict["results"], list):
+                    # {"results": [...]} format
+                    if not data_dict["results"]:
+                        raise ValueError("JSON data contains an empty results array")
+                    data = pd.DataFrame(data_dict["results"])
                 else:
                     # Single record or other format
                     data = pd.DataFrame([data_dict])
             else:
-                raise ValueError("Invalid JSON data format")
+                raise ValueError(f"Invalid JSON data format. Expected list or dict, got {type(data_dict)}")
+            
+            # Validate DataFrame
+            if data.empty:
+                raise ValueError("JSON data resulted in an empty DataFrame")
             
             self.data = data
             self.current_data_source = f"JSON from {source_agent or 'external source'}"

@@ -77,6 +77,13 @@ class DataLoaderAction(Action):
             source_agent = request_data.get("source_agent", "")
             description = request_data.get("description", "")
 
+            # Log the request for debugging
+            log.info("Data loader action called with load_type: %s", load_type)
+            if load_type == "json_data":
+                log.info("JSON data length: %d characters", len(json_data) if json_data else 0)
+                log.info("Source agent: %s", source_agent)
+                log.info("Description: %s", description)
+
             # Validate load_type
             valid_load_types = ["file", "agent_data", "json_data"]
             if load_type not in valid_load_types:
@@ -119,14 +126,30 @@ class DataLoaderAction(Action):
 
             elif load_type == "json_data":
                 # Load data from JSON string
-                if not json_data:
+                if not json_data or not json_data.strip():
                     return ActionResponse(
-                        message="json_data is required when load_type is 'json_data'",
-                        error_info=ErrorInfo("json_data is required when load_type is 'json_data'")
+                        message="json_data parameter is required and cannot be empty when load_type is 'json_data'",
+                        error_info=ErrorInfo("json_data parameter is required and cannot be empty when load_type is 'json_data'")
+                    )
+
+                # Validate JSON format before processing
+                try:
+                    import json
+                    json.loads(json_data)  # Test if it's valid JSON
+                except json.JSONDecodeError as e:
+                    return ActionResponse(
+                        message=f"Invalid JSON format in json_data: {str(e)}",
+                        error_info=ErrorInfo(f"Invalid JSON format in json_data: {str(e)}")
                     )
 
                 # Load the data
-                data = agent.receive_data_from_json(json_data, source_agent, description)
+                try:
+                    data = agent.receive_data_from_json(json_data, source_agent, description)
+                except ValueError as e:
+                    return ActionResponse(
+                        message=f"Failed to process JSON data: {str(e)}",
+                        error_info=ErrorInfo(f"Failed to process JSON data: {str(e)}")
+                    )
                 
                 result = {
                     "load_type": "json_data",
