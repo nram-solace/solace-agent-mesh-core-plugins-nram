@@ -286,7 +286,11 @@ class MLPandasAgentComponent(BaseAgentComponent):
         else:
             description += "No data currently loaded.\n"
             description += "Use the 'load_data' action to receive data from other agents or load from files.\n"
-            description += "Use the 'summarize_data' action for quick summaries once data is loaded."
+            description += "Use the 'summarize_data' action for quick summaries once data is loaded.\n\n"
+            description += "**Collaborative Workflow:**\n"
+            description += "- Use `load_type: 'json_data'` to receive data from SQL agents\n"
+            description += "- Avoid `amfs://` file references - use direct JSON data transfer\n"
+            description += "- Example: SQL agent → JSON data → ML pandas agent for analysis"
 
         self._agent_description = {
             "agent_name": self.agent_name,
@@ -308,15 +312,75 @@ class MLPandasAgentComponent(BaseAgentComponent):
         return self.data
 
     def get_working_data(self) -> pd.DataFrame:
-        """Get the working dataset (selected columns if specified)."""
-        if self.data is None:
-            raise ValueError("No data loaded. Please use the 'load_data' action to load data first.")
+        """Get the currently loaded working data.
         
-        if self.selected_columns:
-            available_cols = [col for col in self.selected_columns if col in self.data.columns]
-            if available_cols:
-                return self.data[available_cols]
+        Returns:
+            DataFrame containing the current data
+            
+        Raises:
+            ValueError: If no data is loaded
+        """
+        if self.data is None:
+            raise ValueError("No data is currently loaded. Use the 'load_data' action to receive data from other agents or load from files.")
         return self.data
+
+    def get_data_summary(self) -> Dict[str, Any]:
+        """Get a summary of the currently loaded data.
+        
+        Returns:
+            Dictionary containing data summary information
+        """
+        if self.data is None:
+            return {
+                "status": "no_data",
+                "message": "No data is currently loaded. Use the 'load_data' action to receive data from other agents or load from files."
+            }
+        
+        return {
+            "status": "loaded",
+            "shape": self.data.shape,
+            "columns": self.data.columns.tolist(),
+            "data_types": self.data.dtypes.to_dict(),
+            "source": self.current_data_source,
+            "history": self.data_history
+        }
+
+    def get_collaborative_workflow_help(self) -> str:
+        """Get help information for collaborative workflows.
+        
+        Returns:
+            String containing help information
+        """
+        help_text = """
+**Collaborative Workflow Help**
+
+To work with data from other agents (like SQL Database agent):
+
+1. **Receive Data from SQL Agent:**
+   - Use `load_type: "json_data"`
+   - Pass the SQL query results as `json_data` parameter
+   - Example: SQL agent returns JSON data → ML pandas agent loads it
+
+2. **Avoid File References:**
+   - Don't use `amfs://` URLs or file references
+   - Use direct data transfer via JSON
+
+3. **Example Workflow:**
+   ```
+   SQL Agent: "Get sales data for last 3 months"
+   → Returns JSON data
+   ML Pandas Agent: load_type="json_data", json_data="[{'sales': 1000, 'month': 'Jan'}, ...]"
+   → Loads and analyzes the data
+   ```
+
+4. **Available Actions:**
+   - `load_data`: Receive data from other agents
+   - `summarize_data`: Quick data summaries
+   - `query_data`: Filter and query data
+   - `data_analysis`: Detailed analysis
+   - `simple_ml`: Machine learning tasks
+        """
+        return help_text.strip()
 
     def load_data_from_file(self, file_path: str, file_format: str = None) -> pd.DataFrame:
         """Load data from a file dynamically."""

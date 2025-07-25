@@ -63,6 +63,13 @@ class DataLoaderAction(Action):
                         "type": "string",
                         "required": False,
                     },
+                    {
+                        "name": "help",
+                        "desc": "Show help information for collaborative workflows",
+                        "type": "boolean",
+                        "required": False,
+                        "default": False,
+                    },
                 ],
             }
         )
@@ -77,6 +84,13 @@ class DataLoaderAction(Action):
             json_data = request_data.get("json_data", "")
             source_agent = request_data.get("source_agent", "")
             description = request_data.get("description", "")
+            help_requested = request_data.get("help", False)
+
+            # Show help if requested
+            if help_requested:
+                agent = self.get_agent()
+                help_text = agent.get_collaborative_workflow_help()
+                return ActionResponse(message=help_text)
 
             # Log the request for debugging
             log.info("ml-pandas: Data loader action called with load_type: %s", load_type)
@@ -102,6 +116,14 @@ class DataLoaderAction(Action):
                     return ActionResponse(
                         message="file_path is required when load_type is 'file'",
                         error_info=ErrorInfo("file_path is required when load_type is 'file'")
+                    )
+
+                # Check if this is an amfs:// URL (Agent Mesh File System)
+                if file_path.startswith("amfs://"):
+                    log.warning("ml-pandas: Received amfs:// URL: %s", file_path)
+                    return ActionResponse(
+                        message=f"File not found: {file_path}. This appears to be a reference to a file created by another agent that no longer exists. Please use the 'json_data' parameter to receive data directly from other agents, or ensure the file exists in the Agent Mesh File System.",
+                        error_info=ErrorInfo(f"amfs:// file not found: {file_path}")
                     )
 
                 # Validate that file_path is actually a file path, not data content
@@ -140,7 +162,7 @@ class DataLoaderAction(Action):
                 # Check if file exists
                 if not os.path.exists(file_path):
                     return ActionResponse(
-                        message=f"File not found: {file_path}. Please provide a valid file path.",
+                        message=f"File not found: {file_path}. Please provide a valid file path or use load_type='json_data' to receive data directly from other agents.",
                         error_info=ErrorInfo(f"File not found: {file_path}")
                     )
 

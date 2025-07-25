@@ -46,7 +46,14 @@ class DataService:
         # Add basic statistics for numerical columns
         numerical_cols = df.select_dtypes(include=[np.number]).columns
         if len(numerical_cols) > 0:
-            summary["numerical_stats"] = df[numerical_cols].describe().to_dict()
+            # Convert describe() output to a clean dictionary format
+            desc_stats = df[numerical_cols].describe()
+            numerical_stats = {}
+            for col in desc_stats.columns:
+                numerical_stats[col] = {}
+                for stat in desc_stats.index:
+                    numerical_stats[col][stat] = float(desc_stats.loc[stat, col])
+            summary["numerical_stats"] = numerical_stats
         
         # Add categorical column info
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns
@@ -107,8 +114,15 @@ class DataService:
         
         corr_matrix = df[numerical_cols].corr()
         
+        # Convert correlation matrix to a clean dictionary format
+        corr_dict = {}
+        for col1 in corr_matrix.columns:
+            corr_dict[col1] = {}
+            for col2 in corr_matrix.columns:
+                corr_dict[col1][col2] = float(corr_matrix.loc[col1, col2])
+        
         analysis = {
-            "correlation_matrix": corr_matrix.to_dict(),
+            "correlation_matrix": corr_dict,
             "high_correlations": []
         }
         
@@ -208,11 +222,22 @@ class DataService:
     def save_results(self, results: Dict[str, Any], filename: str) -> str:
         """Save results to a JSON file."""
         try:
+            # Ensure results are properly cleaned for JSON serialization
+            cleaned_results = self.clean_data_for_json(results)
+            
             filepath = os.path.join(self.output_directory, filename)
             with open(filepath, 'w') as f:
-                json.dump(results, f, indent=2, default=str)
+                json.dump(cleaned_results, f, indent=2, default=str)
             log.info("ml-pandas: Results saved to: %s", filepath)
             return filepath
+        except TypeError as e:
+            log.error("ml-pandas: Error saving results - JSON serialization failed: %s", str(e))
+            # Try to identify the problematic data
+            try:
+                json.dumps(results, default=str)
+            except TypeError as e2:
+                log.error("ml-pandas: JSON serialization error details: %s", str(e2))
+            return f"Error saving results - JSON serialization failed: {str(e)}"
         except Exception as e:
             log.error("ml-pandas: Error saving results: %s", str(e))
             return f"Error saving results: {str(e)}"
@@ -230,8 +255,26 @@ class DataService:
         elif isinstance(obj, pd.DataFrame):
             return obj.to_dict('records')
         elif isinstance(obj, dict):
-            return {k: self.clean_data_for_json(v) for k, v in obj.items()}
+            # Handle tuple keys by converting them to strings
+            cleaned_dict = {}
+            for k, v in obj.items():
+                if isinstance(k, tuple):
+                    # Convert tuple key to string representation
+                    cleaned_key = str(k)
+                else:
+                    cleaned_key = k
+                cleaned_dict[cleaned_key] = self.clean_data_for_json(v)
+            return cleaned_dict
         elif isinstance(obj, list):
             return [self.clean_data_for_json(item) for item in obj]
+        elif isinstance(obj, tuple):
+            # Convert tuples to lists
+            return list(obj)
+        elif isinstance(obj, (pd.Timestamp, pd.DatetimeTZDtype)):
+            # Handle pandas timestamp objects
+            return str(obj)
+        elif hasattr(obj, 'dtype') and hasattr(obj, 'tolist'):
+            # Handle other numpy/pandas objects
+            return obj.tolist()
         else:
             return obj
