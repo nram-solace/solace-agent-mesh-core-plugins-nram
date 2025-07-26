@@ -59,7 +59,9 @@ class SearchQuery(Action):
                         "desc": "Whether to return the result as an inline file (True) or a regular file (False)",
                         "type": "boolean",
                         "required": False,
-                        "default": False,
+                        "default": True 
+                       # "default": False, # set to false if you want to return the result as a regular file
+                        
                     },
                 ],
                 "required_scopes": ["<agent_name>:search_query:execute"],
