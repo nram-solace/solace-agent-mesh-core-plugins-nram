@@ -43,7 +43,7 @@ flows:
           agent_name: {{SNAKE_CASE_NAME}}
           db_type: ${{{SNAKE_UPPER_CASE_NAME}}_DB_TYPE}
           host: ${{{SNAKE_UPPER_CASE_NAME}}_DB_HOST}
-          port: ${{{SNAKE_UPPER_CASE_NAME}}SQL_DB_PORT}
+          port: ${{{SNAKE_UPPER_CASE_NAME}}_DB_PORT}
           user: ${{{SNAKE_UPPER_CASE_NAME}}_DB_USER}
           password: ${{{SNAKE_UPPER_CASE_NAME}}_DB_PASSWORD}
           database: ${{{SNAKE_UPPER_CASE_NAME}}_DB_NAME}
@@ -51,14 +51,14 @@ flows:
           database_purpose: ${{{SNAKE_UPPER_CASE_NAME}}_DB_PURPOSE}
           data_description: ${{{SNAKE_UPPER_CASE_NAME}}_DB_DESCRIPTION}
           auto_detect_schema: true
-        broker_request_response:
-          enabled: true
-          broker_config: *broker_connection
-          request_expiry_ms: 120000
-          payload_encoding: utf-8
-          payload_format: json
-          response_topic_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
-          response_queue_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+          broker_request_response:
+            enabled: true
+            broker_config: *broker_connection
+            request_expiry_ms: 120000
+            payload_encoding: utf-8
+            payload_format: json
+            response_topic_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
+            response_queue_prefix: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1
         component_input:
           source_expression: input.payload
 
