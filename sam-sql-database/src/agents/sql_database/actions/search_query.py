@@ -59,7 +59,9 @@ class SearchQuery(Action):
                         "desc": "Whether to return the result as an inline file (True) or a regular file (False)",
                         "type": "boolean",
                         "required": False,
-                        "default": True,
+                        "default": True 
+                       # "default": False, # set to false if you want to return the result as a regular file
+                        
                     },
                 ],
                 "required_scopes": ["<agent_name>:search_query:execute"],
@@ -208,8 +210,22 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
 
         log.info("sql-db: Sending request to LLM for SQL generation")
         log.debug("sql-db: LLM prompt length: %d characters", len(prompt))
+        log.debug("sql-db: LLM service topic: %s", agent.llm_service_topic)
+        
+        # Check if broker request/response is configured
+        if agent.is_broker_request_response_enabled():
+            log.debug("sql-db: Broker request/response is configured")
+        else:
+            log.warning("sql-db: Broker request/response is NOT configured - this may cause response_queue issues")
 
         try:
+            # Validate broker request/response is configured
+            if not agent.is_broker_request_response_enabled():
+                return ActionResponse(
+                    message="Broker request/response not configured for LLM service requests",
+                    error_info=ErrorInfo("Broker request/response service not available")
+                )
+
             response = agent.do_llm_service_request(messages=messages)
             content = response.get("content", "").strip()
 
@@ -352,8 +368,20 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
                 response_parts.append(f"**{purpose}**: No results found")
                 continue
 
-            # Create file for this query result
-            filename = f"query_{i+1}_{purpose.lower().replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # Create file for this query result with unique name for concurrent users
+            import random
+            import string
+            import uuid
+            
+            # Generate a unique identifier with multiple components
+            # - 8 character random string
+            # - UUID (32 characters)
+            # - Timestamp with milliseconds
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+            unique_id = str(uuid.uuid4()).replace('-', '')[:12]  # First 12 chars of UUID
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+            
+            filename = f"q{i+1}_{random_suffix}_{unique_id}_{timestamp}"
             
             if response_format == "csv":
                 filename += ".csv"
@@ -364,6 +392,19 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
             else:  # yaml
                 filename += ".yaml"
                 content = yaml.dump(results, default_flow_style=False, allow_unicode=True)
+
+            # Save file to disk for debugging
+            import os
+            output_dir = "./sql_output"
+            os.makedirs(output_dir, exist_ok=True)
+            file_path = os.path.join(output_dir, filename)
+            
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                log.info("sql-db: Saved file to disk: %s (%d bytes)", file_path, len(content))
+            except Exception as e:
+                log.error("sql-db: Failed to save file to disk: %s", str(e))
 
             files.append({
                 "filename": filename,
@@ -377,7 +418,7 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
             if inline_result:
                 response_parts.append(f"**{purpose}** ({len(results)} records):\n```{response_format}\n{content}\n```")
             else:
-                response_parts.append(f"**{purpose}**: {len(results)} records saved to `{filename}`")
+                response_parts.append(f"**{purpose}**: {len(results)} records saved to `{file_path}`")
 
         # Process failed queries
         if failed_queries:

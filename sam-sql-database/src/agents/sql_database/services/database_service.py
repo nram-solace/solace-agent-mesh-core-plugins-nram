@@ -101,11 +101,11 @@ class DatabaseService(ABC):
             SQLAlchemyError: If query execution fails
         """
         try:
-            log.info("sql-db: Executing SQL query: %s", query)
+            log.debug("sql-db: Executing SQL query: %s", query)
             with self.get_connection() as conn:
                 result = conn.execute(text(query))
                 results = list(result.mappings())
-                log.info("sql-db: Query executed successfully. Returned %d records", len(results))
+                log.debug("sql-db: Query executed successfully. Returned %d records", len(results))
                 if results:
                     log.debug("sql-db: Sample result columns: %s", list(results[0].keys()) if results else "No columns")
                 return results

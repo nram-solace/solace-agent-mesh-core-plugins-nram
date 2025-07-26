@@ -159,7 +159,28 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             ValueError: If required database configuration is missing.
         """
         module_info = module_info or info
+        
+        # Debug broker request/response configuration
+        log.info("sql-db: Initializing SQL agent component")
+        log.debug("sql-db: Available kwargs keys: %s", list(kwargs.keys()))
+        
+        # Log component_config if present
+        if 'component_config' in kwargs:
+            log.debug("sql-db: component_config keys: %s", list(kwargs['component_config'].keys()))
+        
         super().__init__(module_info, **kwargs)
+
+        # Debug broker request/response after initialization
+        if hasattr(self, 'broker_request_response') and self.broker_request_response:
+            log.info("sql-db: Broker request/response is properly initialized")
+        else:
+            log.warning("sql-db: Broker request/response is NOT initialized after super().__init__")
+            
+        # Test the is_broker_request_response_enabled method
+        if self.is_broker_request_response_enabled():
+            log.info("sql-db: Broker request/response is enabled according to is_broker_request_response_enabled()")
+        else:
+            log.warning("sql-db: Broker request/response is NOT enabled according to is_broker_request_response_enabled()")
 
         self.agent_name = self.get_config("agent_name")
         self.db_type = self.get_config("db_type")
@@ -194,7 +215,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         if self.auto_detect_schema:
             try:
                 log.info("sql-db: Auto-detecting database schema...")
-                self.detailed_schema = self.db_handler.get_detailed_schema()
+                self.detailed_schema = self._detect_schema()
                 log.info("sql-db: Schema detection completed - Found %d tables", len(self.detailed_schema))
                 for table_name, table_info in self.detailed_schema.items():
                     column_count = len(table_info.get("columns", {}))
@@ -215,11 +236,12 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         if not self.schema_summary:
             raise ValueError("Failed to generate schema summary from auto-detected schema")
         
-        # Update the search_query action with schema information
+        # Update the search_query action with schema information (simplified for prompt length)
         for action in self.action_list.actions:
             if action.name == "search_query":
                 current_directive = action._prompt_directive
-                schema_info = f"\n\nDatabase Schema:\n{self.schema_summary}"
+                # Use a more concise schema summary to avoid prompt length issues
+                schema_info = f"\n\nDatabase Tables: {self.schema_summary}"
                 action._prompt_directive = current_directive + schema_info
                 break
 
@@ -412,12 +434,18 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         except yaml.YAMLError as exc:
             raise ValueError(f"Error: Failed to parse schema. Invalid YAML format. Details: {exc}") from exc
 
-        # Construct summary lines
+        # Construct summary lines (limited to first 10 columns per table to keep prompt short)
         summary_lines = []
         for table_name, table_info in schema_dict.items():
             columns = table_info.get("columns")
             if isinstance(columns, dict):
-                summary_lines.append(f"{table_name}: {', '.join(columns.keys())}")
+                column_names = list(columns.keys())
+                # Limit to first 10 columns to keep prompt length manageable
+                if len(column_names) > 10:
+                    column_summary = ', '.join(column_names[:10]) + f" (+{len(column_names)-10} more)"
+                else:
+                    column_summary = ', '.join(column_names)
+                summary_lines.append(f"{table_name}: {column_summary}")
 
         return "\n".join(summary_lines)
 
@@ -454,5 +482,51 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
     def get_db_handler(self) -> DatabaseService:
         """Get the database handler instance."""
         return self.db_handler
+
+    def is_broker_request_response_enabled(self) -> bool:
+        """Check if broker request/response is enabled for this agent.
+        
+        Returns:
+            True if broker request/response is enabled, False otherwise.
+        """
+        # Check if broker_request_response attribute exists and is not None
+        if hasattr(self, 'broker_request_response') and self.broker_request_response is not None:
+            return True
+        
+        # Check if it's enabled in the configuration
+        try:
+            broker_config = self.get_config("broker_request_response")
+            if broker_config and isinstance(broker_config, dict):
+                return broker_config.get("enabled", False)
+        except:
+            pass
+        
+        # Check if it's in the component_config
+        try:
+            component_config = getattr(self, 'component_config', {})
+            if isinstance(component_config, dict) and 'broker_request_response' in component_config:
+                broker_config = component_config['broker_request_response']
+                if isinstance(broker_config, dict):
+                    return broker_config.get("enabled", False)
+        except:
+            pass
+        
+        # Check for new app-level request_reply_enabled in broker config
+        try:
+            broker_config = self.get_config("broker_config")
+            if broker_config and isinstance(broker_config, dict):
+                return broker_config.get("request_reply_enabled", False)
+        except:
+            pass
+        
+        # Check for request_reply_enabled in shared broker config
+        try:
+            # This might be available through the framework's broker configuration
+            if hasattr(self, 'broker_config') and self.broker_config:
+                return self.broker_config.get("request_reply_enabled", False)
+        except:
+            pass
+        
+        return False
 
 
