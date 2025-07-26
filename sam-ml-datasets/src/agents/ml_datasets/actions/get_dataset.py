@@ -66,6 +66,13 @@ class GetDataset(Action):
                         "type": "string",
                         "required": False,
                     },
+                    {
+                        "name": "include_data_in_message",
+                        "desc": "Include the actual dataset data in the response message for direct consumption by other agents",
+                        "type": "boolean",
+                        "required": False,
+                        "default": False,
+                    },
                 ],
                 "required_scopes": ["<agent_name>:get_dataset:execute"],
             },
@@ -89,6 +96,7 @@ class GetDataset(Action):
             response_format = params.get("response_format", "json").lower()
             include_metadata_raw = params.get("include_metadata", True)
             synthetic_params_str = params.get("synthetic_params", "{}")
+            include_data_in_message_raw = params.get("include_data_in_message", False)
 
             if not dataset_type:
                 raise ValueError("dataset_type is required")
@@ -109,6 +117,12 @@ class GetDataset(Action):
                 include_metadata = include_metadata_raw.lower() in ['true', '1', 'yes', 'on']
             else:
                 include_metadata = bool(include_metadata_raw)
+
+            # Convert include_data_in_message to boolean
+            if isinstance(include_data_in_message_raw, str):
+                include_data_in_message = include_data_in_message_raw.lower() in ['true', '1', 'yes', 'on']
+            else:
+                include_data_in_message = bool(include_data_in_message_raw)
 
             if response_format not in ["json", "yaml", "csv"]:
                 raise ValueError("Invalid response format. Choose 'json', 'yaml', or 'csv'")
@@ -175,18 +189,45 @@ class GetDataset(Action):
                     else:
                         response_message += f"- {key}: {value}\n"
 
-            response_message += f"\n**Dataset preview (first 5 rows):**\n"
-            preview_df = df.head(5)
-            if response_format == "csv":
-                response_message += f"```csv\n{preview_df.to_csv(index=False)}\n```"
-            elif response_format == "yaml":
-                preview_data = preview_df.to_dict('records')
-                preview_yaml = yaml.dump(preview_data, default_flow_style=False, allow_unicode=True)
-                response_message += f"```yaml\n{preview_yaml}\n```"
-            else:  # json
-                preview_data = preview_df.to_dict('records')
-                preview_json = json.dumps(preview_data, indent=2, default=str)
-                response_message += f"```json\n{preview_json}\n```"
+            if include_data_in_message:
+                response_message += f"\n**Dataset Data (first 5 rows):**\n"
+                preview_df = df.head(5)
+                if response_format == "csv":
+                    response_message += f"```csv\n{preview_df.to_csv(index=False)}\n```"
+                elif response_format == "yaml":
+                    preview_data = preview_df.to_dict('records')
+                    preview_yaml = yaml.dump(preview_data, default_flow_style=False, allow_unicode=True)
+                    response_message += f"```yaml\n{preview_yaml}\n```"
+                else:  # json
+                    preview_data = preview_df.to_dict('records')
+                    preview_json = json.dumps(preview_data, indent=2, default=str)
+                    response_message += f"```json\n{preview_json}\n```"
+                
+                # Add the full dataset data
+                response_message += f"\n**Full Dataset Data:**\n"
+                if response_format == "csv":
+                    response_message += f"```csv\n{df.to_csv(index=False)}\n```"
+                elif response_format == "yaml":
+                    full_data = df.to_dict('records')
+                    full_yaml = yaml.dump(full_data, default_flow_style=False, allow_unicode=True)
+                    response_message += f"```yaml\n{full_yaml}\n```"
+                else:  # json
+                    full_data = df.to_dict('records')
+                    full_json = json.dumps(full_data, indent=2, default=str)
+                    response_message += f"```json\n{full_json}\n```"
+            else:
+                response_message += f"\n**Dataset preview (first 5 rows):**\n"
+                preview_df = df.head(5)
+                if response_format == "csv":
+                    response_message += f"```csv\n{preview_df.to_csv(index=False)}\n```"
+                elif response_format == "yaml":
+                    preview_data = preview_df.to_dict('records')
+                    preview_yaml = yaml.dump(preview_data, default_flow_style=False, allow_unicode=True)
+                    response_message += f"```yaml\n{preview_yaml}\n```"
+                else:  # json
+                    preview_data = preview_df.to_dict('records')
+                    preview_json = json.dumps(preview_data, indent=2, default=str)
+                    response_message += f"```json\n{preview_json}\n```"
 
             # Create file response
             files = [{
