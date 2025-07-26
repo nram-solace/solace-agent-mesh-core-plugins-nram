@@ -192,5 +192,63 @@ def test_info_structure():
     assert 'agent_name' in param_names
     assert 'default_max_records' in param_names
 
+def test_type_conversion():
+    """Test that string parameters are properly converted to integers/floats."""
+    from src.agents.ml_datasets.services.dataset_service import DatasetService
+    
+    service = DatasetService(default_max_records=50)
+    
+    # Test sklearn dataset with string max_records
+    df, metadata = service.get_sklearn_dataset('iris', max_records='30')
+    assert len(df) == 30
+    assert metadata['n_samples'] == 30
+    
+    # Test seaborn dataset with string max_records
+    df, metadata = service.get_seaborn_dataset('tips', max_records='25')
+    assert len(df) == 25
+    assert metadata['n_samples'] == 25
+    
+    # Test synthetic dataset with string parameters
+    df, metadata = service.generate_synthetic_dataset(
+        'classification', 
+        n_samples='20',
+        n_features='5',
+        n_classes='3'
+    )
+    assert len(df) == 20
+    assert metadata['n_features'] == 5
+    assert metadata['n_classes'] == 3
+    
+    # Test regression with string noise
+    df, metadata = service.generate_synthetic_dataset(
+        'regression',
+        n_samples='15',
+        n_features='4',
+        noise='0.2'
+    )
+    assert len(df) == 15
+    assert metadata['n_features'] == 4
+    assert metadata['noise_level'] == 0.2
+
+def test_invalid_type_conversion():
+    """Test that invalid string parameters raise appropriate errors."""
+    from src.agents.ml_datasets.services.dataset_service import DatasetService
+    
+    service = DatasetService(default_max_records=50)
+    
+    # Test invalid max_records
+    with pytest.raises(ValueError, match="max_records must be a positive integer"):
+        service.get_sklearn_dataset('iris', max_records='invalid')
+    
+    with pytest.raises(ValueError, match="max_records must be a positive integer"):
+        service.get_seaborn_dataset('tips', max_records='-5')
+    
+    # Test invalid synthetic parameters
+    with pytest.raises(ValueError, match="n_features must be a positive integer"):
+        service.generate_synthetic_dataset('classification', n_features='invalid')
+    
+    with pytest.raises(ValueError, match="noise must be a valid number"):
+        service.generate_synthetic_dataset('regression', noise='invalid')
+
 if __name__ == "__main__":
     pytest.main([__file__])
