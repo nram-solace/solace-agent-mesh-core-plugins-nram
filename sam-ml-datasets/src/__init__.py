@@ -3,4 +3,4 @@
 This plugin provides various ML datasets for training and analysis.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.0+local.nram"

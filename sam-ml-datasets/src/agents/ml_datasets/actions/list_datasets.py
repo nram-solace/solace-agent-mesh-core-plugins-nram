@@ -59,7 +59,7 @@ class ListDatasets(Action):
             if response_format not in ["json", "yaml"]:
                 raise ValueError("Invalid response format. Choose 'json' or 'yaml'")
 
-            log.info(f"ml-datasets: Listing datasets with filter='{dataset_type}'")
+            log.info("Listing datasets with filter='%s'", dataset_type)
 
             # Get the dataset service
             dataset_service = self.get_agent().dataset_service
@@ -123,7 +123,7 @@ class ListDatasets(Action):
                 "content_type": content_type
             }]
 
-            log.info(f"ml-datasets: Successfully listed {total_datasets} datasets")
+            log.info("Successfully listed %d datasets", total_datasets)
 
             return ActionResponse(
                 message=response_message,
@@ -131,7 +131,7 @@ class ListDatasets(Action):
             )
 
         except Exception as e:
-            log.error(f"ml-datasets: Error listing datasets: {str(e)}")
+            log.error("Error listing datasets: %s", str(e))
             return ActionResponse(
                 message=f"Error listing datasets: {str(e)}",
                 error_info=ErrorInfo(str(e)),

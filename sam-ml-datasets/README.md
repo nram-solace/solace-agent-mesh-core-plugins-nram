@@ -1,6 +1,6 @@
 # ML Datasets Agent Plugin (sam-ml-datasets)
 
-A Solace Agent Mesh plugin that provides access to various machine learning datasets for training, analysis, and experimentation. This agent serves as a data source for ML workloads and integrates seamlessly with other ML agents like `sam-ml-pandas` for analysis and EDA.
+A Solace Agent Mesh plugin that provides access to various machine learning datasets for training, analysis, and experimentation. **Designed for collaborative workflows with other ML agents!**
 
 ## Features
 
@@ -29,98 +29,105 @@ A Solace Agent Mesh plugin that provides access to various machine learning data
 - **Rich Metadata**: Includes dataset descriptions, feature names, and statistics
 - **Integration Ready**: Designed to work with `sam-ml-pandas` for analysis
 - **Efficient Delivery**: Includes data previews and file attachments
+- **Collaborative Workflows**: Seamlessly provides data to other agents
 
 ## Installation
 
-Install the plugin in your Solace Agent Mesh project:
-
 ```bash
+# Install the plugin
 solace-agent-mesh plugin add sam-ml-datasets --pip -u git+https://github.com/SolaceLabs/solace-agent-mesh-core-plugins#subdirectory=sam-ml-datasets
+
+# Create an agent instance
+solace-agent-mesh add agent my_datasets --copy-from sam_ml_datasets:ml_datasets
 ```
 
 ## Configuration
 
-### Environment Variables
-
-Set these environment variables for your agent instance:
+Configure the agent using environment variables. For an agent named `my_datasets`:
 
 ```bash
 # Optional: Configure dataset limits and features
-MY_DATASETS_DEFAULT_MAX_RECORDS=100    # Default maximum records per dataset
-MY_DATASETS_ENABLE_SKLEARN=true        # Enable sklearn datasets
-MY_DATASETS_ENABLE_SEABORN=true        # Enable seaborn datasets  
-MY_DATASETS_ENABLE_SYNTHETIC=true      # Enable synthetic dataset generation
+export MY_DATASETS_DEFAULT_MAX_RECORDS=100    # Default maximum records per dataset
+export MY_DATASETS_ENABLE_SKLEARN=true        # Enable sklearn datasets
+export MY_DATASETS_ENABLE_SEABORN=true        # Enable seaborn datasets  
+export MY_DATASETS_ENABLE_SYNTHETIC=true      # Enable synthetic dataset generation
 ```
 
-### Create Agent Instance
+## Collaborative Workflows
 
-Create an agent from the plugin template:
+This agent is designed to work with other agents in collaborative workflows:
 
-```bash
-solace-agent-mesh add agent my_datasets --copy-from sam_ml_datasets:ml_datasets
-```
+### Example: ML Datasets Agent + ML Pandas Agent
+
+1. **ML Datasets Agent provides data:**
+   ```
+   "Get the iris dataset for analysis"
+   ```
+
+2. **ML Pandas Agent receives and analyzes:**
+   ```
+   "Load the iris dataset and perform EDA"
+   ```
+
+3. **ML Pandas Agent creates visualizations:**
+   ```
+   "Create correlation heatmap and feature distributions"
+   ```
+
+### Example: ML Datasets Agent + SQL Agent + ML Pandas Agent
+
+1. **ML Datasets Agent provides synthetic data:**
+   ```
+   "Generate synthetic classification data with 6 features"
+   ```
+
+2. **SQL Agent queries the data:**
+   ```
+   "Analyze the synthetic dataset for patterns"
+   ```
+
+3. **ML Pandas Agent performs ML:**
+   ```
+   "Train a classification model on the synthetic data"
+   ```
 
 ## Usage
 
-### Available Actions
+### Dataset Retrieval Actions
 
-#### 1. `get_dataset` - Retrieve a specific dataset
+1. **Get Specific Datasets:**
+   ```
+   "Get sklearn iris dataset"
+   "Retrieve seaborn tips dataset with 200 records"
+   "Generate synthetic classification data"
+   ```
 
-Get a dataset by type and name:
+2. **Get Datasets with Custom Parameters:**
+   ```
+   "Generate synthetic data with 6 features and 3 classes"
+   "Create regression dataset with noise level 0.2"
+   ```
 
-```bash
-# Get sklearn iris dataset
-get_dataset dataset_type=sklearn dataset_name=iris
+3. **Get Datasets in Different Formats:**
+   ```
+   "Get iris dataset in CSV format"
+   "Export tips dataset as YAML with metadata"
+   ```
 
-# Get seaborn tips dataset with custom record limit
-get_dataset dataset_type=seaborn dataset_name=tips max_records=200
+### Dataset Discovery Actions
 
-# Generate synthetic classification data
-get_dataset dataset_type=synthetic dataset_name=classification
+1. **List All Available Datasets:**
+   ```
+   "Show me all available datasets"
+   "List sklearn datasets only"
+   "What synthetic datasets are available?"
+   ```
 
-# Generate synthetic data with custom parameters
-get_dataset dataset_type=synthetic dataset_name=classification synthetic_params='{"n_features": 6, "n_classes": 3, "n_informative": 4}'
-```
-
-**Parameters:**
-- `dataset_type` (required): "sklearn", "seaborn", or "synthetic"
-- `dataset_name` (required): Name of the specific dataset
-- `max_records` (optional): Maximum records to return (default: 100)
-- `response_format` (optional): "json", "yaml", or "csv" (default: "json")
-- `include_metadata` (optional): Include dataset metadata (default: true)
-- `synthetic_params` (optional): JSON string with synthetic dataset parameters
-
-#### 2. `list_datasets` - List available datasets
-
-List all available datasets or filter by type:
-
-```bash
-# List all datasets
-list_datasets
-
-# List only sklearn datasets
-list_datasets dataset_type=sklearn
-
-# Get results in JSON format
-list_datasets response_format=json
-```
-
-**Parameters:**
-- `dataset_type` (optional): "sklearn", "seaborn", "synthetic", or "all" (default: "all")
-- `response_format` (optional): "json" or "yaml" (default: "yaml")
-
-### Integration with sam-ml-pandas
-
-The ML Datasets agent is designed to work seamlessly with `sam-ml-pandas` for analysis:
-
-```bash
-# In a multi-agent conversation:
-# 1. Get a dataset
-get_dataset dataset_type=sklearn dataset_name=iris
-
-# 2. Ask sam-ml-pandas to analyze it
-@ml_pandas analyze the iris dataset I just retrieved, show summary statistics and create visualizations
-```
+2. **Get Dataset Information:**
+   ```
+   "What datasets are available for classification?"
+   "Show me real-world datasets for analysis"
+   ```
 
 ## Dataset Details
 
@@ -157,6 +164,28 @@ For synthetic datasets, you can customize:
 - `n_centers`: Number of cluster centers
 - `noise`: Noise level (0.0 to 1.0)
 
+## Output Format
+
+All datasets are returned with:
+
+1. **Dataset file**: The actual data in requested format (JSON/YAML/CSV)
+2. **Metadata file**: Dataset information and statistics (YAML)
+3. **Preview**: First 5 rows shown in the response message
+4. **Summary**: Record count, feature count, and dataset description
+
+## Integration with sam-ml-pandas
+
+The ML Datasets agent is designed to work seamlessly with `sam-ml-pandas` for analysis:
+
+```bash
+# In a multi-agent conversation:
+# 1. Get a dataset
+get_dataset dataset_type=sklearn dataset_name=iris
+
+# 2. Ask sam-ml-pandas to analyze it
+@ml_pandas analyze the iris dataset I just retrieved, show summary statistics and create visualizations
+```
+
 ## Configuration Options
 
 The agent supports these configuration parameters:
@@ -166,15 +195,6 @@ The agent supports these configuration parameters:
 - `enable_sklearn_datasets` (optional): Enable sklearn collection (default: true)
 - `enable_seaborn_datasets` (optional): Enable seaborn collection (default: true)  
 - `enable_synthetic_datasets` (optional): Enable synthetic generation (default: true)
-
-## Output Format
-
-All datasets are returned with:
-
-1. **Dataset file**: The actual data in requested format (JSON/YAML/CSV)
-2. **Metadata file**: Dataset information and statistics (YAML)
-3. **Preview**: First 5 rows shown in the response message
-4. **Summary**: Record count, feature count, and dataset description
 
 ## Error Handling
 
@@ -199,13 +219,15 @@ hatch build
 python -m pytest tests/ -v
 ```
 
-## Dependencies
+## Requirements
 
-- `scikit-learn>=1.3.0` - For sklearn datasets and synthetic generation
-- `seaborn>=0.11.0` - For seaborn dataset collection
-- `pandas>=1.5.0` - For data manipulation
-- `numpy>=1.21.0` - For numerical operations
+- **Python**: 3.11+ (optimized for Python 3.12)
+- **Dependencies**:
+  - scikit-learn >= 1.3.0
+  - seaborn >= 0.12.0
+  - pandas >= 2.0.0
+  - numpy >= 1.24.0
 
 ## License
 
-This plugin is part of the Solace Agent Mesh Core Plugins collection and is licensed under the same terms as the main project.
+This plugin is part of the Solace Agent Mesh Core Plugins collection and is licensed under the Apache 2.0 License.

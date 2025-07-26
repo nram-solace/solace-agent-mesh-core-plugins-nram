@@ -17,7 +17,10 @@ from .actions.list_datasets import ListDatasets
 try:
     from ... import __version__
 except ImportError:
-    __version__ = "0.1.0+local.unknown"  # Fallback version
+    try:
+        from sam_ml_datasets import __version__
+    except ImportError:
+        __version__ = "0.1.0+local.nram"  # Fallback version
 
 
 info = copy.deepcopy(agent_info)
@@ -80,14 +83,6 @@ class MLDatasetsAgentComponent(BaseAgentComponent):
             **kwargs: Additional keyword arguments.
         """
         module_info = module_info or info
-        
-        log.info("ml-datasets: Initializing ML Datasets agent component")
-        log.debug("ml-datasets: Available kwargs keys: %s", list(kwargs.keys()))
-        
-        # Log component_config if present
-        if 'component_config' in kwargs:
-            log.debug("ml-datasets: component_config keys: %s", list(kwargs['component_config'].keys()))
-        
         super().__init__(module_info, **kwargs)
 
         self.agent_name = self.get_config("agent_name")
@@ -97,44 +92,46 @@ class MLDatasetsAgentComponent(BaseAgentComponent):
         self.enable_synthetic = self.get_config("enable_synthetic_datasets", True)
 
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
+        self.action_list.set_agent(self)
         module_info["agent_name"] = self.agent_name
 
         # Initialize dataset service
         self.dataset_service = DatasetService(default_max_records=self.default_max_records)
-        log.info("ml-datasets: Dataset service initialized with max_records=%d", self.default_max_records)
 
         # Generate and store the agent description
         self._generate_agent_description()
 
         # Log prominent startup message
         log.info("=" * 80)
-        log.info("ml-datasets: 📊  ML DATASETS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
+        log.info("📊 ML DATASETS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
-        log.info("ml-datasets: Agent Name: %s", self.agent_name)
-        log.info("ml-datasets: Default Max Records: %d", self.default_max_records)
-        log.info("ml-datasets: Available Actions: %s", [action.__name__ for action in self.actions])
-        log.info("ml-datasets: Sklearn Datasets: %s", "Enabled" if self.enable_sklearn else "Disabled")
-        log.info("ml-datasets: Seaborn Datasets: %s", "Enabled" if self.enable_seaborn else "Disabled")
-        log.info("ml-datasets: Synthetic Datasets: %s", "Enabled" if self.enable_synthetic else "Disabled")
+        log.info("Agent Name: %s", self.agent_name)
+        log.info("Default Max Records: %d", self.default_max_records)
+        log.info("Available Actions: %s", [action.__name__ for action in self.actions])
+        log.info("Sklearn Datasets: %s", "Enabled" if self.enable_sklearn else "Disabled")
+        log.info("Seaborn Datasets: %s", "Enabled" if self.enable_seaborn else "Disabled")
+        log.info("Synthetic Datasets: %s", "Enabled" if self.enable_synthetic else "Disabled")
         
         # Show available datasets summary
         try:
             available = self.dataset_service.list_available_datasets()
             total_datasets = sum(len(datasets) for datasets in available.values())
-            log.info("ml-datasets: Total Available Datasets: %d", total_datasets)
+            log.info("Total Available Datasets: %d", total_datasets)
             for dtype, datasets in available.items():
-                log.info("ml-datasets: - %s: %d datasets", dtype.upper(), len(datasets))
+                log.info("- %s: %d datasets", dtype.upper(), len(datasets))
         except Exception as e:
-            log.warning("ml-datasets: Could not load dataset summary: %s", str(e))
+            log.warning("Could not load dataset summary: %s", str(e))
         
         log.info("=" * 80)
-        log.info("ml-datasets: ✅ ML Datasets Agent is ready to provide datasets!")
-        log.info("ml-datasets: 🔍 Agent should be available in SAM as 'ml_datasets'")
+        log.info("✅ ML Datasets Agent is ready to provide datasets!")
+        log.info("🔍 Agent should be available in SAM as 'ml_datasets'")
+        log.info("🤝 Use 'get_dataset' to retrieve datasets for analysis")
+        log.info("📊 Use 'list_datasets' to see available options")
         log.info("=" * 80)
         
         # Also print to stdout for immediate visibility
         print("=" * 80)
-        print(f"📊  ML DATASETS AGENT (v{__version__}) STARTED SUCCESSFULLY")
+        print(f"📊 ML DATASETS AGENT (v{__version__}) STARTED SUCCESSFULLY")
         print("=" * 80)
         print(f"Agent Name: {self.agent_name}")
         print(f"Default Max Records: {self.default_max_records}")
@@ -146,6 +143,8 @@ class MLDatasetsAgentComponent(BaseAgentComponent):
         print("=" * 80)
         print("✅ ML Datasets Agent is ready to provide datasets!")
         print("🔍 Agent should be available in SAM as 'ml_datasets'")
+        print("🤝 Use 'get_dataset' to retrieve datasets for analysis")
+        print("📊 Use 'list_datasets' to see available options")
         print("=" * 80)
 
     def _generate_agent_description(self):
@@ -168,6 +167,8 @@ class MLDatasetsAgentComponent(BaseAgentComponent):
         description += f"\n**Integration:**\n"
         description += f"- Datasets are compatible with sam-ml-pandas for analysis and EDA\n"
         description += f"- All datasets limited to {self.default_max_records} records by default for efficiency\n"
+        description += f"- Use 'get_dataset' to retrieve specific datasets\n"
+        description += f"- Use 'list_datasets' to see all available options\n"
 
         self._agent_description = {
             "agent_name": self.agent_name,
