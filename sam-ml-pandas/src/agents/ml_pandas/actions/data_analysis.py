@@ -61,7 +61,23 @@ class DataAnalysisAction(Action):
             analysis_type = request_data.get("analysis_type", "summary")
             columns_str = request_data.get("columns", "")
             visualization_type = request_data.get("visualization_type", "histogram")
-            n_rows = request_data.get("n_rows")
+            n_rows_raw = request_data.get("n_rows")
+
+            # Convert n_rows to integer if provided
+            n_rows = None
+            if n_rows_raw is not None:
+                try:
+                    n_rows = int(n_rows_raw)
+                    if n_rows <= 0:
+                        return ActionResponse(
+                            message=f"n_rows must be a positive integer, got: {n_rows_raw}",
+                            error_info=ErrorInfo(f"n_rows must be a positive integer, got: {n_rows_raw}")
+                        )
+                except (ValueError, TypeError):
+                    return ActionResponse(
+                        message=f"n_rows must be a positive integer, got: {n_rows_raw}",
+                        error_info=ErrorInfo(f"n_rows must be a positive integer, got: {n_rows_raw}")
+                    )
 
             # Validate analysis_type
             valid_analysis_types = ["summary", "missing_data", "correlation", "preview", "visualization", "all"]
