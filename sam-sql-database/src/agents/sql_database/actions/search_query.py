@@ -359,13 +359,20 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
                 response_parts.append(f"**{purpose}**: No results found")
                 continue
 
-            # Create file for this query result with short random name
+            # Create file for this query result with unique name for concurrent users
             import random
             import string
+            import uuid
             
-            # Generate a short random string (6 characters)
-            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-            filename = f"q{i+1}_{random_suffix}_{datetime.datetime.now().strftime('%H%M%S')}"
+            # Generate a unique identifier with multiple components
+            # - 8 character random string
+            # - UUID (32 characters)
+            # - Timestamp with milliseconds
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+            unique_id = str(uuid.uuid4()).replace('-', '')[:12]  # First 12 chars of UUID
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+            
+            filename = f"q{i+1}_{random_suffix}_{unique_id}_{timestamp}"
             
             if response_format == "csv":
                 filename += ".csv"

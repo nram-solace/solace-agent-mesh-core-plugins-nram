@@ -159,7 +159,21 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             ValueError: If required database configuration is missing.
         """
         module_info = module_info or info
+        
+        # Debug broker request/response configuration
+        log.info("sql-db: Initializing SQL agent component")
+        if "broker_request_response" in kwargs:
+            log.info("sql-db: Broker request/response config found in kwargs")
+        else:
+            log.warning("sql-db: Broker request/response config NOT found in kwargs")
+        
         super().__init__(module_info, **kwargs)
+
+        # Debug broker request/response after initialization
+        if hasattr(self, 'broker_request_response') and self.broker_request_response:
+            log.info("sql-db: Broker request/response is properly initialized")
+        else:
+            log.warning("sql-db: Broker request/response is NOT initialized after super().__init__")
 
         self.agent_name = self.get_config("agent_name")
         self.db_type = self.get_config("db_type")
