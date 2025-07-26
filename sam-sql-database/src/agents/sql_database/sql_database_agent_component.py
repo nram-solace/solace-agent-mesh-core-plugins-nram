@@ -194,7 +194,7 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         if self.auto_detect_schema:
             try:
                 log.info("sql-db: Auto-detecting database schema...")
-                self.detailed_schema = self.db_handler.get_detailed_schema()
+                self.detailed_schema = self._detect_schema()
                 log.info("sql-db: Schema detection completed - Found %d tables", len(self.detailed_schema))
                 for table_name, table_info in self.detailed_schema.items():
                     column_count = len(table_info.get("columns", {}))
