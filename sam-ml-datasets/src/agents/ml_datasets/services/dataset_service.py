@@ -1,0 +1,360 @@
+"""Dataset service for generating and retrieving ML datasets."""
+
+import pandas as pd
+import numpy as np
+from typing import Dict, Any, List, Optional, Tuple
+from sklearn import datasets
+import seaborn as sns
+
+from solace_ai_connector.common.log import log
+
+
+class DatasetService:
+    """Service for providing various ML datasets."""
+    
+    def __init__(self, default_max_records: int = 100):
+        """Initialize the dataset service.
+        
+        Args:
+            default_max_records: Default maximum number of records to return
+        """
+        self.default_max_records = default_max_records
+        
+    def get_sklearn_dataset(self, dataset_name: str, max_records: Optional[int] = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Get a sklearn dataset.
+        
+        Args:
+            dataset_name: Name of the sklearn dataset
+            max_records: Maximum number of records to return
+            
+        Returns:
+            Tuple of (DataFrame, metadata)
+            
+        Raises:
+            ValueError: If dataset name is not supported
+        """
+        max_records = max_records or self.default_max_records
+        
+        sklearn_datasets = {
+            'iris': datasets.load_iris,
+            'wine': datasets.load_wine,
+            'breast_cancer': datasets.load_breast_cancer,
+            'digits': datasets.load_digits,
+            'boston': self._load_boston_housing,  # Custom wrapper due to deprecation
+            'diabetes': datasets.load_diabetes,
+            'linnerud': datasets.load_linnerud
+        }
+        
+        if dataset_name not in sklearn_datasets:
+            available = list(sklearn_datasets.keys())
+            raise ValueError(f"Dataset '{dataset_name}' not supported. Available: {available}")
+            
+        log.info(f"Loading sklearn dataset: {dataset_name}")
+        
+        # Load the dataset
+        data = sklearn_datasets[dataset_name]()
+        
+        # Create DataFrame
+        if hasattr(data, 'frame') and data.frame is not None:
+            # Some datasets have a frame attribute
+            df = data.frame.copy()
+        else:
+            # Create DataFrame from data and target
+            if len(data.data.shape) == 2:
+                feature_df = pd.DataFrame(data.data, columns=data.feature_names)
+            else:
+                # For datasets like digits where data is 3D
+                feature_df = pd.DataFrame(data.data.reshape(data.data.shape[0], -1))
+                feature_df.columns = [f'feature_{i}' for i in range(feature_df.shape[1])]
+            
+            if hasattr(data, 'target') and data.target is not None:
+                if hasattr(data, 'target_names') and data.target_names is not None:
+                    # For classification datasets
+                    target_df = pd.DataFrame({'target': data.target})
+                    target_df['target_name'] = [data.target_names[t] for t in data.target]
+                else:
+                    # For regression datasets
+                    target_df = pd.DataFrame({'target': data.target})
+                df = pd.concat([feature_df, target_df], axis=1)
+            else:
+                df = feature_df
+        
+        # Limit records
+        if len(df) > max_records:
+            df = df.head(max_records)
+            log.info(f"Limited dataset to {max_records} records (original had {len(data.data)})")
+        
+        # Prepare metadata
+        metadata = {
+            'dataset_type': 'sklearn',
+            'dataset_name': dataset_name,
+            'description': data.DESCR,
+            'n_samples': len(df),
+            'n_features': len(data.feature_names) if hasattr(data, 'feature_names') else df.shape[1] - (1 if 'target' in df.columns else 0),
+            'target_names': list(data.target_names) if hasattr(data, 'target_names') and data.target_names is not None else None,
+            'feature_names': list(data.feature_names) if hasattr(data, 'feature_names') else None
+        }
+        
+        return df, metadata
+    
+    def _load_boston_housing(self):
+        """Load Boston housing dataset using alternative method due to sklearn deprecation."""
+        try:
+            # Try the old method first
+            return datasets.load_boston()
+        except ImportError:
+            # If deprecated, create a simple synthetic housing dataset
+            log.warning("Boston housing dataset deprecated, creating synthetic alternative")
+            n_samples = 506
+            n_features = 13
+            
+            # Generate synthetic housing data
+            np.random.seed(42)
+            X = np.random.randn(n_samples, n_features)
+            y = np.random.randn(n_samples) * 10 + 25  # Housing prices around $25k
+            
+            # Create a simple dataset object
+            class SimpleDataset:
+                def __init__(self, data, target):
+                    self.data = data
+                    self.target = target
+                    self.feature_names = [f'feature_{i}' for i in range(n_features)]
+                    self.DESCR = "Synthetic housing dataset (Boston dataset deprecated)"
+            
+            return SimpleDataset(X, y)
+    
+    def get_seaborn_dataset(self, dataset_name: str, max_records: Optional[int] = None) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Get a seaborn dataset.
+        
+        Args:
+            dataset_name: Name of the seaborn dataset
+            max_records: Maximum number of records to return
+            
+        Returns:
+            Tuple of (DataFrame, metadata)
+            
+        Raises:
+            ValueError: If dataset name is not supported
+        """
+        max_records = max_records or self.default_max_records
+        
+        seaborn_datasets = [
+            'tips', 'flights', 'titanic', 'iris', 'car_crashes', 'mpg',
+            'diamonds', 'attention', 'dots', 'exercise', 'gammas', 'geyser',
+            'penguins', 'planets', 'taxis', 'fmri', 'anagrams', 'anscombe'
+        ]
+        
+        if dataset_name not in seaborn_datasets:
+            raise ValueError(f"Dataset '{dataset_name}' not supported. Available: {seaborn_datasets}")
+            
+        log.info(f"Loading seaborn dataset: {dataset_name}")
+        
+        try:
+            df = sns.load_dataset(dataset_name)
+        except Exception as e:
+            raise ValueError(f"Failed to load seaborn dataset '{dataset_name}': {str(e)}")
+        
+        # Limit records
+        original_size = len(df)
+        if len(df) > max_records:
+            df = df.head(max_records)
+            log.info(f"Limited dataset to {max_records} records (original had {original_size})")
+        
+        # Prepare metadata
+        metadata = {
+            'dataset_type': 'seaborn',
+            'dataset_name': dataset_name,
+            'description': f"Seaborn {dataset_name} dataset",
+            'n_samples': len(df),
+            'n_features': len(df.columns),
+            'columns': list(df.columns),
+            'dtypes': {col: str(dtype) for col, dtype in df.dtypes.items()}
+        }
+        
+        return df, metadata
+    
+    def generate_synthetic_dataset(self, dataset_type: str, n_samples: Optional[int] = None, 
+                                 **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate a synthetic dataset.
+        
+        Args:
+            dataset_type: Type of synthetic dataset
+            n_samples: Number of samples to generate
+            **kwargs: Additional parameters for dataset generation
+            
+        Returns:
+            Tuple of (DataFrame, metadata)
+            
+        Raises:
+            ValueError: If dataset type is not supported
+        """
+        n_samples = min(n_samples or self.default_max_records, self.default_max_records)
+        
+        synthetic_types = {
+            'classification': self._generate_classification_data,
+            'regression': self._generate_regression_data,
+            'clustering': self._generate_clustering_data,
+            'blobs': self._generate_blob_data,
+            'moons': self._generate_moons_data,
+            'circles': self._generate_circles_data
+        }
+        
+        if dataset_type not in synthetic_types:
+            available = list(synthetic_types.keys())
+            raise ValueError(f"Synthetic dataset type '{dataset_type}' not supported. Available: {available}")
+            
+        log.info(f"Generating synthetic {dataset_type} dataset with {n_samples} samples")
+        
+        return synthetic_types[dataset_type](n_samples, **kwargs)
+    
+    def _generate_classification_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate synthetic classification data."""
+        n_features = kwargs.get('n_features', 4)
+        n_classes = kwargs.get('n_classes', 2)
+        n_informative = kwargs.get('n_informative', min(n_features, 2))
+        
+        X, y = datasets.make_classification(
+            n_samples=n_samples,
+            n_features=n_features,
+            n_informative=n_informative,
+            n_classes=n_classes,
+            random_state=42
+        )
+        
+        # Create DataFrame
+        feature_cols = [f'feature_{i}' for i in range(n_features)]
+        df = pd.DataFrame(X, columns=feature_cols)
+        df['target'] = y
+        df['target_name'] = [f'class_{i}' for i in y]
+        
+        metadata = {
+            'dataset_type': 'synthetic',
+            'dataset_name': 'classification',
+            'description': f"Synthetic classification dataset with {n_classes} classes",
+            'n_samples': n_samples,
+            'n_features': n_features,
+            'n_classes': n_classes,
+            'columns': list(df.columns)
+        }
+        
+        return df, metadata
+    
+    def _generate_regression_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate synthetic regression data."""
+        n_features = kwargs.get('n_features', 4)
+        noise = kwargs.get('noise', 0.1)
+        
+        X, y = datasets.make_regression(
+            n_samples=n_samples,
+            n_features=n_features,
+            noise=noise,
+            random_state=42
+        )
+        
+        # Create DataFrame
+        feature_cols = [f'feature_{i}' for i in range(n_features)]
+        df = pd.DataFrame(X, columns=feature_cols)
+        df['target'] = y
+        
+        metadata = {
+            'dataset_type': 'synthetic',
+            'dataset_name': 'regression',
+            'description': f"Synthetic regression dataset with {n_features} features",
+            'n_samples': n_samples,
+            'n_features': n_features,
+            'noise_level': noise,
+            'columns': list(df.columns)
+        }
+        
+        return df, metadata
+    
+    def _generate_clustering_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate synthetic clustering data."""
+        n_centers = kwargs.get('n_centers', 3)
+        n_features = kwargs.get('n_features', 2)
+        
+        X, y = datasets.make_blobs(
+            n_samples=n_samples,
+            centers=n_centers,
+            n_features=n_features,
+            random_state=42
+        )
+        
+        # Create DataFrame
+        feature_cols = [f'feature_{i}' for i in range(n_features)]
+        df = pd.DataFrame(X, columns=feature_cols)
+        df['cluster'] = y
+        
+        metadata = {
+            'dataset_type': 'synthetic',
+            'dataset_name': 'clustering',
+            'description': f"Synthetic clustering dataset with {n_centers} clusters",
+            'n_samples': n_samples,
+            'n_features': n_features,
+            'n_clusters': n_centers,
+            'columns': list(df.columns)
+        }
+        
+        return df, metadata
+    
+    def _generate_blob_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate blob data for clustering."""
+        return self._generate_clustering_data(n_samples, **kwargs)
+    
+    def _generate_moons_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate moons data."""
+        noise = kwargs.get('noise', 0.1)
+        
+        X, y = datasets.make_moons(n_samples=n_samples, noise=noise, random_state=42)
+        
+        df = pd.DataFrame(X, columns=['feature_0', 'feature_1'])
+        df['target'] = y
+        df['target_name'] = [f'moon_{i}' for i in y]
+        
+        metadata = {
+            'dataset_type': 'synthetic',
+            'dataset_name': 'moons',
+            'description': "Synthetic two moons dataset for binary classification",
+            'n_samples': n_samples,
+            'n_features': 2,
+            'noise_level': noise,
+            'columns': list(df.columns)
+        }
+        
+        return df, metadata
+    
+    def _generate_circles_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        """Generate circles data."""
+        noise = kwargs.get('noise', 0.1)
+        
+        X, y = datasets.make_circles(n_samples=n_samples, noise=noise, random_state=42)
+        
+        df = pd.DataFrame(X, columns=['feature_0', 'feature_1'])
+        df['target'] = y
+        df['target_name'] = [f'circle_{i}' for i in y]
+        
+        metadata = {
+            'dataset_type': 'synthetic',
+            'dataset_name': 'circles',
+            'description': "Synthetic concentric circles dataset for binary classification",
+            'n_samples': n_samples,
+            'n_features': 2,
+            'noise_level': noise,
+            'columns': list(df.columns)
+        }
+        
+        return df, metadata
+    
+    def list_available_datasets(self) -> Dict[str, List[str]]:
+        """List all available datasets.
+        
+        Returns:
+            Dictionary mapping dataset type to list of available datasets
+        """
+        return {
+            'sklearn': ['iris', 'wine', 'breast_cancer', 'digits', 'boston', 'diabetes', 'linnerud'],
+            'seaborn': ['tips', 'flights', 'titanic', 'iris', 'car_crashes', 'mpg', 'diamonds', 
+                       'attention', 'dots', 'exercise', 'gammas', 'geyser', 'penguins', 
+                       'planets', 'taxis', 'fmri', 'anagrams', 'anscombe'],
+            'synthetic': ['classification', 'regression', 'clustering', 'blobs', 'moons', 'circles']
+        }

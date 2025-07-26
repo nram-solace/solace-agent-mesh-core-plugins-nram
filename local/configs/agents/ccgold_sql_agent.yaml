@@ -7,7 +7,7 @@
 log:
   stdout_log_level: INFO
   log_file_level: INFO
-  log_file: solace_ai_connector.log
+  log_file: logs/sam-sql-database.log
 
 shared_config:
   - broker_config: &broker_connection

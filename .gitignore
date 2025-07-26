@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+ Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -164,3 +164,5 @@ cython_debug/
 #.idea/
 .aider*
 local/**
+CLAUDE.md
+*/CLAUDE.md

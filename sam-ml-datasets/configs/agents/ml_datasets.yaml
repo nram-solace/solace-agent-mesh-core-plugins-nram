@@ -1,0 +1,57 @@
+# Configuration file for the ML datasets agent that provides:
+# - Sklearn datasets (iris, wine, breast_cancer, digits, etc.)
+# - Seaborn datasets (tips, flights, titanic, etc.)
+# - Synthetic dataset generation (classification, regression, clustering)
+
+---
+log:
+  stdout_log_level: INFO
+  log_file_level: INFO
+  log_file: logs/sam-ml-datasets.log
+
+shared_config:
+  - broker_config: &broker_connection
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL}
+      broker_username: ${SOLACE_BROKER_USERNAME}
+      broker_password: ${SOLACE_BROKER_PASSWORD}
+      broker_vpn: ${SOLACE_BROKER_VPN}
+      request_reply_enabled: true
+
+flows:
+  # Flow to handle action requests
+  - name: {{SNAKE_CASE_NAME}}_action_request_processor
+    components:
+      # Input from a Solace broker
+      - component_name: broker_input
+        component_module: broker_input
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          broker_queue_name: ${SOLACE_AGENT_MESH_NAMESPACE}agent_{{SNAKE_CASE_NAME}}_action_request
+          broker_subscriptions:
+            - topic: ${SOLACE_AGENT_MESH_NAMESPACE}solace-agent-mesh/v1/actionRequest/*/*/{{SNAKE_CASE_NAME}}/>
+              qos: 1
+
+      # Custom component to process the action request
+      - component_name: action_request_processor
+        # path is completed at build time
+        component_module: {{MODULE_DIRECTORY}}.agents.ml_datasets.ml_datasets_agent_component
+        component_config:
+          agent_name: {{SNAKE_CASE_NAME}}
+          default_max_records: ${{{SNAKE_UPPER_CASE_NAME}}_DEFAULT_MAX_RECORDS, 100}
+          enable_sklearn_datasets: ${{{SNAKE_UPPER_CASE_NAME}}_ENABLE_SKLEARN, true}
+          enable_seaborn_datasets: ${{{SNAKE_UPPER_CASE_NAME}}_ENABLE_SEABORN, true}
+          enable_synthetic_datasets: ${{{SNAKE_UPPER_CASE_NAME}}_ENABLE_SYNTHETIC, true}
+        component_input:
+          source_expression: input.payload
+
+      # Output to a Solace broker
+      - component_name: broker_output
+        component_module: broker_output
+        component_config:
+          <<: *broker_connection
+          payload_encoding: utf-8
+          payload_format: json
+          copy_user_properties: true
