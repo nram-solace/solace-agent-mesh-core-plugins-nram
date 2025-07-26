@@ -33,6 +33,17 @@ class DatasetService:
         Raises:
             ValueError: If dataset name is not supported
         """
+        # Convert max_records to integer if it's a string
+        if isinstance(max_records, str):
+            try:
+                max_records = int(max_records)
+            except (ValueError, TypeError):
+                raise ValueError(f"max_records must be a positive integer, got: {max_records}")
+        
+        # Ensure max_records is a positive integer
+        if max_records is not None and max_records <= 0:
+            raise ValueError(f"max_records must be a positive integer, got: {max_records}")
+        
         max_records = max_records or self.default_max_records
         
         sklearn_datasets = {
@@ -136,6 +147,17 @@ class DatasetService:
         Raises:
             ValueError: If dataset name is not supported
         """
+        # Convert max_records to integer if it's a string
+        if isinstance(max_records, str):
+            try:
+                max_records = int(max_records)
+            except (ValueError, TypeError):
+                raise ValueError(f"max_records must be a positive integer, got: {max_records}")
+        
+        # Ensure max_records is a positive integer
+        if max_records is not None and max_records <= 0:
+            raise ValueError(f"max_records must be a positive integer, got: {max_records}")
+        
         max_records = max_records or self.default_max_records
         
         seaborn_datasets = [
@@ -188,6 +210,17 @@ class DatasetService:
         Raises:
             ValueError: If dataset type is not supported
         """
+        # Convert n_samples to integer if it's a string
+        if isinstance(n_samples, str):
+            try:
+                n_samples = int(n_samples)
+            except (ValueError, TypeError):
+                raise ValueError(f"n_samples must be a positive integer, got: {n_samples}")
+        
+        # Ensure n_samples is a positive integer
+        if n_samples is not None and n_samples <= 0:
+            raise ValueError(f"n_samples must be a positive integer, got: {n_samples}")
+        
         n_samples = min(n_samples or self.default_max_records, self.default_max_records)
         
         synthetic_types = {
@@ -207,11 +240,57 @@ class DatasetService:
         
         return synthetic_types[dataset_type](n_samples, **kwargs)
     
+    def _convert_to_int(self, value, param_name: str) -> int:
+        """Convert a value to integer with proper error handling.
+        
+        Args:
+            value: Value to convert
+            param_name: Name of the parameter for error messages
+            
+        Returns:
+            Integer value
+            
+        Raises:
+            ValueError: If conversion fails
+        """
+        if isinstance(value, str):
+            try:
+                value = int(value)
+            except (ValueError, TypeError):
+                raise ValueError(f"{param_name} must be a positive integer, got: {value}")
+        
+        if value <= 0:
+            raise ValueError(f"{param_name} must be a positive integer, got: {value}")
+        
+        return value
+    
+    def _convert_to_float(self, value, param_name: str) -> float:
+        """Convert a value to float with proper error handling.
+        
+        Args:
+            value: Value to convert
+            param_name: Name of the parameter for error messages
+            
+        Returns:
+            Float value
+            
+        Raises:
+            ValueError: If conversion fails
+        """
+        if isinstance(value, str):
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                raise ValueError(f"{param_name} must be a valid number, got: {value}")
+        
+        return value
+
     def _generate_classification_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Generate synthetic classification data."""
-        n_features = kwargs.get('n_features', 4)
-        n_classes = kwargs.get('n_classes', 2)
-        n_informative = kwargs.get('n_informative', min(n_features, 2))
+        # Convert parameters to proper types
+        n_features = self._convert_to_int(kwargs.get('n_features', 4), 'n_features')
+        n_classes = self._convert_to_int(kwargs.get('n_classes', 2), 'n_classes')
+        n_informative = self._convert_to_int(kwargs.get('n_informative', min(n_features, 2)), 'n_informative')
         
         X, y = datasets.make_classification(
             n_samples=n_samples,
@@ -241,8 +320,9 @@ class DatasetService:
     
     def _generate_regression_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Generate synthetic regression data."""
-        n_features = kwargs.get('n_features', 4)
-        noise = kwargs.get('noise', 0.1)
+        # Convert parameters to proper types
+        n_features = self._convert_to_int(kwargs.get('n_features', 4), 'n_features')
+        noise = self._convert_to_float(kwargs.get('noise', 0.1), 'noise')
         
         X, y = datasets.make_regression(
             n_samples=n_samples,
@@ -270,8 +350,9 @@ class DatasetService:
     
     def _generate_clustering_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Generate synthetic clustering data."""
-        n_centers = kwargs.get('n_centers', 3)
-        n_features = kwargs.get('n_features', 2)
+        # Convert parameters to proper types
+        n_centers = self._convert_to_int(kwargs.get('n_centers', 3), 'n_centers')
+        n_features = self._convert_to_int(kwargs.get('n_features', 2), 'n_features')
         
         X, y = datasets.make_blobs(
             n_samples=n_samples,
@@ -303,7 +384,8 @@ class DatasetService:
     
     def _generate_moons_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Generate moons data."""
-        noise = kwargs.get('noise', 0.1)
+        # Convert parameters to proper types
+        noise = self._convert_to_float(kwargs.get('noise', 0.1), 'noise')
         
         X, y = datasets.make_moons(n_samples=n_samples, noise=noise, random_state=42)
         
@@ -325,7 +407,8 @@ class DatasetService:
     
     def _generate_circles_data(self, n_samples: int, **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Generate circles data."""
-        noise = kwargs.get('noise', 0.1)
+        # Convert parameters to proper types
+        noise = self._convert_to_float(kwargs.get('noise', 0.1), 'noise')
         
         X, y = datasets.make_circles(n_samples=n_samples, noise=noise, random_state=42)
         

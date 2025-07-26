@@ -85,9 +85,9 @@ class GetDataset(Action):
         try:
             dataset_type = params.get("dataset_type", "").lower()
             dataset_name = params.get("dataset_name", "")
-            max_records = params.get("max_records", 100)
+            max_records_raw = params.get("max_records", 100)
             response_format = params.get("response_format", "json").lower()
-            include_metadata = params.get("include_metadata", True)
+            include_metadata_raw = params.get("include_metadata", True)
             synthetic_params_str = params.get("synthetic_params", "{}")
 
             if not dataset_type:
@@ -95,6 +95,20 @@ class GetDataset(Action):
             
             if not dataset_name:
                 raise ValueError("dataset_name is required")
+
+            # Convert max_records to integer
+            try:
+                max_records = int(max_records_raw)
+                if max_records <= 0:
+                    raise ValueError("max_records must be a positive integer")
+            except (ValueError, TypeError):
+                raise ValueError(f"max_records must be a positive integer, got: {max_records_raw}")
+
+            # Convert include_metadata to boolean
+            if isinstance(include_metadata_raw, str):
+                include_metadata = include_metadata_raw.lower() in ['true', '1', 'yes', 'on']
+            else:
+                include_metadata = bool(include_metadata_raw)
 
             if response_format not in ["json", "yaml", "csv"]:
                 raise ValueError("Invalid response format. Choose 'json', 'yaml', or 'csv'")
