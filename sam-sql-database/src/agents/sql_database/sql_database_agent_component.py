@@ -162,10 +162,16 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         
         # Debug broker request/response configuration
         log.info("sql-db: Initializing SQL agent component")
-        if "broker_request_response" in kwargs:
+        
+        # Extract broker_request_response configuration from component_config if present
+        component_config = kwargs.get('component_config', {})
+        if 'broker_request_response' in component_config:
+            log.info("sql-db: Found broker_request_response in component_config")
+            kwargs['broker_request_response'] = component_config['broker_request_response']
+        elif "broker_request_response" in kwargs:
             log.info("sql-db: Broker request/response config found in kwargs")
         else:
-            log.warning("sql-db: Broker request/response config NOT found in kwargs")
+            log.warning("sql-db: Broker request/response config NOT found in kwargs or component_config")
         
         super().__init__(module_info, **kwargs)
 
@@ -475,5 +481,13 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
     def get_db_handler(self) -> DatabaseService:
         """Get the database handler instance."""
         return self.db_handler
+
+    def is_broker_request_response_enabled(self) -> bool:
+        """Check if broker request/response is enabled for this agent.
+        
+        Returns:
+            True if broker request/response is enabled, False otherwise.
+        """
+        return hasattr(self, 'broker_request_response') and self.broker_request_response is not None
 
 
