@@ -114,6 +114,12 @@ This agent is designed to work with other agents in collaborative workflows:
    "Export tips dataset as YAML with metadata"
    ```
 
+4. **Get Data Directly for Agent-to-Agent Communication:**
+   ```
+   "Get seaborn flights dataset with data included in response"
+   "Get sklearn iris dataset in JSON format with full data in message"
+   ```
+
 ### Dataset Discovery Actions
 
 1. **List All Available Datasets:**
@@ -179,11 +185,14 @@ The ML Datasets agent is designed to work seamlessly with `sam-ml-pandas` for an
 
 ```bash
 # In a multi-agent conversation:
-# 1. Get a dataset
-get_dataset dataset_type=sklearn dataset_name=iris
+# 1. Get a dataset with data included in response (recommended for agent-to-agent)
+get_dataset dataset_type=sklearn dataset_name=iris include_data_in_message=true response_format=json
 
 # 2. Ask sam-ml-pandas to analyze it
 @ml_pandas analyze the iris dataset I just retrieved, show summary statistics and create visualizations
+
+# Alternative: Get dataset with file attachment (may have file system issues)
+get_dataset dataset_type=seaborn dataset_name=flights
 ```
 
 ## Configuration Options
