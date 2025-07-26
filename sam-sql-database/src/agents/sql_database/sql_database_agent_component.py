@@ -162,16 +162,11 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         
         # Debug broker request/response configuration
         log.info("sql-db: Initializing SQL agent component")
+        log.debug("sql-db: Available kwargs keys: %s", list(kwargs.keys()))
         
-        # Extract broker_request_response configuration from component_config if present
-        component_config = kwargs.get('component_config', {})
-        if 'broker_request_response' in component_config:
-            log.info("sql-db: Found broker_request_response in component_config")
-            kwargs['broker_request_response'] = component_config['broker_request_response']
-        elif "broker_request_response" in kwargs:
-            log.info("sql-db: Broker request/response config found in kwargs")
-        else:
-            log.warning("sql-db: Broker request/response config NOT found in kwargs or component_config")
+        # Log component_config if present
+        if 'component_config' in kwargs:
+            log.debug("sql-db: component_config keys: %s", list(kwargs['component_config'].keys()))
         
         super().__init__(module_info, **kwargs)
 
@@ -180,6 +175,12 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
             log.info("sql-db: Broker request/response is properly initialized")
         else:
             log.warning("sql-db: Broker request/response is NOT initialized after super().__init__")
+            
+        # Test the is_broker_request_response_enabled method
+        if self.is_broker_request_response_enabled():
+            log.info("sql-db: Broker request/response is enabled according to is_broker_request_response_enabled()")
+        else:
+            log.warning("sql-db: Broker request/response is NOT enabled according to is_broker_request_response_enabled()")
 
         self.agent_name = self.get_config("agent_name")
         self.db_type = self.get_config("db_type")
@@ -488,6 +489,28 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         Returns:
             True if broker request/response is enabled, False otherwise.
         """
-        return hasattr(self, 'broker_request_response') and self.broker_request_response is not None
+        # Check if broker_request_response attribute exists and is not None
+        if hasattr(self, 'broker_request_response') and self.broker_request_response is not None:
+            return True
+        
+        # Check if it's enabled in the configuration
+        try:
+            broker_config = self.get_config("broker_request_response")
+            if broker_config and isinstance(broker_config, dict):
+                return broker_config.get("enabled", False)
+        except:
+            pass
+        
+        # Check if it's in the component_config
+        try:
+            component_config = getattr(self, 'component_config', {})
+            if isinstance(component_config, dict) and 'broker_request_response' in component_config:
+                broker_config = component_config['broker_request_response']
+                if isinstance(broker_config, dict):
+                    return broker_config.get("enabled", False)
+        except:
+            pass
+        
+        return False
 
 
