@@ -352,8 +352,13 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
                 response_parts.append(f"**{purpose}**: No results found")
                 continue
 
-            # Create file for this query result
-            filename = f"query_{i+1}_{purpose.lower().replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # Create file for this query result with short random name
+            import random
+            import string
+            
+            # Generate a short random string (6 characters)
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+            filename = f"q{i+1}_{random_suffix}_{datetime.datetime.now().strftime('%H%M%S')}"
             
             if response_format == "csv":
                 filename += ".csv"
