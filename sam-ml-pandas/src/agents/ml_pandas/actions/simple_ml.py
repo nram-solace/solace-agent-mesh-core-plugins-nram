@@ -82,8 +82,31 @@ class SimpleMlAction(Action):
             target_column = request_data.get("target_column")
             feature_columns_str = request_data.get("feature_columns", "")
             model_type = request_data.get("model_type", "random_forest")
-            test_size = request_data.get("test_size", 0.2)
-            random_state = request_data.get("random_state", 42)
+            test_size_raw = request_data.get("test_size", 0.2)
+            random_state_raw = request_data.get("random_state", 42)
+
+            # Convert test_size to float
+            try:
+                test_size = float(test_size_raw)
+                if not 0.1 <= test_size <= 0.5:
+                    return ActionResponse(
+                        message=f"test_size must be between 0.1 and 0.5, got: {test_size_raw}",
+                        error_info=ErrorInfo(f"test_size must be between 0.1 and 0.5, got: {test_size_raw}")
+                    )
+            except (ValueError, TypeError):
+                return ActionResponse(
+                    message=f"test_size must be a valid number between 0.1 and 0.5, got: {test_size_raw}",
+                    error_info=ErrorInfo(f"test_size must be a valid number between 0.1 and 0.5, got: {test_size_raw}")
+                )
+
+            # Convert random_state to integer
+            try:
+                random_state = int(random_state_raw)
+            except (ValueError, TypeError):
+                return ActionResponse(
+                    message=f"random_state must be a valid integer, got: {random_state_raw}",
+                    error_info=ErrorInfo(f"random_state must be a valid integer, got: {random_state_raw}")
+                )
 
             # Validate task_type
             valid_task_types = ["classification", "regression", "auto"]
@@ -99,13 +122,6 @@ class SimpleMlAction(Action):
                 return ActionResponse(
                     message=f"Invalid model_type '{model_type}'. Valid types are: {', '.join(valid_model_types)}",
                     error_info=ErrorInfo(f"Invalid model_type '{model_type}'. Valid types are: {', '.join(valid_model_types)}")
-                )
-
-            # Validate test_size
-            if not 0.1 <= test_size <= 0.5:
-                return ActionResponse(
-                    message="test_size must be between 0.1 and 0.5",
-                    error_info=ErrorInfo("test_size must be between 0.1 and 0.5")
                 )
 
             # Get the agent and its data

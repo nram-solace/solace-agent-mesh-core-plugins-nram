@@ -133,8 +133,26 @@ class MLPandasAgentComponent(BaseAgentComponent):
         self.categorical_columns = self.get_config("categorical_columns", "")
         self.numerical_columns = self.get_config("numerical_columns", "")
         self.output_directory = self.get_config("output_directory", "./ml_pandas_output")
-        self.max_rows_display = self.get_config("max_rows_display", 100)
+        
+        # Convert max_rows_display to integer
+        max_rows_display_raw = self.get_config("max_rows_display", 100)
+        try:
+            self.max_rows_display = int(max_rows_display_raw)
+            if self.max_rows_display <= 0:
+                log.warning("max_rows_display must be positive, using default value 100")
+                self.max_rows_display = 100
+        except (ValueError, TypeError):
+            log.warning("max_rows_display must be a positive integer, using default value 100")
+            self.max_rows_display = 100
+        
         self.collaborative_mode = self.get_config("collaborative_mode", True)
+        
+        # Convert collaborative_mode to boolean
+        collaborative_mode_raw = self.get_config("collaborative_mode", True)
+        if isinstance(collaborative_mode_raw, str):
+            self.collaborative_mode = collaborative_mode_raw.lower() in ['true', '1', 'yes', 'on']
+        else:
+            self.collaborative_mode = bool(collaborative_mode_raw)
 
         self.action_list.fix_scopes("<agent_name>", self.agent_name)
         self.action_list.set_agent(self)

@@ -5,8 +5,8 @@
 
 ---
 log:
-  stdout_log_level: INFO
-  log_file_level: INFO
+  stdout_log_level: DEBUG
+  log_file_level: DEBUG
   log_file: logs/ccgold-results-mysql.log
 
 shared_config:
@@ -16,6 +16,7 @@ shared_config:
       broker_username: ${SOLACE_BROKER_USERNAME}
       broker_password: ${SOLACE_BROKER_PASSWORD}
       broker_vpn: ${SOLACE_BROKER_VPN}
+      request_reply_enabled: true
 
 flows:
   # Flow to handle action requests

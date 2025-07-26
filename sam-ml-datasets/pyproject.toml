@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project]
+name = "sam_ml_datasets"
+dynamic = ["version"]
+description = "ML datasets plugin for Solace Agent Mesh providing sklearn, seaborn, and synthetic datasets for training and analysis"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Solace Corporation", email = "support@solace.com" },
+]
+keywords = [
+    "solace",
+    "pubsub",
+    "event-streaming",
+    "machine-learning",
+    "datasets",
+    "sklearn",
+    "seaborn",
+    "synthetic-data",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "scikit-learn>=1.3.0",
+    "seaborn>=0.12.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/SolaceLabs/solace-agent-mesh-core-plugins"
+Documentation = "https://github.com/SolaceLabs/solace-agent-mesh-core-plugins/tree/main/sam-ml-datasets"
+Repository = "https://github.com/SolaceLabs/solace-agent-mesh-core-plugins.git"
+Issues = "https://github.com/SolaceLabs/solace-agent-mesh-core-plugins/issues"
+
+[tool.hatch.version]
+path = "src/__init__.py"
+
+[tool.hatch.build.targets.wheel.force-include]
+"src" = "sam_ml_datasets/src"
+"configs" = "sam_ml_datasets/configs"
+"solace-agent-mesh-plugin.yaml" = "sam_ml_datasets/solace-agent-mesh-plugin.yaml"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100

@@ -71,7 +71,21 @@ class DataSummarizerAction(Action):
             columns = request_data.get("columns", [])
             group_by = request_data.get("group_by", [])
             filters = request_data.get("filters", {})
-            max_rows = request_data.get("max_rows", 10)
+            max_rows_raw = request_data.get("max_rows", 10)
+
+            # Convert max_rows to integer
+            try:
+                max_rows = int(max_rows_raw)
+                if max_rows <= 0:
+                    return ActionResponse(
+                        message=f"max_rows must be a positive integer, got: {max_rows_raw}",
+                        error_info=ErrorInfo(f"max_rows must be a positive integer, got: {max_rows_raw}")
+                    )
+            except (ValueError, TypeError):
+                return ActionResponse(
+                    message=f"max_rows must be a positive integer, got: {max_rows_raw}",
+                    error_info=ErrorInfo(f"max_rows must be a positive integer, got: {max_rows_raw}")
+                )
 
             # Get the agent and data
             agent = self.get_agent()

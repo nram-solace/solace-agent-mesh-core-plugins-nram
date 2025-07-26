@@ -82,7 +82,21 @@ class DataQueryAction(Action):
             group_by = request_data.get("group_by", "")
             sort_by = request_data.get("sort_by", "")
             sort_ascending = request_data.get("sort_ascending", True)
-            limit = request_data.get("limit", 100)
+            limit_raw = request_data.get("limit", 100)
+
+            # Convert limit to integer
+            try:
+                limit = int(limit_raw)
+                if limit < 1 or limit > 10000:
+                    return ActionResponse(
+                        message=f"limit must be between 1 and 10,000, got: {limit_raw}",
+                        error_info=ErrorInfo(f"limit must be between 1 and 10,000, got: {limit_raw}")
+                    )
+            except (ValueError, TypeError):
+                return ActionResponse(
+                    message=f"limit must be a valid integer between 1 and 10,000, got: {limit_raw}",
+                    error_info=ErrorInfo(f"limit must be a valid integer between 1 and 10,000, got: {limit_raw}")
+                )
 
             # Validate query
             if not query or not query.strip():
@@ -104,13 +118,6 @@ class DataQueryAction(Action):
                 return ActionResponse(
                     message="group_by parameter is required when aggregation is 'groupby'",
                     error_info=ErrorInfo("group_by parameter is required when aggregation is 'groupby'")
-                )
-
-            # Validate limit
-            if limit < 1 or limit > 10000:
-                return ActionResponse(
-                    message="limit must be between 1 and 10,000",
-                    error_info=ErrorInfo("limit must be between 1 and 10,000")
                 )
 
             # Get the agent and its data

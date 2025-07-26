@@ -197,6 +197,14 @@ class DataLoaderAction(Action):
                         error_info=ErrorInfo("json_data parameter is required and cannot be empty when load_type is 'json_data'")
                     )
 
+                # Check if json_data is actually an amfs:// URL
+                if json_data.strip().startswith("amfs://"):
+                    log.info("ml-pandas: Detected amfs:// URL in json_data parameter: %s", json_data)
+                    return ActionResponse(
+                        message=f"Received amfs:// URL in json_data parameter: {json_data}. This indicates a file reference from another agent. The file system is trying to resolve this URL but the file metadata doesn't exist. This usually happens when:\n\n1. The file was created by another agent but has expired\n2. There's a timing issue in the file resolution\n3. The file system is not properly configured\n\n**Recommendation**: Use the 'get_dataset' action directly in sam-ml-datasets to get the data, or ensure the file exists before trying to load it.",
+                        error_info=ErrorInfo(f"amfs:// URL resolution failed: {json_data}")
+                    )
+
                 # Validate JSON format before processing
                 try:
                     import json
