@@ -3,6 +3,7 @@
 from typing import Dict, Any
 import json
 import yaml
+import datetime
 
 from solace_agent_mesh.common.action import Action
 from solace_agent_mesh.common.action_response import ActionResponse, ErrorInfo
@@ -59,71 +60,73 @@ class ListDatasets(Action):
             if response_format not in ["json", "yaml"]:
                 raise ValueError("Invalid response format. Choose 'json' or 'yaml'")
 
-            log.info("Listing datasets with filter='%s'", dataset_type)
+            log.info("ml-datasets: Listing datasets with filter='%s'", dataset_type)
 
             # Get the dataset service
             dataset_service = self.get_agent().dataset_service
+
+            # List available datasets
             available_datasets = dataset_service.list_available_datasets()
 
-            # Filter by type if specified
-            if dataset_type != "all" and dataset_type in available_datasets:
-                filtered_datasets = {dataset_type: available_datasets[dataset_type]}
-            elif dataset_type != "all":
-                raise ValueError(f"Invalid dataset type: {dataset_type}. Available types: {list(available_datasets.keys())}")
+            # Filter datasets based on type
+            if dataset_type == "all":
+                datasets_to_show = available_datasets
+            elif dataset_type in available_datasets:
+                datasets_to_show = {dataset_type: available_datasets[dataset_type]}
             else:
-                filtered_datasets = available_datasets
+                return ActionResponse(
+                    message=f"Invalid dataset type '{dataset_type}'. Available types: {list(available_datasets.keys())}",
+                    error_info=ErrorInfo(f"Invalid dataset type: {dataset_type}")
+                )
 
-            # Add descriptions for better understanding
-            dataset_info = {}
-            for dtype, datasets in filtered_datasets.items():
-                dataset_info[dtype] = {
-                    "description": self._get_type_description(dtype),
-                    "count": len(datasets),
-                    "datasets": datasets
-                }
-
-            # Format response
+            # Prepare response
             if response_format == "json":
-                content = json.dumps(dataset_info, indent=2)
+                response_data = {}
+                for dtype, datasets in datasets_to_show.items():
+                    response_data[dtype] = {
+                        "count": len(datasets),
+                        "datasets": datasets
+                    }
+                content = json.dumps(response_data, indent=2)
                 content_type = "application/json"
+                filename_ext = "json"
             else:  # yaml
-                content = yaml.dump(dataset_info, default_flow_style=False, allow_unicode=True)
+                response_data = {}
+                for dtype, datasets in datasets_to_show.items():
+                    response_data[dtype] = {
+                        "count": len(datasets),
+                        "datasets": datasets
+                    }
+                content = yaml.dump(response_data, default_flow_style=False, allow_unicode=True)
                 content_type = "text/yaml"
+                filename_ext = "yaml"
 
-            # Create response message
-            response_message = "**Available ML Datasets**\n\n"
+            # Create filename
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"available_datasets_{timestamp}.{filename_ext}"
+
+            # Prepare response message
+            response_message = f"**Available Datasets ({response_format.upper()} format)**\n\n"
             
-            total_datasets = sum(info["count"] for info in dataset_info.values())
-            response_message += f"Total datasets available: {total_datasets}\n\n"
+            total_datasets = 0
+            for dtype, datasets in datasets_to_show.items():
+                response_message += f"**{dtype.upper()} Datasets ({len(datasets)}):**\n"
+                for dataset in datasets:
+                    response_message += f"- {dataset}\n"
+                response_message += "\n"
+                total_datasets += len(datasets)
 
-            for dtype, info in dataset_info.items():
-                response_message += f"**{dtype.upper()} Datasets ({info['count']} available):**\n"
-                response_message += f"{info['description']}\n"
-                
-                # List first 10 datasets inline, rest in file
-                datasets_to_show = info['datasets'][:10]
-                response_message += f"Available: {', '.join(datasets_to_show)}"
-                
-                if len(info['datasets']) > 10:
-                    response_message += f" (and {len(info['datasets']) - 10} more - see file for complete list)"
-                
-                response_message += "\n\n"
+            response_message += f"**Total: {total_datasets} datasets available**\n\n"
+            response_message += f"Use `get_dataset` with `dataset_type` and `dataset_name` to retrieve specific datasets."
 
-            response_message += "**Usage Examples:**\n"
-            response_message += "- Get sklearn iris dataset: `get_dataset dataset_type=sklearn dataset_name=iris`\n"
-            response_message += "- Get seaborn tips dataset: `get_dataset dataset_type=seaborn dataset_name=tips`\n"
-            response_message += "- Generate synthetic classification data: `get_dataset dataset_type=synthetic dataset_name=classification`\n"
-            response_message += "- Generate synthetic data with custom parameters: `get_dataset dataset_type=synthetic dataset_name=classification synthetic_params='{\"n_features\": 6, \"n_classes\": 3}'`"
-
-            # Create file
-            filename = f"available_datasets.{response_format}"
+            # Create file response
             files = [{
                 "filename": filename,
                 "content": content,
                 "content_type": content_type
             }]
 
-            log.info("Successfully listed %d datasets", total_datasets)
+            log.info("ml-datasets: Successfully listed %d datasets", total_datasets)
 
             return ActionResponse(
                 message=response_message,
@@ -131,7 +134,7 @@ class ListDatasets(Action):
             )
 
         except Exception as e:
-            log.error("Error listing datasets: %s", str(e))
+            log.error("ml-datasets: Error listing datasets: %s", str(e))
             return ActionResponse(
                 message=f"Error listing datasets: {str(e)}",
                 error_info=ErrorInfo(str(e)),

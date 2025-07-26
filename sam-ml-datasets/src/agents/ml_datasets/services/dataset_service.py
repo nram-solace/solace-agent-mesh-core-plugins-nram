@@ -60,53 +60,54 @@ class DatasetService:
             available = list(sklearn_datasets.keys())
             raise ValueError(f"Dataset '{dataset_name}' not supported. Available: {available}")
             
-        log.info(f"Loading sklearn dataset: {dataset_name}")
+        log.info(f"ml-datasets: Loading sklearn dataset: {dataset_name}")
+
+        if dataset_name == "boston":
+            # Boston housing dataset is deprecated, create synthetic alternative
+            log.warning("ml-datasets: Boston housing dataset deprecated, creating synthetic alternative")
+            return self._load_boston_housing(max_records)
         
         # Load the dataset
-        data = sklearn_datasets[dataset_name]()
-        
-        # Create DataFrame
-        if hasattr(data, 'frame') and data.frame is not None:
-            # Some datasets have a frame attribute
-            df = data.frame.copy()
-        else:
-            # Create DataFrame from data and target
-            if len(data.data.shape) == 2:
-                feature_df = pd.DataFrame(data.data, columns=data.feature_names)
+        try:
+            if dataset_name == "iris":
+                data = datasets.load_iris()
+            elif dataset_name == "wine":
+                data = datasets.load_wine()
+            elif dataset_name == "breast_cancer":
+                data = datasets.load_breast_cancer()
+            elif dataset_name == "digits":
+                data = datasets.load_digits()
+            elif dataset_name == "diabetes":
+                data = datasets.load_diabetes()
+            elif dataset_name == "linnerud":
+                data = datasets.load_linnerud()
             else:
-                # For datasets like digits where data is 3D
-                feature_df = pd.DataFrame(data.data.reshape(data.data.shape[0], -1))
-                feature_df.columns = [f'feature_{i}' for i in range(feature_df.shape[1])]
-            
-            if hasattr(data, 'target') and data.target is not None:
-                if hasattr(data, 'target_names') and data.target_names is not None:
-                    # For classification datasets
-                    target_df = pd.DataFrame({'target': data.target})
-                    target_df['target_name'] = [data.target_names[t] for t in data.target]
-                else:
-                    # For regression datasets
-                    target_df = pd.DataFrame({'target': data.target})
-                df = pd.concat([feature_df, target_df], axis=1)
-            else:
-                df = feature_df
-        
-        # Limit records
-        if len(df) > max_records:
-            df = df.head(max_records)
-            log.info(f"Limited dataset to {max_records} records (original had {len(data.data)})")
-        
-        # Prepare metadata
-        metadata = {
-            'dataset_type': 'sklearn',
-            'dataset_name': dataset_name,
-            'description': data.DESCR,
-            'n_samples': len(df),
-            'n_features': len(data.feature_names) if hasattr(data, 'feature_names') else df.shape[1] - (1 if 'target' in df.columns else 0),
-            'target_names': list(data.target_names) if hasattr(data, 'target_names') and data.target_names is not None else None,
-            'feature_names': list(data.feature_names) if hasattr(data, 'feature_names') else None
-        }
-        
-        return df, metadata
+                raise ValueError(f"Unknown sklearn dataset: {dataset_name}")
+
+            # Convert to DataFrame
+            df = pd.DataFrame(data.data, columns=data.feature_names)
+            df['target'] = data.target
+
+            # Limit records if needed
+            if len(df) > max_records:
+                log.info(f"ml-datasets: Limited dataset to {max_records} records (original had {len(data.data)})")
+                df = df.head(max_records)
+
+            # Create metadata
+            metadata = {
+                "dataset_name": dataset_name,
+                "dataset_type": "sklearn",
+                "n_samples": len(df),
+                "n_features": len(df.columns) - 1,  # Exclude target
+                "feature_names": data.feature_names,
+                "target_name": "target",
+                "description": data.DESCR.split('\n')[0] if hasattr(data, 'DESCR') else f"Sklearn {dataset_name} dataset"
+            }
+
+            return df, metadata
+
+        except Exception as e:
+            raise ValueError(f"Failed to load sklearn dataset '{dataset_name}': {str(e)}")
     
     def _load_boston_housing(self):
         """Load Boston housing dataset using alternative method due to sklearn deprecation."""
@@ -115,7 +116,7 @@ class DatasetService:
             return datasets.load_boston()
         except ImportError:
             # If deprecated, create a simple synthetic housing dataset
-            log.warning("Boston housing dataset deprecated, creating synthetic alternative")
+            log.warning("ml-datasets: Boston housing dataset deprecated, creating synthetic alternative")
             n_samples = 506
             n_features = 13
             
@@ -169,31 +170,45 @@ class DatasetService:
         if dataset_name not in seaborn_datasets:
             raise ValueError(f"Dataset '{dataset_name}' not supported. Available: {seaborn_datasets}")
             
-        log.info(f"Loading seaborn dataset: {dataset_name}")
+        log.info(f"ml-datasets: Loading seaborn dataset: {dataset_name}")
         
         try:
-            df = sns.load_dataset(dataset_name)
+            if dataset_name == "tips":
+                df = sns.load_dataset("tips")
+            elif dataset_name == "flights":
+                df = sns.load_dataset("flights")
+            elif dataset_name == "titanic":
+                df = sns.load_dataset("titanic")
+            elif dataset_name == "car_crashes":
+                df = sns.load_dataset("car_crashes")
+            elif dataset_name == "mpg":
+                df = sns.load_dataset("mpg")
+            elif dataset_name == "penguins":
+                df = sns.load_dataset("penguins")
+            else:
+                raise ValueError(f"Unknown seaborn dataset: {dataset_name}")
+
+            # Limit records if needed
+            original_size = len(df)
+            if len(df) > max_records:
+                log.info(f"ml-datasets: Limited dataset to {max_records} records (original had {original_size})")
+                df = df.head(max_records)
+
+            # Create metadata
+            metadata = {
+                "dataset_name": dataset_name,
+                "dataset_type": "seaborn",
+                "n_samples": len(df),
+                "n_features": len(df.columns),
+                "column_names": list(df.columns),
+                "data_types": df.dtypes.to_dict(),
+                "description": f"Seaborn {dataset_name} dataset"
+            }
+
+            return df, metadata
+
         except Exception as e:
             raise ValueError(f"Failed to load seaborn dataset '{dataset_name}': {str(e)}")
-        
-        # Limit records
-        original_size = len(df)
-        if len(df) > max_records:
-            df = df.head(max_records)
-            log.info(f"Limited dataset to {max_records} records (original had {original_size})")
-        
-        # Prepare metadata
-        metadata = {
-            'dataset_type': 'seaborn',
-            'dataset_name': dataset_name,
-            'description': f"Seaborn {dataset_name} dataset",
-            'n_samples': len(df),
-            'n_features': len(df.columns),
-            'columns': list(df.columns),
-            'dtypes': {col: str(dtype) for col, dtype in df.dtypes.items()}
-        }
-        
-        return df, metadata
     
     def generate_synthetic_dataset(self, dataset_type: str, n_samples: Optional[int] = None, 
                                  **kwargs) -> Tuple[pd.DataFrame, Dict[str, Any]]:
@@ -236,7 +251,7 @@ class DatasetService:
             available = list(synthetic_types.keys())
             raise ValueError(f"Synthetic dataset type '{dataset_type}' not supported. Available: {available}")
             
-        log.info(f"Generating synthetic {dataset_type} dataset with {n_samples} samples")
+        log.info(f"ml-datasets: Generating synthetic {dataset_type} dataset with {n_samples} samples")
         
         return synthetic_types[dataset_type](n_samples, **kwargs)
     

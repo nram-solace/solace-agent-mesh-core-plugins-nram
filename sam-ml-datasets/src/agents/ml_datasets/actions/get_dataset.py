@@ -135,7 +135,7 @@ class GetDataset(Action):
                 except json.JSONDecodeError as e:
                     raise ValueError(f"Invalid JSON in synthetic_params: {str(e)}")
 
-            log.info("Retrieving %s dataset '%s' with max_records=%d", dataset_type, dataset_name, max_records)
+            log.info("ml-datasets: Retrieving %s dataset '%s' with max_records=%d", dataset_type, dataset_name, max_records)
 
             # Get the dataset service
             dataset_service = self.get_agent().dataset_service
@@ -152,7 +152,7 @@ class GetDataset(Action):
             else:
                 raise ValueError(f"Unsupported dataset type: {dataset_type}")
 
-            log.info("Successfully retrieved dataset with %d records and %d columns", len(df), len(df.columns))
+            log.info("ml-datasets: Successfully retrieved dataset with %d records and %d columns", len(df), len(df.columns))
 
             # Convert DataFrame to the requested format
             if response_format == "csv":
@@ -246,7 +246,7 @@ class GetDataset(Action):
                     "content_type": "text/yaml"
                 })
 
-            log.info("Successfully created response with %d files", len(files))
+            log.info("ml-datasets: Successfully created response with %d files", len(files))
 
             return ActionResponse(
                 message=response_message,
@@ -254,7 +254,7 @@ class GetDataset(Action):
             )
 
         except Exception as e:
-            log.error("Error retrieving dataset: %s", str(e))
+            log.error("ml-datasets: Error retrieving dataset: %s", str(e))
             return ActionResponse(
                 message=f"Error retrieving dataset: {str(e)}",
                 error_info=ErrorInfo(str(e)),

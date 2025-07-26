@@ -103,48 +103,48 @@ class MLDatasetsAgentComponent(BaseAgentComponent):
 
         # Log prominent startup message
         log.info("=" * 80)
-        log.info("📊 ML DATASETS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
+        log.info("ml-datasets: 📊 ML DATASETS AGENT (v%s) STARTED SUCCESSFULLY", __version__)
         log.info("=" * 80)
-        log.info("Agent Name: %s", self.agent_name)
-        log.info("Default Max Records: %d", self.default_max_records)
-        log.info("Available Actions: %s", [action.__name__ for action in self.actions])
-        log.info("Sklearn Datasets: %s", "Enabled" if self.enable_sklearn else "Disabled")
-        log.info("Seaborn Datasets: %s", "Enabled" if self.enable_seaborn else "Disabled")
-        log.info("Synthetic Datasets: %s", "Enabled" if self.enable_synthetic else "Disabled")
-        
+        log.info("ml-datasets: Agent Name: %s", self.agent_name)
+        log.info("ml-datasets: Default Max Records: %d", self.default_max_records)
+        log.info("ml-datasets: Available Actions: %s", [action.__name__ for action in self.actions])
+        log.info("ml-datasets: Sklearn Datasets: %s", "Enabled" if self.enable_sklearn else "Disabled")
+        log.info("ml-datasets: Seaborn Datasets: %s", "Enabled" if self.enable_seaborn else "Disabled")
+        log.info("ml-datasets: Synthetic Datasets: %s", "Enabled" if self.enable_synthetic else "Disabled")
+
         # Show available datasets summary
         try:
             available = self.dataset_service.list_available_datasets()
             total_datasets = sum(len(datasets) for datasets in available.values())
-            log.info("Total Available Datasets: %d", total_datasets)
+            log.info("ml-datasets: Total Available Datasets: %d", total_datasets)
             for dtype, datasets in available.items():
-                log.info("- %s: %d datasets", dtype.upper(), len(datasets))
+                log.info("ml-datasets: - %s: %d datasets", dtype.upper(), len(datasets))
         except Exception as e:
-            log.warning("Could not load dataset summary: %s", str(e))
-        
+            log.warning("ml-datasets: Could not load dataset summary: %s", str(e))
+
         log.info("=" * 80)
-        log.info("✅ ML Datasets Agent is ready to provide datasets!")
-        log.info("🔍 Agent should be available in SAM as 'ml_datasets'")
-        log.info("🤝 Use 'get_dataset' to retrieve datasets for analysis")
-        log.info("📊 Use 'list_datasets' to see available options")
+        log.info("ml-datasets: ✅ ML Datasets Agent is ready to provide datasets!")
+        log.info("ml-datasets: 🔍 Agent should be available in SAM as 'ml_datasets'")
+        log.info("ml-datasets: 🤝 Use 'get_dataset' to retrieve datasets for analysis")
+        log.info("ml-datasets: 📊 Use 'list_datasets' to see available options")
         log.info("=" * 80)
-        
+
         # Also print to stdout for immediate visibility
         print("=" * 80)
-        print(f"📊 ML DATASETS AGENT (v{__version__}) STARTED SUCCESSFULLY")
+        print(f"ml-datasets: 📊 ML DATASETS AGENT (v{__version__}) STARTED SUCCESSFULLY")
         print("=" * 80)
-        print(f"Agent Name: {self.agent_name}")
-        print(f"Default Max Records: {self.default_max_records}")
-        print(f"Available Actions: {[action.__name__ for action in self.actions]}")
-        print("Dataset Collections:")
-        print(f"  - Sklearn: {'Enabled' if self.enable_sklearn else 'Disabled'}")
-        print(f"  - Seaborn: {'Enabled' if self.enable_seaborn else 'Disabled'}")  
-        print(f"  - Synthetic: {'Enabled' if self.enable_synthetic else 'Disabled'}")
+        print(f"ml-datasets: Agent Name: {self.agent_name}")
+        print(f"ml-datasets: Default Max Records: {self.default_max_records}")
+        print(f"ml-datasets: Available Actions: {[action.__name__ for action in self.actions]}")
+        print("ml-datasets: Dataset Collections:")
+        print(f"ml-datasets:   - Sklearn: {'Enabled' if self.enable_sklearn else 'Disabled'}")
+        print(f"ml-datasets:   - Seaborn: {'Enabled' if self.enable_seaborn else 'Disabled'}")
+        print(f"ml-datasets:   - Synthetic: {'Enabled' if self.enable_synthetic else 'Disabled'}")
         print("=" * 80)
-        print("✅ ML Datasets Agent is ready to provide datasets!")
-        print("🔍 Agent should be available in SAM as 'ml_datasets'")
-        print("🤝 Use 'get_dataset' to retrieve datasets for analysis")
-        print("📊 Use 'list_datasets' to see available options")
+        print("ml-datasets: ✅ ML Datasets Agent is ready to provide datasets!")
+        print("ml-datasets: 🔍 Agent should be available in SAM as 'ml_datasets'")
+        print("ml-datasets: 🤝 Use 'get_dataset' to retrieve datasets for analysis")
+        print("ml-datasets: 📊 Use 'list_datasets' to see available options")
         print("=" * 80)
 
     def _generate_agent_description(self):
