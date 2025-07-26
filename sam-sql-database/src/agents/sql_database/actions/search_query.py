@@ -208,6 +208,13 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
 
         log.info("sql-db: Sending request to LLM for SQL generation")
         log.debug("sql-db: LLM prompt length: %d characters", len(prompt))
+        log.debug("sql-db: LLM service topic: %s", agent.llm_service_topic)
+        
+        # Check if broker request/response is configured
+        if hasattr(agent, 'broker_request_response') and agent.broker_request_response:
+            log.debug("sql-db: Broker request/response is configured")
+        else:
+            log.warning("sql-db: Broker request/response is NOT configured - this may cause response_queue issues")
 
         try:
             response = agent.do_llm_service_request(messages=messages)
