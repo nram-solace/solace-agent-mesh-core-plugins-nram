@@ -215,11 +215,12 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         if not self.schema_summary:
             raise ValueError("Failed to generate schema summary from auto-detected schema")
         
-        # Update the search_query action with schema information
+        # Update the search_query action with schema information (simplified for prompt length)
         for action in self.action_list.actions:
             if action.name == "search_query":
                 current_directive = action._prompt_directive
-                schema_info = f"\n\nDatabase Schema:\n{self.schema_summary}"
+                # Use a more concise schema summary to avoid prompt length issues
+                schema_info = f"\n\nDatabase Tables: {self.schema_summary}"
                 action._prompt_directive = current_directive + schema_info
                 break
 
@@ -412,12 +413,18 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         except yaml.YAMLError as exc:
             raise ValueError(f"Error: Failed to parse schema. Invalid YAML format. Details: {exc}") from exc
 
-        # Construct summary lines
+        # Construct summary lines (limited to first 10 columns per table to keep prompt short)
         summary_lines = []
         for table_name, table_info in schema_dict.items():
             columns = table_info.get("columns")
             if isinstance(columns, dict):
-                summary_lines.append(f"{table_name}: {', '.join(columns.keys())}")
+                column_names = list(columns.keys())
+                # Limit to first 10 columns to keep prompt length manageable
+                if len(column_names) > 10:
+                    column_summary = ', '.join(column_names[:10]) + f" (+{len(column_names)-10} more)"
+                else:
+                    column_summary = ', '.join(column_names)
+                summary_lines.append(f"{table_name}: {column_summary}")
 
         return "\n".join(summary_lines)
 
