@@ -365,6 +365,19 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
                 filename += ".yaml"
                 content = yaml.dump(results, default_flow_style=False, allow_unicode=True)
 
+            # Save file to disk for debugging
+            import os
+            output_dir = "./sql_output"
+            os.makedirs(output_dir, exist_ok=True)
+            file_path = os.path.join(output_dir, filename)
+            
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                log.info("sql-db: Saved file to disk: %s (%d bytes)", file_path, len(content))
+            except Exception as e:
+                log.error("sql-db: Failed to save file to disk: %s", str(e))
+
             files.append({
                 "filename": filename,
                 "content": content,
@@ -377,7 +390,7 @@ Response Guidelines: {agent.response_guidelines if agent.response_guidelines els
             if inline_result:
                 response_parts.append(f"**{purpose}** ({len(results)} records):\n```{response_format}\n{content}\n```")
             else:
-                response_parts.append(f"**{purpose}**: {len(results)} records saved to `{filename}`")
+                response_parts.append(f"**{purpose}**: {len(results)} records saved to `{file_path}`")
 
         # Process failed queries
         if failed_queries:
