@@ -511,6 +511,22 @@ class SQLDatabaseAgentComponent(BaseAgentComponent):
         except:
             pass
         
+        # Check for new app-level request_reply_enabled in broker config
+        try:
+            broker_config = self.get_config("broker_config")
+            if broker_config and isinstance(broker_config, dict):
+                return broker_config.get("request_reply_enabled", False)
+        except:
+            pass
+        
+        # Check for request_reply_enabled in shared broker config
+        try:
+            # This might be available through the framework's broker configuration
+            if hasattr(self, 'broker_config') and self.broker_config:
+                return self.broker_config.get("request_reply_enabled", False)
+        except:
+            pass
+        
         return False
 
 
